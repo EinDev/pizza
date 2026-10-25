@@ -30,6 +30,7 @@ class Laufzeit {
     // Herd (SPEC §18): Kern-Modul (optionen.herdKern), Renderer-Rückruf onHerd(art, daten), Kern-Instanz und Welt (lazy)
     this.herdOpt = opt.herdKern;
     this.onHerd = typeof opt.onHerd === 'function' ? opt.onHerd : null;
+    this.herdAnsicht = opt.herdAnsicht === true;   // daten.bytes als Ansicht in den Kern-Speicher (nur während onHerd gültig)
     this.herdSpion = typeof opt.herdSpion === 'function' ? opt.herdSpion : null;   // nur Werkzeuge (tests/herd/zeige.js)
     this.hk = null;
     this.hkFehlt = false;

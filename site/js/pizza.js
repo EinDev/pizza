@@ -1768,6 +1768,7 @@
       // Herd (SPEC §18): Kern-Modul (optionen.herdKern), Renderer-Rückruf onHerd(art, daten), Kern-Instanz und Welt (lazy)
       this.herdOpt = opt.herdKern;
       this.onHerd = typeof opt.onHerd === 'function' ? opt.onHerd : null;
+      this.herdAnsicht = opt.herdAnsicht === true;   // daten.bytes als Ansicht in den Kern-Speicher (nur während onHerd gültig)
       this.herdSpion = typeof opt.herdSpion === 'function' ? opt.herdSpion : null;   // nur Werkzeuge (tests/herd/zeige.js)
       this.hk = null;
       this.hkFehlt = false;
@@ -7017,7 +7018,8 @@
       const daten = { bildnummer: h.bildnummer, szene, paket };
       if (this.onHerd !== null) {   // Bytes nur an den Renderer (Kopie: der Kern überschreibt sie beim nächsten bild)
         const z = e.bild_zeiger();
-        daten.bytes = k.mem().slice(z, z + len);
+        // optionen.herdAnsicht: Ansicht statt Kopie, gültig nur während onHerd (der Worker kopiert sie ins Bildfach)
+        daten.bytes = this.herdAnsicht ? k.mem().subarray(z, z + len) : k.mem().slice(z, z + len);
       }
       this.herdSende('bild', daten);
     },

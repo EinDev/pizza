@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
-    "test": "node test/einheit.mjs && node test/u45.mjs && node test/argumente.mjs && node test/teilen.mjs && node test/takt.mjs && node test/koeche.mjs && node test/vorrat.mjs && node test/exe.mjs && node test/projekte.mjs && node test/zip.mjs && node test/worker.mjs && node test/beispiele.mjs"
+    "test": "node test/einheit.mjs && node test/u45.mjs && node test/argumente.mjs && node test/teilen.mjs && node test/takt.mjs && node test/koeche.mjs && node test/vorrat.mjs && node test/exe.mjs && node test/projekte.mjs && node test/zip.mjs && node test/worker.mjs && node test/beispiele.mjs && node test/herd-zeichner.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",

@@ -1915,7 +1915,8 @@ zählt. Mehrere Takte eines Ereignisses: Drücken/Loslassen nur im ersten.
 
 - **Ereignisse:** `{ typ: "herd", art: "fenster", titel, breite, hoehe }`, `{ typ: "herd", art: "bild", bildnummer, szene, paket }`
   (`szene`/`paket` = FNV-1a-64 als 16 Hex-Ziffern über Szenenzustand und Bildpaket, vom Kern berechnet), `{ typ: "herd", art: "schliesse" }`.
-  Die Bytes des Bildpakets gehen nur an `optionen.onHerd(art, daten)` (Renderer), nie in die Ereignisliste. `herd`-Ereignisse stehen nicht
+  Die Bytes des Bildpakets gehen nur an `optionen.onHerd(art, daten)` (Renderer), nie in die Ereignisliste – als eigene Kopie, mit
+  `optionen.herdAnsicht: true` als Ansicht in den Kern-Speicher, die nur während des Aufrufs gilt (Browser-Worker: Bildfach). `herd`-Ereignisse stehen nicht
   in `.erwartet`; Tests vergleichen sie über `<name>.herd-erwartet` (JSON-Lines ohne `typ`, kanonisch wie `.ui-erwartet`) bzw. im
   Doku-Codeblock `herdErwartet`. Renderer-Ereignisse über `onUiWarte`/`uiEreignisse`, Datei `.ereignisse`.
 - **Bitgleich** in Interpreter, Wasm und nativem Host: alle Ereignisse inkl. `szene`/`paket`, Schritte, Zeit. **Pixel** visuell gleich

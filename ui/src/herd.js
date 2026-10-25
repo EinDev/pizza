@@ -81,9 +81,11 @@ export async function herdLaufVorbereiten(code) {
   const puffer = new SharedArrayBuffer(PUFFER_BYTES);
   // E2E (window.__herdManuell): Takte kommen aus .ereignisse statt vom Zeichner, herd/bild-Ereignisse gehen an die Seite (Hashes)
   const manuell = typeof window !== "undefined" && window.__herdManuell === true;
+  // Messlauf (window.__herdMessung, e2e 15 / Nutzer in der Konsole): der Zeichner meldet je rAF Bildabstand, Takte, Wartezeit
+  const messung = typeof window !== "undefined" && window.__herdMessung === true;
   const extra = { herdKern: kern, herdPort: kanal.port1, herdPuffer: puffer };
   if (manuell) extra.herdBilderMelden = true;
-  return { extra, kontext: { port: kanal.port2, puffer, manuell } };
+  return { extra, kontext: { port: kanal.port2, puffer, manuell, messung } };
 }
 
 /** Schreibt einen Takt in den Herd-Puffer (nur E2E im Modus __herdManuell; sonst ist der Zeichner der einzige Schreiber). */
@@ -364,14 +366,14 @@ export function erstelleHerdAnzeige({ vorschau, vollbild = false, beiMeldung = n
         w.onerror = (e) => { e.preventDefault && e.preventDefault(); melde(rr, { typ: "fehler", art: "zeichnen", text: "Der Herd ist ausgefallen: " + (e.message || "Fehler im Render-Worker") }); };
         const off = canvas.transferControlToOffscreen();
         portDa = null;
-        w.postMessage({ typ: "start", canvas: off, puffer: kontext.puffer, port, breite: Math.max(1, b), hoehe: Math.max(1, h), manuell: !!kontext.manuell }, [off, port]);
+        w.postMessage({ typ: "start", canvas: off, puffer: kontext.puffer, port, breite: Math.max(1, b), hoehe: Math.max(1, h), manuell: !!kontext.manuell, messung: !!kontext.messung }, [off, port]);
         return;
       }
     }
     try { await ladeZeichnerSkripte(); } catch (e) { melde(rr, { typ: "fehler", art: "kein-kontext", text: e.message }); return; }
     if (rr.aus) return;
     rr.zeichner = await window.HerdZeichner.starte({
-      canvas, puffer: kontext.puffer, port, breite: Math.max(1, b), hoehe: Math.max(1, h), wasmUrl: "js/herd/glut_bg.wasm", manuell: !!kontext.manuell,
+      canvas, puffer: kontext.puffer, port, breite: Math.max(1, b), hoehe: Math.max(1, h), wasmUrl: "js/herd/glut_bg.wasm", manuell: !!kontext.manuell, messung: !!kontext.messung,
       melde: (n) => melde(rr, n),
     });
     if (rr.aus) rr.zeichner.stopp();

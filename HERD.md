@@ -167,7 +167,10 @@ Kern): `Taster` (Schaltfläche), `Leiste` (Füllbalken), `Regler` (Schieberegler
   `requestAnimationFrame`), jeweils das neueste Bildpaket; die Simulation bleibt bei 60 Takten je Sekunde (bei 120/144 Hz zeigen
   manche Bildwiederholungen dasselbe Bild). Die Takt-Uhr beginnt erst mit dem **ersten gezeigten Bild** (Browser: im rAF danach),
   um einen halben Schritt versetzt (Anforderungen liegen mitten zwischen zwei Takten, nicht auf der Grenze) – Programmstart,
-  Hochladen aller Ressourcen und erstes Zeichnen holen also keine Takte nach. Die Glut übersetzt ihre Pipelines beim Anlegen
+  Hochladen aller Ressourcen und erstes Zeichnen holen also keine Takte nach. Ist nach dem Zeichnen noch kein Schritt fällig
+  (Bildschirm etwas schneller als 60 Hz oder rAF-Zittern an einer Taktgrenze), wird der Takt **zum fälligen Zeitpunkt**
+  angefordert (nativ `Taktgeber::faellig`, Browser ein Wecker per `setTimeout`) und nicht erst beim nächsten Bild – sonst fiele
+  bei 59,94/60,05 Hz alle 10–20 s eine Reihe Bilder aus (0 Takte, dann 2). Die Glut übersetzt ihre Pipelines beim Anlegen
   (vor dem ersten Takt), nativ wird das Fenster erst mit dem ersten Bild sichtbar. Die Uhr bestimmt nur, *wann* ein Takt kommt
   und wie viele er zusammenfasst – das Spiel hängt allein von den Takt-Ereignissen ab.
 - **Eingabe als Zustand** je Takt (`tasten`, `maus`, `knoepfe` im `takt`-Ereignis; fehlende Felder unverändert): `taste` gehalten,
@@ -197,7 +200,9 @@ Korrektheits-Referenz, kein Leistungsziel):
 Browser mit derselben Statistik in der Statusleiste und als E2E-Messlauf (echte GPU, unsichtbares Fenster). **Anlauf:**
 `--herd-messung` beschreibt zusätzlich Glut-Anlegen und die ersten 30 Bilder einzeln (`Herd-Anlauf: Bild n · … ms nach Fenster ·
 Abstand … · Takte · Programm/Kern/Glut`); im Browser meldet der Zeichner dasselbe einmal als `{typ:"anlauf"}` (E2E-Messlauf
-„Anlauf Pizza-Konfigurator“). Ungebremst (ohne VSync) braucht keine Messung zu laufen: die Takt-Uhr begrenzt ohnehin auf 60 Bilder/s,
+„Anlauf Pizza-Konfigurator“). **Gleichmäßigkeit:** mit `window.__herdMessung = true` (vor dem Backen) meldet der Zeichner je
+rAF Zeitpunkt, Zeit in `g.bild`, nachgeholte Takte und die Wartezeit Anforderung → Paket als `{typ:"messung"}` (E2E-Messlauf
+„Neon-Napoli im Playground gleichmäßig“, Auswertung in `bench/herd/ERGEBNISSE.md`). Ungebremst (ohne VSync) braucht keine Messung zu laufen: die Takt-Uhr begrenzt ohnehin auf 60 Bilder/s,
 und `herd-bild bench` zeichnet offscreen. **Vorher/nachher:** Die erste
 lauffähige Glut zeichnet bewusst ohne Instancing/Atlas (ein Draw-Call je Objekt) = Grundlinie; danach Instancing, Atlas, Culling,
 Teilbaum-Matrizen – beide Messreihen in `bench/herd/ERGEBNISSE.md`.
@@ -227,7 +232,7 @@ wenn B2 die Ziele verfehlt (dann als zusätzlicher Import `setze_zahlen(puffer)`
 - **Programm-Worker** (wie heute): Interpreter oder Programm-Wasm **plus `kern.wasm`** (Instanz im selben Worker, direkte Aufrufe).
   Der Worker blockiert zwischen Takten auf SAB/Atomics – **deshalb wird dort nie gerendert**.
 - **Render-Worker** mit `OffscreenCanvas` (vom Vorschaufenster-Canvas übertragen) und der Glut (wgpu-Wasm, WebGPU bevorzugt, sonst
-  WebGL2). Bildpakete gehen per `MessageChannel` (übertragene ArrayBuffer) direkt vom Programm- zum Render-Worker; der Render-Worker
+  WebGL2). Bildpakete gehen per `MessageChannel` (Bildfach im SharedArrayBuffer) direkt vom Programm- zum Render-Worker; der Render-Worker
   zeichnet im `requestAnimationFrame` (= Bildwiederholrate, der Browser setzt immer VSync um) und schreibt den nächsten `takt` samt
   Eingabe in den SAB des Programm-Workers. Eingaben fängt die
   Seite am Canvas und reicht den Zustand an den Render-Worker. **Rückfall:** ohne OffscreenCanvas/rAF im Worker läuft dieselbe Glut im
@@ -243,8 +248,12 @@ wenn B2 die Ziele verfehlt (dann als zusätzlicher Import `setze_zahlen(puffer)`
     Zeichner (Fehler); der Programm-Worker setzt es beim nächsten `fenster` zurück. Kein `ui-warte` an die Seite, kein Umweg über
     den Hauptthread (Latenz: Bild → rAF → Takt direkt). Das HOST-ABI `herd_warte` des Wasm-Motors nutzt denselben Weg
     (`onUiWarte` des Workers).
-  - **Bildpakete** gehen als übertragene `ArrayBuffer` über einen `MessagePort` (Seite legt den Kanal je Lauf an) an den Zeichner;
-    an die Seite gehen nur `herd/fenster` und `herd/schliesse`. `kern.wasm` kompiliert die Seite **einmal** und gibt das
+  - **Bildpakete** gehen über einen `MessagePort` (Seite legt den Kanal je Lauf an) an den Zeichner, im Normalfall über das
+    **Bildfach**: ein `SharedArrayBuffer` des Programm-Workers (einmal je Fenster über den Port bekanntgegeben, Int32 `[0]` belegt,
+    Paket ab Byte 16, 256 KiB … 8 MiB). Je Bild kopiert der Programm-Worker das Paket einmal aus dem Kern hinein (die Motoren
+    geben mit `optionen.herdAnsicht` eine Ansicht statt einer Kopie), setzt „belegt“ und schickt nur die Länge; der Zeichner gibt
+    das Fach nach `g.bild` frei. Ist es noch belegt oder das Paket zu groß (erstes Bild mit allen Ressourcen), geht das Paket als
+    übertragener `ArrayBuffer` – kein neuer Puffer je Bild, kein Warten. An die Seite gehen nur `herd/fenster` und `herd/schliesse`. `kern.wasm` kompiliert die Seite **einmal** und gibt das
     `WebAssembly.Module` jedem Lauf mit (`herdKern`, für Interpreter und Wasm-Motor gleich); geladen werden Kern und Glut nur,
     wenn das Programm den Herd nutzt (Glut erst beim ersten `fenster`).
   - **Glut-Web** (`herd/glut-web`, wasm-bindgen 0.2.129, `--target no-modules` → klassisches Skript für `importScripts` und

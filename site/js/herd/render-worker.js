@@ -1,6 +1,6 @@
 /* Herd – Render-Worker (Paket H6, HERD.md §7.2). Gestartet von der Seite (ui/src/herd.js) für jedes Herd-Fenster.
  * Seite → Worker:
- *   { typ: "start", canvas: OffscreenCanvas, puffer: SharedArrayBuffer (Takt-Weg), port: MessagePort, breite, hoehe }
+ *   { typ: "start", canvas: OffscreenCanvas, puffer: SharedArrayBuffer (Takt-Weg), port: MessagePort, breite, hoehe, manuell?, messung? }
  *       canvas und port übertragen; über den Port kommen die Bildpakete direkt vom Programm-Worker
  *   { typ: "eingabe", ereignis }   – Tastatur/Maus/Touch (den Zustand führt der Zeichner)
  *   { typ: "groesse", breite, hoehe } – Gerätepixel
@@ -35,7 +35,7 @@ self.onmessage = function (m) {
       return;
     }
     self.HerdZeichner.starte({
-      canvas: d.canvas, puffer: d.puffer, port: port, breite: d.breite, hoehe: d.hoehe, wasmUrl: "glut_bg.wasm", manuell: d.manuell === true,
+      canvas: d.canvas, puffer: d.puffer, port: port, breite: d.breite, hoehe: d.hoehe, wasmUrl: "glut_bg.wasm", manuell: d.manuell === true, messung: d.messung === true,
       melde: function (n) {
         if (n.typ === "fehler" && !bereit) { n.port = port; self.postMessage(n, [port]); self.close(); return; }
         if (n.typ === "bereit") bereit = true;

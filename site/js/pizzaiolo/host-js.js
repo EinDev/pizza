@@ -99,6 +99,7 @@
     const laufzeitModul = modul instanceof WebAssembly.Module ? modul : modul.laufzeit;
     const kern = brauchtHerd(modul) ? herdInstanz(optionen.herdKern) : null;
     const onHerd = typeof optionen.onHerd === 'function' ? optionen.onHerd : null;
+    const herdAnsicht = optionen.herdAnsicht === true;   // daten.bytes als Ansicht in den Kern-Speicher (nur während onHerd gültig)
     let kernU8 = null;
     const kernMem = () => { const b = kern.memory.buffer; if (kernU8 === null || kernU8.buffer !== b) kernU8 = new Uint8Array(b); return kernU8; };
     // Renderer-Ereignisse (Theke ui_warte und Herd herd_warte teilen dieselbe Quelle: onUiWarte / uiEreignisse)
@@ -229,7 +230,7 @@
         delete daten.art;
         emit(Object.assign({ typ: 'herd', art }, daten));
         if (onHerd !== null) {
-          if (paketLen >= 0 && kern !== null) { const z = kern.bild_zeiger(); daten.bytes = kernMem().slice(z, z + paketLen); }
+          if (paketLen >= 0 && kern !== null) { const z = kern.bild_zeiger(); daten.bytes = herdAnsicht ? kernMem().subarray(z, z + paketLen) : kernMem().slice(z, z + paketLen); }
           try { onHerd(art, daten); } catch (x) { /* Renderer-Fehler ignorieren */ }
         }
       },

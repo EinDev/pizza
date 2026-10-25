@@ -370,7 +370,8 @@ const HERD_LAUFZEIT = {
     const daten = { bildnummer: h.bildnummer, szene, paket };
     if (this.onHerd !== null) {   // Bytes nur an den Renderer (Kopie: der Kern überschreibt sie beim nächsten bild)
       const z = e.bild_zeiger();
-      daten.bytes = k.mem().slice(z, z + len);
+      // optionen.herdAnsicht: Ansicht statt Kopie, gültig nur während onHerd (der Worker kopiert sie ins Bildfach)
+      daten.bytes = this.herdAnsicht ? k.mem().subarray(z, z + len) : k.mem().slice(z, z + len);
     }
     this.herdSende('bild', daten);
   },

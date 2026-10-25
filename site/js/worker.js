@@ -19,8 +19,9 @@
  * Regel (WASM.md §4): motor "wasm" fällt NIE auf den Interpreter zurück – stattdessen Fehler (Exit-Code 2).
  * Herd (HERD.md §7.2, Paket H6): "start" trägt bei Herd-Programmen herdKern (WebAssembly.Module von kern.wasm, einmal auf
  *   der Seite kompiliert), herdPort (MessagePort zum Render-Worker, übertragen) und herdPuffer (SharedArrayBuffer, Takt-Weg).
- *   Für Interpreter und Wasm-Motor gleich: optionen.herdKern, onHerd(art, daten), onUiWarte. Bildpakete gehen über den Port
- *   (ArrayBuffer übertragen) direkt an den Render-Worker; an die Seite gehen nur die Ereignisse herd/fenster und
+ *   Für Interpreter und Wasm-Motor gleich: optionen.herdKern, onHerd(art, daten), herdAnsicht, onUiWarte. Bildpakete gehen über
+ *   den Port direkt an den Render-Worker (Bildfach im SharedArrayBuffer, sonst ArrayBuffer übertragen – herdBruecke unten);
+ *   an die Seite gehen nur die Ereignisse herd/fenster und
  *   herd/schliesse (herd/bild nicht – das spart je Bild eine Nachricht an den Hauptthread). Takte wartet der Worker am
  *   Herd-Puffer ab (Layout: js/herd/zeichner.js) – der Render-Worker schreibt sie selbst, ohne Umweg über die Seite.
  */
@@ -161,24 +162,53 @@ function uiWarteRueckruf(sab) {
 }
 
 /* ---------- Herd (HERD.md §7.2): Takt-Weg über den Herd-Puffer, Bildpakete über den Port ----------
- * Puffer (Int32): [0] Folgenummer (Render-Worker zählt hoch), [1] geschlossen, [2] Länge, ab Byte 16 JSON-Takt. */
+ * Puffer (Int32): [0] Folgenummer (Render-Worker zählt hoch), [1] geschlossen, [2] Länge, ab Byte 16 JSON-Takt.
+ * Port → Render-Worker: SharedArrayBuffer (Bildfach, einmal je Fenster) · Zahl n (Paket = n Bytes im Fach) · ArrayBuffer
+ * (Paket übertragen: zu groß fürs Fach oder Fach noch belegt). */
+var FACH_KOPF = 16, FACH_MIN = 256 * 1024, FACH_MAX = 8 * 1024 * 1024;
 function herdBruecke(d) {
   var port = d.herdPort && typeof d.herdPort.postMessage === "function" ? d.herdPort : null;
   var sab = (typeof SharedArrayBuffer !== "undefined" && d.herdPuffer instanceof SharedArrayBuffer) ? d.herdPuffer : null;
   var ctrl = sab ? new Int32Array(sab, 0, 4) : null;
   var daten = sab ? new Uint8Array(sab, 16) : null;
   var dekoder = new TextDecoder();
+  var taktKopie = new Uint8Array(daten ? daten.length : 0);   // je Takt wiederverwendet (TextDecoder liest keine SAB-Ansicht)
   var b = { aktiv: false, gelesen: ctrl ? Atomics.load(ctrl, 0) : 0 };
+  // Bildfach (gleichmäßige Bilder): ein SharedArrayBuffer, den Programm- und Render-Worker sich teilen – je Bild kopiert der
+  // Programm-Worker das Paket einmal aus dem Kern hinein und schickt nur die Länge; kein neuer ArrayBuffer je Bild.
+  // Layout: Int32 [0] belegt (1 = Zeichner hat das Paket noch nicht gelesen), Daten ab Byte FACH_KOPF. Belegt nur der
+  // Programm-Worker, frei gibt nur der Zeichner (nach g.bild). Ist das Fach belegt oder das Paket zu groß (erstes Bild mit
+  // allen Ressourcen), geht das Paket wie bisher als übertragener ArrayBuffer.
+  var fach = null, fachBelegt = null, fachDaten = null, fachGesendet = false;
+  function insFach(bytes) {
+    var n = bytes.length;
+    if (typeof SharedArrayBuffer === "undefined" || n > FACH_MAX) return false;
+    if (!fach || n > fachDaten.length) {
+      var groesse = Math.min(FACH_MAX, Math.max(FACH_MIN, Math.ceil(n * 1.5 / 65536) * 65536));
+      if (fach && Atomics.load(fachBelegt, 0) !== 0) return false;
+      fach = new SharedArrayBuffer(FACH_KOPF + groesse);
+      fachBelegt = new Int32Array(fach, 0, 1);
+      fachDaten = new Uint8Array(fach, FACH_KOPF);
+      fachGesendet = false;
+    }
+    if (Atomics.load(fachBelegt, 0) !== 0) return false;
+    if (!fachGesendet) { port.postMessage(fach); fachGesendet = true; }
+    fachDaten.set(bytes);
+    Atomics.store(fachBelegt, 0, 1);
+    port.postMessage(n);
+    return true;
+  }
   b.onHerd = port || ctrl ? function (art, info) {
     if (art === "fenster") {
       if (!b.aktiv && ctrl) Atomics.store(ctrl, 1, 0);   // (wieder) geöffnet: altes „geschlossen“ gilt nicht mehr
       b.aktiv = true;
+      // neues Fenster = neuer Zeichner: Fach neu bekanntgeben, ein ungelesenes Paket des alten gilt nicht mehr
+      if (fach) { fachGesendet = false; Atomics.store(fachBelegt, 0, 0); }
     } else if (art === "schliesse") {
       b.aktiv = false;
     } else if (art === "bild" && port && info && info.bytes && info.bytes.buffer) {
-      var bytes = info.bytes;   // eigene Kopie (pizza.js: slice) → übertragen statt kopieren
-      if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength) port.postMessage(bytes.buffer, [bytes.buffer]);
-      else { var k = bytes.slice(); port.postMessage(k.buffer, [k.buffer]); }
+      // info.bytes: Ansicht in den Kern-Speicher (optionen.herdAnsicht), gültig nur während dieses Aufrufs
+      if (!insFach(info.bytes)) { var k = info.bytes.slice(); port.postMessage(k.buffer, [k.buffer]); }
     }
   } : undefined;
   /** Blockierend auf den nächsten Takt warten (null = kein Herd-Weg → Theke-Weg). */
@@ -191,9 +221,8 @@ function herdBruecke(d) {
       if (s !== b.gelesen) {
         b.gelesen = s;
         var n = Math.min(Atomics.load(ctrl, 2), daten.length);
-        var kopie = new Uint8Array(n);
-        kopie.set(daten.subarray(0, n));
-        try { return JSON.parse(dekoder.decode(kopie)); } catch (e) { continue; }
+        taktKopie.set(daten.subarray(0, n));
+        try { return JSON.parse(dekoder.decode(taktKopie.subarray(0, n))); } catch (e) { continue; }
       }
       Atomics.wait(ctrl, 0, s);
     }
@@ -306,6 +335,7 @@ function starte(d, pool, brigade) {
     onUiWarte: uiWarte,
     herdKern: typeof WebAssembly !== "undefined" && d.herdKern instanceof WebAssembly.Module ? d.herdKern : undefined,
     onHerd: herd.onHerd,
+    herdAnsicht: true,   // daten.bytes als Ansicht in den Kern (keine Kopie je Bild); onHerd kopiert ins Bildfach
     onEvent: function (ev) {
       if (!ev) return;
       if (ev.typ === "herd" && ev.art === "bild" && herd.onHerd && d.herdBilderMelden !== true) return;   // Bilder nur an den Render-Worker (E2E: herdBilderMelden)

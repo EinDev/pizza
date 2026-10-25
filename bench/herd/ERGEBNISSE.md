@@ -278,3 +278,65 @@ ersten Bild (Glut anlegen), wo sie nicht als Ruckeln sichtbar sind. Die 100-ms-L
 verschwanden mit dem Warm-up ebenfalls (WARP übersetzte im Hintergrund nach). Auf einer echten GPU bitte prüfen
 (Nutzer): `target/release/pizza-host --herd-messung konfigurator.pkarton` – die `Herd-Anlauf`-Zeilen sollten ab Bild 2 Abstände um
 16,7 ms und je 1 Takt zeigen.
+
+## Gleichmäßige Bilder im Browser (Ruckler mitten im Spiel, Neon-Napoli)
+
+Nutzerbefund: im Playground „hier und da Ruckler zwischendurch, nativ nicht“ (`site/beispiele/herd/neon-napoli/`). Messlauf:
+E2E `HERD_MESSUNG=1` „Neon-Napoli im Playground gleichmäßig“ (60 s, gehaltenes „w“, wechselndes „e“; der Zeichner meldet mit
+`window.__herdMessung` je rAF Zeitpunkt, `g.bild`, Takte, Wartezeit Anforderung → Paket; Heap beider Worker je Sekunde per CDP;
+`HERD_MESSUNG_TRACE=Datei` Chrome-Trace mit GC; `HERD_MESSUNG_FENSTER=300x220` kleinere Seite; `HERD_MESSUNG_KLEIN=1` nur die Kette
+Zeichner → Programm → Zeichner mit einem Kreis; `HERD_MESSUNG_MOTOREN=auto,interpreter`). Headless SwiftShader, i7-13700KF, 2026-10-25.
+
+**Befunde**
+
+1. **Motor:** „Auto“ nimmt für Neon-Napoli den **Wasm-Motor** (Mehrdatei-Projekte kann Pizzaiolo). Programm-Worker je Bild ≈ 1–2 ms
+   (Wasm wie Interpreter – die Arbeit macht der Kern), danach wartet er nur. GC ist **keine** Ursache: Programm-Worker (Wasm) 3 kleine
+   Scavenges in 60 s, Interpreter 35–37 Scavenges (max 0,5 ms, einmal 4 ms), Render-Worker 2–7 Scavenges, Major-GC ≤ 1 ms. Heaps
+   flach (2–4 MB bzw. 1–2 MB, Sägezahn).
+2. **SwiftShader ist grafikgebunden:** 1280 × 720 ≈ 730 ms je Bild, 300 × 220 ≈ 33 ms; `g.bild` selbst 0,5 ms, der Rest ist das
+   Präsentieren (Render-Worker blockiert nach dem rAF). Damit sind Einzelruckler bei 60 fps mit Neon-Napoli hier **nicht messbar**
+   (jedes Bild holt 2–4 Takte nach, vorher wie nachher).
+3. **Ursache der Ruckler: Takt-Anforderung im Browser.** War beim rAF noch kein 1/60-s-Schritt fällig, wartete der Zeichner bis zum
+   **nächsten** rAF – ein Bild fiel aus (0 Takte), das nächste holte 2 nach. Nativ wartet der Taktgeber nur bis zum fälligen
+   Zeitpunkt (`Taktgeber::faellig`). Das trifft, sobald der rAF an einer Taktgrenze zittert – bei Bildschirmen, die nicht genau
+   60,000 Hz laufen (59,94/60,05 Hz), wandert der rAF alle 10–20 s über eine Grenze. Schon headless (virtuelle 60 Hz) zeigte die
+   kleine Kette 15 solcher Doppelbilder je Minute.
+4. **Je Bild ein neuer ArrayBuffer** (Paket 57–125 KB): `slice` aus dem Kern im Programm-Worker, übertragen, im Render-Worker Müll
+   (≈ 4–7 MB/s externer Speicher bei 60 fps). Kostet hier kaum (s. GC), ist aber unnötig.
+
+**Korrekturen:** Zeichner fordert einen noch nicht fälligen Takt per Wecker (`setTimeout`) **zum fälligen Zeitpunkt** an (Regel,
+Schritt und Nachholgrenze unverändert, wie nativ). Bildfach: ein `SharedArrayBuffer` des Programm-Workers (256 KiB … 8 MiB), je Bild
+eine Kopie aus dem Kern hinein (Motoren mit `optionen.herdAnsicht`: Ansicht statt `slice`), über den Port nur die Länge; Rückfall
+auf Übertragung, wenn das Fach belegt oder zu klein ist. Takt-Kopie im Programm-Worker wiederverwendet. Pakete und Szenen bitgleich.
+
+**Vorher/nachher** (60 s je Lauf, Bildabstand = Abstand der rAF mit neuem Bild):
+
+| Lauf | Bilder | Bildabstand p50 / p95 / p99 / max | > 25 ms | Takte je Bild | aus dem Bildfach |
+|---|---|---|---|---|---|
+| Kette (1 Kreis, 320 × 180, Wasm) vorher | 3616 (3631 rAF) | 16,7 / 16,7 / 16,7 / **33,3** ms | **15** | 1: 3601, **2: 15** | 0 |
+| Kette nachher | 3638 (3638 rAF) | 16,7 / 16,7 / 16,7 / **16,7** ms | **0** | 1: 3638 | 3638 |
+| Neon-Napoli 300 × 220, Wasm, vorher | 1429 | 33,3 / 83,3 / 100 / 100 ms | 1246 | 1: 185, 2: 791, 3: 165, 4: 288 | 0 |
+| Neon-Napoli 300 × 220, Wasm, nachher | 1479 | 33,3 / 83,3 / 100 / 100 ms | 1263 | 1: 218, 2: 848, 3: 123, 4: 290 | 1479 |
+| Neon-Napoli 300 × 220, Interpreter, vorher | 1411 | 33,3 / 100 / 100 / 100 ms | 1195 | 1: 213, 2: 759, 3: 176, 4: 263 | 0 |
+| Neon-Napoli 300 × 220, Interpreter, nachher | 1527 | 33,3 / 83,3 / 100 / 100 ms | 1171 | 1: 356, 2: 827, 3: 71, 4: 273 | 1527 |
+
+Neon-Napoli auf SwiftShader bleibt grafikgebunden (Unterschiede = Rauschen). Simulation des Zeichners (`ui/test/herd-zeichner.mjs`,
+virtuelle Uhr, Programm 1–3 ms), Bildschirmbilder in 60 s nach Takten des gezeigten Bildes:
+
+| Bildschirm | vorher | nachher |
+|---|---|---|
+| 60,00 Hz ± 1 ms | 1: 3569 | 1: 3569 |
+| 59,94 Hz ± 0,5 ms | 0: **35**, 1: 3492, 2: **39** | 1: 3562, 2: 4 (unvermeidlich: 3600 Takte auf 3596 Bilder) |
+| 59,94 Hz ± 2 ms | 0: **159**, 1: 3244, 2: **163** | 1: 3562, 2: 4 |
+| 60,05 Hz ± 0,5 ms | 0: **34**, 1: 3508, 2: **31** | 0: 2 (unvermeidlich), 1: 3570 |
+| 120 / 144 Hz | jedes 2. bzw. 2.–3. Bild neu | unverändert |
+
+Bleibt: wasm-bindgen kopiert das Paket in `g.bild` noch einmal in den Glut-Speicher (malloc + Kopie, ≈ 10 µs; nur mit Rust-Umbau
+vermeidbar). Braucht das Programm je Takt fast ein ganzes Bild (≥ 10 ms), fallen weiter Bilder aus – das ist dann echte Last.
+
+### Vom Nutzer auszuführen (Browser, echte GPU, Gleichmäßigkeit)
+
+`cd e2e && E2E_GPU=1 HERD_MESSUNG=1 E2E_FILTER=Neon-Napoli HERD_MESSUNG_TRACE=%TEMP%\herd.json node lauf.mjs` (headless, kein
+Fenster). Erwartet: „Takte je Bild“ fast nur `1` (bei 59,94 Hz ≈ 4 × `2` je Minute), `> 25 ms` nahe 0, „Warten auf Paket“ p99
+≪ 16 ms, alle Bilder aus dem Bildfach. Mit `HERD_MESSUNG_KLEIN=1` dasselbe ohne Grafiklast. Im Browser von Hand: in der Konsole
+`window.__herdMessung = true`, dann backen – der Render-Worker meldet `{typ:"messung"}` je Sekunde.

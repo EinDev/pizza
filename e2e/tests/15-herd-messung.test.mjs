@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { e2e, setzeCode, strg, warteLaufEnde, VORSCHAU_ZU } from "../hilfen.mjs";
+import { e2e, setzeCode, strg, warteLaufEnde, schlafe, zeigePanelTab, VORSCHAU_ZU } from "../hilfen.mjs";
 
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 const WURZEL = path.resolve(HIER, "..", "..");
@@ -115,3 +115,87 @@ e2e("Herd: Anlauf Pizza-Konfigurator im Playground (SwiftShader, indikativ)", {
     `${sprung} Bilder mit nachgeholten Takten; Bildnummer bei Bild 30: ${b[29].bild} (Lauf bis Anlauf-Meldung ${dauer} ms)`);
   console.log("  " + b.slice(0, 8).map((x, i) => `B${i + 1}: +${f(x.abstand)} ms (Nr ${x.bild}, g.bild ${f(x.ms)})`).join(" · "));
 });
+
+// Gleichmäßigkeit im Playground (Ruckler mitten im Spiel): Neon-Napoli aus der Galerie (Mehrdatei-Projekt) läuft wie beim
+// Nutzer – Programm-Worker, Render-Worker mit OffscreenCanvas – und wird HERD_MESSUNG_S Sekunden (Standard 60) mit gehaltenem
+// „w“ (Laufen) und wechselndem „e“ (Umsehen) gespielt. Der Zeichner meldet je rAF (window.__herdMessung) Zeitpunkt, Zeit in
+// g.bild, nachgeholte Takte und die Wartezeit Anforderung → Bildpaket; dazu je Sekunde die Heap-Größe beider Worker (CDP) und
+// optional (HERD_MESSUNG_TRACE=Datei) ein Chrome-Trace mit GC-Ereignissen. Motoren: HERD_MESSUNG_MOTOREN (Standard „auto“).
+const KARTE = '[data-testid="beispiel-karte"], #beispiele-liste .bsp-karte';
+const KLEIN = [
+  'Herd herd = neu Herd("Klein", breite: 320, hoehe: 180);',
+  'Teil ball = herd.kreis(160, 90, 10, farbe: "tomate");',
+  'herd.backe(() -> { falls (herd.taste("w")) { ball.verschiebe(1, 0); } falls (ball.x() > 320) { ball.setzeLage(0, 90); } });',
+].join("\n");
+for (const motor of (process.env.HERD_MESSUNG_MOTOREN || "auto").split(",").map((m) => m.trim()).filter(Boolean)) {
+  e2e(`Herd: Neon-Napoli im Playground gleichmäßig (Motor ${motor}, SwiftShader, indikativ)`, {
+    timeout: 60_000 + 1000 * Number(process.env.HERD_MESSUNG_S || 60) * 2, skip: !process.env.HERD_MESSUNG,
+    vorLaden: () => {
+      window.__herdMessung = true;
+      window.__herdMess = [];
+      const W = window.Worker;
+      window.Worker = function (url, o) {
+        const w = new W(url, o);
+        w.addEventListener("message", (m) => { if (m.data && m.data.typ === "messung") window.__herdMess.push(...m.data.bilder); });
+        return w;
+      };
+      window.Worker.prototype = W.prototype;
+    },
+  }, async ({ page, oeffne }) => {
+    const sekunden = Number(process.env.HERD_MESSUNG_S || 60);
+    // HERD_MESSUNG_FENSTER=BxH: kleinere Seite → kleineres Canvas (SwiftShader rechnet jedes Pixel auf der CPU)
+    const fenster = /^(\d+)x(\d+)$/.exec(process.env.HERD_MESSUNG_FENSTER || "");
+    if (fenster) await page.setViewport({ width: +fenster[1], height: +fenster[2] });
+    await oeffne();
+    await page.select('[data-testid="motor-umschalter"], #motor-wahl', motor);
+    if (process.env.HERD_MESSUNG_KLEIN) await setzeCode(page, KLEIN);   // nur die Kette Zeichner → Programm → Zeichner, ohne Grafiklast
+    else {
+      await zeigePanelTab(page, "beispiele");
+      await page.waitForSelector(KARTE);
+      await page.$$eval(KARTE, (k) => { const x = k.find((e) => e.dataset.id === "neon-napoli"); x.scrollIntoView({ block: "center" }); x.click(); });
+      await page.waitForFunction(() => /Neon-Napoli/.test((document.querySelector('[data-testid="projekt-name"]') || {}).textContent || ""), { timeout: 10_000 });
+    }
+    await strg(page, "Enter");
+    const CANVAS = '[data-testid="herd-canvas"]';
+    await page.waitForFunction((sel) => { const c = document.querySelector(sel); return c && Number(c.dataset.bild || 0) > 5; }, { timeout: 60_000, polling: 100 }, CANVAS);
+    // Heap beider Worker (Programm-Worker = worker.js, Render-Worker = render-worker.js) je Sekunde
+    const worker = page.workers().filter((w) => /\/(worker|render-worker)\.js$/.test(w.url()));
+    const heap = Object.fromEntries(worker.map((w) => [w.url().split("/").pop(), []]));
+    const trace = process.env.HERD_MESSUNG_TRACE;
+    if (trace) await page.tracing.start({ path: trace, categories: ["devtools.timeline", "disabled-by-default-v8.gc", "v8"] });
+    await page.focus(CANVAS);
+    await page.evaluate(() => { window.__herdMess = []; });
+    await page.keyboard.down("w");
+    const ende = Date.now() + sekunden * 1000;
+    let s = 0;
+    while (Date.now() < ende) {
+      if (s % 4 === 1) await page.keyboard.down("e");
+      if (s % 4 === 2) await page.keyboard.up("e");
+      for (const w of worker) {
+        try { const h = await w.client.send("Runtime.getHeapUsage"); heap[w.url().split("/").pop()].push(h.usedSize / 1048576); } catch (e) { /* Worker weg */ }
+      }
+      await schlafe(1000);
+      s++;
+    }
+    await page.keyboard.up("w");
+    await page.keyboard.up("e");
+    if (trace) await page.tracing.stop();
+    const mess = await page.evaluate(() => window.__herdMess);
+    const genutzt = await page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "motor").map((e) => e.motor).pop());
+    await page.click(VORSCHAU_ZU);
+    await warteLaufEnde(page, 30_000);
+    const bilder = mess.filter((x) => x.bild > 0);
+    const abst = bilder.slice(1).map((x, i) => x.raf - bilder[i].raf);
+    const q = (xs, p) => { const a = xs.slice().sort((x, y) => x - y); return a.length ? a[Math.min(a.length - 1, Math.floor(p * a.length))] : NaN; };
+    const f = (x) => x.toFixed(1);
+    const takte = {};
+    for (const x of bilder) takte[x.takte] = (takte[x.takte] || 0) + 1;
+    const warte = bilder.map((x) => x.warte).filter((x) => x >= 0);
+    console.log(`  Motor ${genutzt}: ${bilder.length} Bilder in ${sekunden} s (${mess.length} rAF), Bildabstand p50 ${f(q(abst, 0.5))} / p95 ${f(q(abst, 0.95))} / ` +
+      `p99 ${f(q(abst, 0.99))} / max ${f(Math.max(...abst))} ms, > 25 ms: ${abst.filter((a) => a > 25).length}, > 50 ms: ${abst.filter((a) => a > 50).length}; ` +
+      `Takte je Bild ${JSON.stringify(takte)}; g.bild p50 ${f(q(bilder.map((x) => x.ms), 0.5))} / max ${f(Math.max(...bilder.map((x) => x.ms)))} ms; ` +
+      `Warten auf Paket p50 ${f(q(warte, 0.5))} / p99 ${f(q(warte, 0.99))} / max ${f(Math.max(...warte))} ms; Paket p50 ${q(bilder.map((x) => x.bytes), 0.5)} B, ${bilder.filter((x) => x.fach).length} Bilder aus dem Bildfach`);
+    for (const [n, h] of Object.entries(heap)) console.log(`  Heap ${n}: ${h.map((x) => x.toFixed(1)).join(" ")} MB`);
+    if (process.env.HERD_MESSUNG_ROH) fs.writeFileSync(process.env.HERD_MESSUNG_ROH, JSON.stringify({ motor: genutzt, mess, heap }));
+  });
+}

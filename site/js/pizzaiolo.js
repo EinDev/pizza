@@ -248,7 +248,7 @@
     abi: 2,
     laufOptionen: Object.freeze(['args', 'schrittLimit', 'speicherMiB', 'onEvent', 'eingabe', 'onEingabe', 'zufallsSaat',
       'vorrat', 'onVorrat', 'echtzeit', 'zone', 'uiEreignisse', 'onUi', 'onUiWarte', 'motor', 'koeche', 'kuechenChaos', 'herdKern', 'onHerd',
-      'teiglinge', 'vorbacker']),
+      'herdAnsicht', 'teiglinge', 'vorbacker']),
     importgruppen: Object.freeze(['basis', 'theke', 'vorrat', 'echtzeit', 'kueche', 'herd']),
     features: Object.freeze(['theke', 'theke-v2', 'takt', 'zufall', 'vorratskammer', 'zahlformat', 'uhr-echt', 'uhr-zone',
       'schrittlimit-je-rueckruf', 'eingabe', 'interaktiv', 'brigade', 'herd', 'projekte', 'kiste', 'bildchen-laden']),
