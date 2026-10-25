@@ -25,7 +25,7 @@ pub use herd_kern;
 pub use wgpu;
 
 use herd_kern::lichter::{LICHTER_KOPF_BYTES, LICHT_BYTES};
-use herd_kern::paket::{abschnitt, flach_art, flag, zug, Leser, ECKE_BYTES, HIMMELSZELT_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES, ZUSATZ3D_BYTES};
+use herd_kern::paket::{abschnitt, flach_art, flag, zug, Leser, ECKE_BYTES, HIMMELSZELT_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES, ZUSATZ3D_BYTES, ZUSATZ_TEILCHEN_BYTES};
 use wgpu::util::DeviceExt as _;
 
 /// Mehrfachabtastung (Kantenglättung), wenn der Adapter sie kann.
@@ -347,6 +347,9 @@ pub struct Glut {
     zusatz_null: usize,
 
     teilchen: Wachspuffer,
+    /// Zusatz je 3D-Teilchen (ZUSATZ_TEILCHEN: Strich, Licht); ohne Abschnitt Nullen (`teilchen_null` Bytes sind sicher 0)
+    teilchen_zusatz: Wachspuffer,
+    teilchen_null: usize,
     bg_haupt: Option<wgpu::BindGroup>,
     bg_schatten: Option<wgpu::BindGroup>,
     ziel: ZielArt,
@@ -435,6 +438,8 @@ const INST2D_ATTR: [wgpu::VertexAttribute; 7] = wgpu::vertex_attr_array![
     0 => Float32x4, 1 => Float32x2, 2 => Float32x2, 3 => Float32x2, 4 => Unorm8x4, 5 => Uint32, 6 => Uint16x4
 ];
 const TEILCHEN3D_ATTR: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32, 2 => Unorm8x4];
+/// Zusatz je 3D-Teilchen (ZUSATZ_TEILCHEN, 16 B): halbe Strichachse, Merkmale (Licht)
+const ZUSATZ_TEILCHEN_ATTR: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![3 => Float32x3, 4 => Uint32];
 /// Material-Zusatz (ZUSATZ3D, 16 B je Instanz): relief, kachel + metall, merkmale
 const ZUSATZ3D_ATTR: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![10 => Uint32, 11 => Float32x2, 12 => Uint32];
 
@@ -659,17 +664,18 @@ impl Glut {
                 eigen_sampler,
                 // Himmelszelt (H-K11b)
                 ubo(13),
-                // viele Lichter: Kopf, Lichter (RGBA32F), Zellen (R32Uint) – nur per textureLoad gelesen
+                // viele Lichter: Kopf, Lichter (RGBA32F), Zellen (R32Uint) – nur per textureLoad gelesen (auch im Vertex-Shader
+                // der Funken: Licht je Teilchen)
                 ubo(14),
                 wgpu::BindGroupLayoutEntry {
                     binding: 15,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: vs_fs,
                     ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: false }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 16,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: vs_fs,
                     ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Uint, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
                     count: None,
                 },
@@ -811,6 +817,7 @@ impl Glut {
         let inst3d = Wachspuffer::neu(dev, "herd inst3d", wgpu::BufferUsages::VERTEX);
         let zusatz3d = Wachspuffer::neu(dev, "herd zusatz3d", wgpu::BufferUsages::VERTEX);
         let teilchen = Wachspuffer::neu(dev, "herd teilchen3d", wgpu::BufferUsages::VERTEX);
+        let teilchen_zusatz = Wachspuffer::neu(dev, "herd teilchen zusatz", wgpu::BufferUsages::VERTEX);
         let (mehrfach, tiefe) = Glut::mehrfach_ziele(dev, breite, hoehe, format, msaa);
         let mut glut = Glut {
             instance,
@@ -862,6 +869,8 @@ impl Glut {
             zusatz3d,
             zusatz_null: 0,
             teilchen,
+            teilchen_zusatz,
+            teilchen_null: 0,
             bg_haupt: None,
             bg_schatten: None,
             ziel,
@@ -1144,7 +1153,10 @@ impl Glut {
         let durch_hinten = licht("herd durch hinten", Some(wgpu::Face::Front), false, &z_misch);
         let durch_vorn = licht("herd durch vorn", Some(wgpu::Face::Back), false, &z_misch);
         let z_addier = ziel(ADDIEREN);
-        let funken_layout = [Some(wgpu::VertexBufferLayout { array_stride: TEILCHEN3D_BYTES as u64, step_mode: wgpu::VertexStepMode::Instance, attributes: &TEILCHEN3D_ATTR })];
+        let funken_layout = [
+            Some(wgpu::VertexBufferLayout { array_stride: TEILCHEN3D_BYTES as u64, step_mode: wgpu::VertexStepMode::Instance, attributes: &TEILCHEN3D_ATTR }),
+            Some(wgpu::VertexBufferLayout { array_stride: ZUSATZ_TEILCHEN_BYTES as u64, step_mode: wgpu::VertexStepMode::Instance, attributes: &ZUSATZ_TEILCHEN_ATTR }),
+        ];
         let funken = |name: &str, fs: &str, ziele: &[Option<wgpu::ColorTargetState>]| {
             dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some(name),
@@ -1624,6 +1636,7 @@ impl Glut {
         let mut lichter_da = false;
         let mut stimmung: Option<&[u8]> = None;
         let mut zusatz: Option<&[u8]> = None;
+        let mut teilchen_zus: Option<&[u8]> = None;
         let mut n_leuchtend = 0u32;
         self.zuege.clear();
         let mut szene_da = false;
@@ -1662,6 +1675,7 @@ impl Glut {
                     zelt = Some(d);
                 }
                 abschnitt::ZUSATZ3D => zusatz = Some(d),
+                abschnitt::ZUSATZ_TEILCHEN => teilchen_zus = Some(d),
                 abschnitt::STIMMUNG => {
                     if d.len() != STIMMUNG_BYTES {
                         return Err(Fehler::Paket(format!("STIMMUNG hat {} Bytes", d.len())));
@@ -1727,6 +1741,21 @@ impl Glut {
         }
         let nt = (teilchen.len() / TEILCHEN3D_BYTES) as u32;
         self.teilchen.schreibe(&self.device, &self.queue, teilchen);
+        // Zusatz je Teilchen (Strich, Licht): mit Abschnitt hochladen, sonst Nullen in passender Größe (wie ZUSATZ3D)
+        let tz_bytes = nt as usize * ZUSATZ_TEILCHEN_BYTES;
+        match teilchen_zus {
+            Some(d) if d.len() == tz_bytes => {
+                self.teilchen_zusatz.schreibe(&self.device, &self.queue, d);
+                self.teilchen_null = 0;
+                stat.hochgeladen += d.len() as u64;
+            }
+            _ => {
+                if tz_bytes > self.teilchen_null {
+                    self.teilchen_zusatz.schreibe(&self.device, &self.queue, &vec![0u8; tz_bytes]);
+                    self.teilchen_null = tz_bytes;
+                }
+            }
+        }
         stat.hochgeladen += (inst2d.len() + inst3d.len() + teilchen.len()) as u64;
         stat.instanzen_2d = n2;
         stat.instanzen_3d = n3;
@@ -1843,7 +1872,7 @@ impl Glut {
             });
             p.set_viewport(vx * 0.5, vy * 0.5, (vb * 0.5).max(1.0), (vh * 0.5).max(1.0), 0.0, 1.0);
             p.set_bind_group(0, self.bg_spiegel.as_ref(), &[]);
-            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, n3, 0, 0, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, true, &mut stat);
+            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, 0, 0, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, true, &mut stat);
         }
 
         // ---- Stimmung: 3D linear ins HDR-Ziel, Bloom-Kette ----
@@ -1874,7 +1903,7 @@ impl Glut {
                 });
                 p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
                 p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, &mut stat);
             }
             if bloom > 0.0 {
                 let np = self.nach_pipes.as_ref().expect("nachbild_bereit");
@@ -1937,7 +1966,7 @@ impl Glut {
             }
             p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
             if !hdr {
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, &mut stat);
             }
             if n2 > 0 {
                 p.set_pipeline(&pl.flach);
@@ -1973,6 +2002,7 @@ impl Glut {
         inst3d: &wgpu::Buffer,
         zusatz: &wgpu::Buffer,
         teilchen: &wgpu::Buffer,
+        teilchen_zusatz: &wgpu::Buffer,
         n3: u32,
         nt: u32,
         n_leuchtend: u32,
@@ -2014,13 +2044,16 @@ impl Glut {
                 }
                 p.set_pipeline(pipe);
                 let b = TEILCHEN3D_BYTES as u64;
+                let zb = ZUSATZ_TEILCHEN_BYTES as u64;
                 if instancing {
                     p.set_vertex_buffer(0, teilchen.slice(erste as u64 * b..(erste + anzahl) as u64 * b));
+                    p.set_vertex_buffer(1, teilchen_zusatz.slice(erste as u64 * zb..(erste + anzahl) as u64 * zb));
                     p.draw(0..6, 0..anzahl);
                     stat.draw_calls += 1;
                 } else {
                     for i in erste..erste + anzahl {
                         p.set_vertex_buffer(0, teilchen.slice(i as u64 * b..(i + 1) as u64 * b));
+                        p.set_vertex_buffer(1, teilchen_zusatz.slice(i as u64 * zb..(i + 1) as u64 * zb));
                         p.draw(0..6, 0..1);
                     }
                     stat.draw_calls += anzahl;

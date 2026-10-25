@@ -1,0 +1,104 @@
+# Regen (Funken-Nachtragsfelder und Stimmung.regen): zwei Sprüher mit je N/2 Tropfen (voll: N=20000, TAKTE=150).
+# A: Volumen um ein wanderndes Teil, Striche, Licht, Aufschlag mit Spritzern, Rate × Stimmung.regen (die Regenstärke wechselt);
+# B: weltlage nein, gedreht und bewegt, deckend, Striche ohne Licht, Volumen im Raum des Teils. Dazu Lichter (> 8 → Zellen).
+vorgabe N 400
+vorgabe TAKTE 90
+welt_neu 1280 720 "Regen"
+welt_himmel "#07080f" "#231a33"
+welt_umgebung "#5060a0" 0.08
+typ_nummer "Funken" -> T_F
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Stimmung" -> T_S
+typ_nummer "Licht" -> T_L
+feld_nummer T_F "rate" -> F_RATE
+feld_nummer T_F "lebensdauer" -> F_LEBEN
+feld_nummer T_F "tempo" -> F_TEMPO
+feld_nummer T_F "richtungX" -> F_RX
+feld_nummer T_F "richtungY" -> F_RY
+feld_nummer T_F "streuung" -> F_STREU
+feld_nummer T_F "schwerkraft" -> F_SCHWER
+feld_nummer T_F "groesse" -> F_GR
+feld_nummer T_F "groesseEnde" -> F_GRE
+feld_nummer T_F "mischung" -> F_MISCH
+feld_nummer T_F "weltlage" -> F_WELT
+feld_nummer T_F "saat" -> F_SAAT
+feld_nummer T_F "streckung" -> F_STRECK
+feld_nummer T_F "licht" -> F_LICHT
+feld_nummer T_F "volumen" -> F_VOL
+feld_nummer T_F "aufschlag" -> F_AUF
+feld_nummer T_F "boden" -> F_BODEN
+feld_nummer T_F "spritzer" -> F_SPRITZ
+feld_nummer T_F "regen" -> F_REGEN
+feld_nummer T_BEW "tempoX" -> B_TX
+feld_nummer T_BEW "tempoZ" -> B_TZ
+feld_nummer T_BEW "drehtempo" -> B_DREH
+feld_nummer T_S "regen" -> S_REGEN
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "reichweite" -> L_RW
+teil_lage 1 0 2 12
+teil_schaue 1 0 1.5 0
+wiederhole 12 i
+  teil_neu 3 -> l
+  teil_lage l ((i % 4) * 4 - 6) 2 (boden(i / 4) * -4)
+  komp_neu T_L -> li
+  setze_text li L_F "#ff40c0"
+  setze_zahl li L_RW 6
+  komp_haenge li l
+ende
+teil_neu 3 -> s
+komp_neu T_S -> st
+setze_zahl st S_REGEN 0.7
+komp_haenge st s
+
+# A: Volumen um ein wanderndes Teil, Aufschlag mit Spritzern
+teil_neu 3 -> a
+teil_lage a 0 10 0
+komp_neu T_F -> f
+setze_zahl f F_RATE (N * 0.6)
+setze_zahl f F_LEBEN 2
+setze_zahl f F_TEMPO 10
+setze_zahl f F_RX 0.1
+setze_zahl f F_RY -1
+setze_zahl f F_STREU 4
+setze_zahl f F_SCHWER 3
+setze_zahl f F_GR 0.02
+setze_zahl f F_GRE 0.015
+setze_zahl f F_SAAT 3
+setze_zahl f F_STRECK 0.03
+setze_zahl f F_LICHT 1
+setze_zahl f F_VOL 8
+setze_zahl f F_AUF 1
+setze_zahl f F_BODEN 0.1
+setze_zahl f F_SPRITZ 3
+setze_zahl f F_REGEN 1
+komp_haenge f a
+komp_neu T_BEW -> bw
+setze_zahl bw B_TX 1.5
+setze_zahl bw B_TZ -2
+komp_haenge bw a
+
+# B: im Raum des Teils, gedreht und bewegt, deckend
+teil_neu 3 -> b
+teil_lage b 2 6 -3
+teil_setze b 5 20
+komp_neu T_F -> f2
+setze_zahl f2 F_RATE (N * 0.25)
+setze_zahl f2 F_LEBEN 2
+setze_zahl f2 F_TEMPO 4
+setze_zahl f2 F_RY -1
+setze_zahl f2 F_STREU 10
+setze_zahl f2 F_GR 0.05
+setze_zahl f2 F_MISCH 1
+setze_zahl f2 F_WELT 0
+setze_zahl f2 F_STRECK 0.05
+setze_zahl f2 F_VOL 3
+komp_haenge f2 b
+komp_neu T_BEW -> bw2
+setze_zahl bw2 B_DREH 30
+komp_haenge bw2 b
+takte TAKTE
+# Regenstärke wechselt, A folgt
+setze_zahl st S_REGEN 0.2
+takte 20
+setze_zahl st S_REGEN 1
+takte 20

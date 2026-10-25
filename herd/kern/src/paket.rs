@@ -24,6 +24,8 @@ pub const ZUG_BYTES: usize = 16;
 pub const ECKE_BYTES: usize = 32;
 /// Ein Teilchen im Abschnitt `TEILCHEN3D` (Funken): `f32 x, y, z, halbe Größe`, `u8 r, g, b, a`.
 pub const TEILCHEN3D_BYTES: usize = 20;
+/// Abschnitt `ZUSATZ_TEILCHEN` (Funken „Regen“): je Teilchen `f32 strich x, y, z` (halbe Strichachse in Welt), `u32 merkmale`.
+pub const ZUSATZ_TEILCHEN_BYTES: usize = 16;
 /// Abschnitt `HIMMELSZELT` (H-K11b): fester Block, Aufbau gleich dem Uniform-Block der Glut (`herd/README.md` §4).
 pub const HIMMELSZELT_BYTES: usize = 208;
 /// Kantenlänge der Shadow-Map (Texel), mit der der Kern die Lichtkamera einrastet.
@@ -53,6 +55,8 @@ pub mod abschnitt {
     pub const STIMMUNG: u32 = 17;
     /// Material-Zusatz je 3D-Instanz (16 B, gleiche Reihenfolge wie INST3D): nur wenn eine Instanz einen hat
     pub const ZUSATZ3D: u32 = 18;
+    /// Zusatz je 3D-Teilchen (16 B, gleiche Reihenfolge wie TEILCHEN3D): nur wenn ein Teilchen gestreckt oder beleuchtet ist
+    pub const ZUSATZ_TEILCHEN: u32 = 19;
 }
 
 pub mod flag {
@@ -126,6 +130,10 @@ pub struct Teilchen3 {
     pub farbe: u32,
     /// `false` = leuchtend (additiv), `true` = deckend (gemischt, von hinten nach vorn)
     pub deckend: bool,
+    /// Funken „Regen“: halbe Strichachse (Welt; 0 = rundes Teilchen) – `pos` ist die Mitte des Strichs
+    pub strich: [f64; 3],
+    /// Anteil Beleuchtung durch Umgebung und Lichter · 255 (0 = Eigenfarbe wie v1)
+    pub licht: u32,
 }
 
 /// Das geltende `Himmelszelt` im Bildbau (wache Komponente mit der kleinsten Teil-ID).
@@ -1018,7 +1026,8 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
 }
 
 /// Abschnitt `TEILCHEN3D`: `u32 leuchtend, u32 deckend`, dann die Teilchen (je `TEILCHEN3D_BYTES`). Teilchen außerhalb des
-/// Sichtkörpers (Kugel mit der halben Größe) entfallen. Liefert die Zahl der geschriebenen Abschnitte (0 oder 1).
+/// Sichtkörpers (Kugel mit der halben Größe, gestreckt + halbe Strichlänge) entfallen. Danach `ZUSATZ_TEILCHEN`, wenn ein
+/// Teilchen gestreckt oder beleuchtet ist. Liefert die Zahl der geschriebenen Abschnitte (0, 1 oder 2).
 fn teilchen_abschnitt(aus: &mut Vec<u8>, bau: &mut Bildbau, sk: &[[f64; 4]; 6], auge: [f64; 3], vorn: [f64; 3]) -> u32 {
     let mut laengen = [0.0; 6];
     for (l, p) in laengen.iter_mut().zip(sk.iter()) {
@@ -1028,8 +1037,11 @@ fn teilchen_abschnitt(aus: &mut Vec<u8>, bau: &mut Bildbau, sk: &[[f64; 4]; 6], 
         if !(t.pos[0].is_finite() && t.pos[1].is_finite() && t.pos[2].is_finite()) {
             return false;
         }
+        // gestreckt: Kugel um die Mitte mit halber Strichlänge + halber Größe
+        let s = &t.strich;
+        let r = if s[0] != 0.0 || s[1] != 0.0 || s[2] != 0.0 { t.r + libm::sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]) } else { t.r };
         for (p, l) in sk.iter().zip(laengen.iter()) {
-            if p[0] * t.pos[0] + p[1] * t.pos[1] + p[2] * t.pos[2] + p[3] < -t.r * l {
+            if p[0] * t.pos[0] + p[1] * t.pos[1] + p[2] * t.pos[2] + p[3] < -r * l {
                 return false;
             }
         }
@@ -1067,7 +1079,22 @@ fn teilchen_abschnitt(aus: &mut Vec<u8>, bau: &mut Bildbau, sk: &[[f64; 4]; 6], 
         aus.extend_from_slice(&t.farbe.to_be_bytes());
     }
     abschnitt_ende(aus, st);
-    1
+    // Zusatz (Strich, Licht): nur wenn ein geschriebenes Teilchen einen hat (sonst Paket wie v1)
+    let hat = |t: &Teilchen3| t.licht != 0 || f32w(t.strich[0]) != 0.0 || f32w(t.strich[1]) != 0.0 || f32w(t.strich[2]) != 0.0;
+    if !bau.teilchen_ordnung.iter().any(|(_, i)| hat(&bau.teilchen3d[*i as usize])) {
+        return 1;
+    }
+    let st = abschnitt_beginn(aus, abschnitt::ZUSATZ_TEILCHEN);
+    aus.reserve(bau.teilchen_ordnung.len() * ZUSATZ_TEILCHEN_BYTES);
+    for (_, i) in &bau.teilchen_ordnung {
+        let t = &bau.teilchen3d[*i as usize];
+        put_f32(aus, t.strich[0]);
+        put_f32(aus, t.strich[1]);
+        put_f32(aus, t.strich[2]);
+        put_u32(aus, t.licht & 255);
+    }
+    abschnitt_ende(aus, st);
+    2
 }
 
 /// Lesehilfe für ein Bildpaket (Glut, Werkzeuge, Tests).

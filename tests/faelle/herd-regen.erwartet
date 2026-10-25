@@ -1,0 +1,6 @@
+0 0 0 nein 0 3 nein
+Funken(5) 0.04 1 2 ja 0.1 4 ja 0.5
+nach 8 Takten: regen 1, spritzer 0
+LaufzeitAnanas: Funken.streckung muss zwischen 0 und 10 liegen, nicht 11.
+LaufzeitAnanas: Funken.spritzer muss zwischen 0 und 16 liegen, nicht 17.
+LaufzeitAnanas: Stimmung.regen muss zwischen 0 und 1 liegen, nicht 1.5.

@@ -25,6 +25,8 @@ pub const KOERNUNG: usize = 10;
 /// Spiegelung (planar): Stärke 0 … 1 (0 = aus) und Höhe der Spiegelebene (y)
 pub const SPIEGELUNG: usize = 11;
 pub const SPIEGEL_HOEHE: usize = 12;
+/// Nachtragsfeld „Regen“: Regenstärke 0 … 1 – Pfützenringe und Rinnsale auf nassen pbr-Belägen, Rate der `Funken` mit `regen`
+pub const REGEN: usize = 13;
 
 pub static ART: Art = Art {
     schema: Schema {
@@ -46,6 +48,7 @@ pub static ART: Art = Art {
             Feld::zahl("koernung", 0.0).bereich(0.0, 1.0),
             Feld::zahl("spiegelung", 0.0).bereich(0.0, 1.0),
             Feld::zahl("spiegelHoehe", 0.0),
+            Feld::zahl("regen", 0.0).bereich(0.0, 1.0).nachtrag(),
         ],
     },
     ..Art::LEER
@@ -53,12 +56,12 @@ pub static ART: Art = Art {
 
 /// Uniform-Block `STIMMUNG` (80 Bytes, f32): `a` (belichtung, bloom, bloomSchwelle, bloomWeite) · `nebel` (dichte, hoehe,
 /// abfall, fern der Kamera) · `farbe` (nebelFarbe linear, saettigung) · `b` (vignette, koernung, Zeit in s, 1 = an) ·
-/// `spiegel` (spiegelung, spiegelHoehe, 0, 0).
+/// `spiegel` (spiegelung, spiegelHoehe, regen, 0).
 pub const STIMMUNG_BYTES: usize = 80;
 
-/// Schreibt den Abschnitt `STIMMUNG` der geltenden Stimmung (wach, kleinste Teil-ID); liefert die Zahl der Abschnitte (0/1).
-pub fn abschnitt(w: &Welt, aus: &mut alloc::vec::Vec<u8>, bildnummer: u32, fern: f64) -> u32 {
-    let Some(a) = w.art_index(ART.schema.name) else { return 0 };
+/// Die geltende Stimmung: (Artindex, Zeile) der wachen mit der kleinsten Teil-ID.
+fn geltende(w: &Welt) -> Option<(usize, usize)> {
+    let a = w.art_index(ART.schema.name)?;
     let s = &w.speicher[a];
     let mut beste: Option<usize> = None;
     for z in 0..s.len() {
@@ -69,7 +72,18 @@ pub fn abschnitt(w: &Welt, aus: &mut alloc::vec::Vec<u8>, bildnummer: u32, fern:
             beste = Some(z);
         }
     }
-    let Some(z) = beste else { return 0 };
+    beste.map(|z| (a, z))
+}
+
+/// Regenstärke der geltenden Stimmung (`None` = keine gilt) – für `Funken` mit `regen`.
+pub fn regen(w: &Welt) -> Option<f64> {
+    geltende(w).map(|(a, z)| w.speicher[a].zahl(REGEN)[z])
+}
+
+/// Schreibt den Abschnitt `STIMMUNG` der geltenden Stimmung (wach, kleinste Teil-ID); liefert die Zahl der Abschnitte (0/1).
+pub fn abschnitt(w: &Welt, aus: &mut alloc::vec::Vec<u8>, bildnummer: u32, fern: f64) -> u32 {
+    let Some((a, z)) = geltende(w) else { return 0 };
+    let s = &w.speicher[a];
     use crate::paket::{abschnitt_beginn, abschnitt_ende, lin4, put_v4};
     let st = abschnitt_beginn(aus, crate::paket::abschnitt::STIMMUNG);
     let n = |f: usize| s.zahl(f)[z];
@@ -78,7 +92,7 @@ pub fn abschnitt(w: &Welt, aus: &mut alloc::vec::Vec<u8>, bildnummer: u32, fern:
     let f = lin4(s.farbe(NEBEL_FARBE)[z], 1.0);
     put_v4(aus, [f[0], f[1], f[2], n(SAETTIGUNG)]);
     put_v4(aus, [n(VIGNETTE), n(KOERNUNG), bildnummer as f64 / 60.0, 1.0]);
-    put_v4(aus, [n(SPIEGELUNG), n(SPIEGEL_HOEHE), 0.0, 0.0]);
+    put_v4(aus, [n(SPIEGELUNG), n(SPIEGEL_HOEHE), n(REGEN), 0.0]);
     debug_assert_eq!(aus.len() - st, STIMMUNG_BYTES);
     abschnitt_ende(aus, st);
     1

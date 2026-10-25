@@ -101,7 +101,14 @@
       {"nummer": 13, "name": "mischung", "typ": "wahl", "standard": "leuchtend", "min": null, "max": null, "wahl": ["leuchtend", "deckend"]},
       {"nummer": 14, "name": "weltlage", "typ": "diavolo", "standard": true, "min": null, "max": null},
       {"nummer": 15, "name": "aktiv", "typ": "diavolo", "standard": true, "min": null, "max": null},
-      {"nummer": 16, "name": "saat", "typ": "ganz", "standard": 0, "min": 0, "max": 4294967295}]},
+      {"nummer": 16, "name": "saat", "typ": "ganz", "standard": 0, "min": 0, "max": 4294967295},
+      {"nummer": 17, "name": "streckung", "typ": "zahl", "standard": 0, "min": 0, "max": 10, "nachtrag": true},
+      {"nummer": 18, "name": "licht", "typ": "zahl", "standard": 0, "min": 0, "max": 1, "nachtrag": true},
+      {"nummer": 19, "name": "volumen", "typ": "zahl", "standard": 0, "min": 0, "max": 10000, "nachtrag": true},
+      {"nummer": 20, "name": "aufschlag", "typ": "diavolo", "standard": false, "min": null, "max": null, "nachtrag": true},
+      {"nummer": 21, "name": "boden", "typ": "zahl", "standard": 0, "min": null, "max": null, "nachtrag": true},
+      {"nummer": 22, "name": "spritzer", "typ": "ganz", "standard": 3, "min": 0, "max": 16, "nachtrag": true},
+      {"nummer": 23, "name": "regen", "typ": "diavolo", "standard": false, "min": null, "max": null, "nachtrag": true}]},
     {"name": "Gleiten", "nummer": 14, "genus": "n", "raum": "beide", "braucht": [], "system": true, "felder": [
       {"nummer": 1, "name": "was", "typ": "wahl", "standard": "x", "min": null, "max": null, "wahl": ["x", "y", "z", "drehung", "neigung", "rollen", "groesse"]},
       {"nummer": 2, "name": "nach", "typ": "zahl", "standard": 0, "min": null, "max": null},
@@ -260,7 +267,8 @@
       {"nummer": 10, "name": "vignette", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
       {"nummer": 11, "name": "koernung", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
       {"nummer": 12, "name": "spiegelung", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
-      {"nummer": 13, "name": "spiegelHoehe", "typ": "zahl", "standard": 0, "min": null, "max": null}]}
+      {"nummer": 13, "name": "spiegelHoehe", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 14, "name": "regen", "typ": "zahl", "standard": 0, "min": 0, "max": 1, "nachtrag": true}]}
   ],
   "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}, {"nummer": 19, "name": "ruht"}],
   "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe"],

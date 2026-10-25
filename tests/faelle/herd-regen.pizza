@@ -1,0 +1,16 @@
+// Herd §18.6: Regen – Funken als Striche (streckung), beleuchtet (licht), im Volumen um das Teil, Aufschlag mit Spritzern,
+// Rate × Stimmung.regen; Standardwerte der Nachtragsfelder und Bereichsfehler
+Herd herd = neu Herd("Regen", breite: 320, hoehe: 180);
+Stimmung st = herd.raum().mit(neu Stimmung(regen: 0.5, spiegelung: 1));
+Funken vorgabe = herd.raum(4, 0, 0).mit(neu Funken());
+Bote.sage((vorgabe.streckung() + " " + vorgabe.licht() + " " + vorgabe.volumen() + " " + vorgabe.aufschlag() + " " + vorgabe.boden() + " " + vorgabe.spritzer() + " " + vorgabe.regen()));
+Teil wolke = herd.raum(0, 3, 0);
+Funken regen = wolke.mit(neu Funken(rate: 600, lebensdauer: 2, tempo: 8, richtungY: -1, streuung: 2, groesse: 0.02, groesseEnde: 0.02,
+                                   streckung: 0.04, licht: 1, volumen: 2, aufschlag: ja, boden: 0.1, spritzer: 4, regen: ja));
+Bote.sage((regen + " " + regen.streckung() + " " + regen.licht() + " " + regen.volumen() + " " + regen.aufschlag() + " " + regen.boden() + " " + regen.spritzer() + " " + regen.regen() + " " + st.regen()));
+wolke.mit(neu Bewegung(tempoX: 2));
+herd.backe(() -> { falls (herd.bildnummer() == 6) { st.setzeRegen(1); regen.setzeSpritzer(0); } });
+Bote.sage(("nach " + herd.bildnummer() + " Takten: regen " + st.regen() + ", spritzer " + regen.spritzer()));
+probier { regen.setzeStreckung(11); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { regen.setzeSpritzer(17); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { st.setzeRegen(1.5); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

@@ -322,7 +322,7 @@
                 ["`Partikel`","2D","`rate` 30, `lebensdauer` 1, `tempo` 80, `richtung` 270, `streuung` 360, `schwerkraft` 0, `groesse` 6, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `aktiv` ja, `saat` 0","Teilchen-Sprüher, die Teilchen leben in der Engine; `richtung` 0 = rechts, 90 = unten"],
                 ["`Linie`","2D","`zuX` 100, `zuY` 0, `dicke` 2, `farbe` ofen, `rund` nein","Strecke von der Lage des Teils zum Endpunkt (`zuX`, `zuY`) relativ zum Teil; `rund` = runde Enden"],
                 ["`Rahmen`","2D","`bildchen` karton, `kante` 4, `breite` 64, `hoehe` 32, `groesse` 1, `farbe` weiss","9-Slice-Tafel: Ecken (`kante` Bildchen-Pixel) bleiben scharf, Kanten und Mitte werden auf `breite` × `hoehe` gestreckt"],
-                ["`Funken`","3D","`rate` 30, `lebensdauer` 1, `tempo` 2, `richtungX` 0, `richtungY` 1, `richtungZ` 0, `streuung` 30, `schwerkraft` 0, `groesse` 0.2, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `mischung` leuchtend, `weltlage` ja, `aktiv` ja, `saat` 0","3D-Teilchen, die zur Kamera schauen: Ausstoß im Kegel um die Richtung (`streuung` = halber Öffnungswinkel in Grad), `leuchtend` addiert sich zu Glut, `deckend` mischt (Rauch)"],
+                ["`Funken`","3D","`rate` 30, `lebensdauer` 1, `tempo` 2, `richtungX` 0, `richtungY` 1, `richtungZ` 0, `streuung` 30, `schwerkraft` 0, `groesse` 0.2, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `mischung` leuchtend, `weltlage` ja, `aktiv` ja, `saat` 0; Regen: `streckung` 0, `licht` 0, `volumen` 0, `aufschlag` nein, `boden` 0, `spritzer` 3, `regen` nein","3D-Teilchen, die zur Kamera schauen: Ausstoß im Kegel um die Richtung (`streuung` = halber Öffnungswinkel in Grad), `leuchtend` addiert sich zu Glut, `deckend` mischt (Rauch); Regen: Striche entlang der Bewegung, im Licht der Szene, Volumen um das Teil, Spritzer am Boden, Rate × `Stimmung.regen`"],
                 ["`Gleiten`","beide","`was` x, `nach` 0, `dauer` 1, `kurve` sanft, `schleife` einmal, `laeuft` ja","Tween: eine Größe der Lage (`x`, `y`, `z`, `drehung`, `neigung`, `rollen`, `groesse`) gleitet vom aktuellen Wert nach `nach`; Kurven `linear`, `sanft`, `rein`, `raus`, `federnd`, `huepfend`; `einmal`, `wiederholen`, `pendeln`"],
                 ["`Ablauf`","beide","`zeiten` [], `xWerte`, `yWerte`, `zWerte`, `drehWerte`, `groesseWerte` [], `kurve` linear, `schleife` ja, `tempo` 1, `zeit` 0, `laeuft` ja","Keyframes: zu den `zeiten` gelten die Werte aus den Wertelisten (Blech aus Zahlen), dazwischen `linear` oder `sanft`; `zeit` setzen springt"],
                 ["`Belag`","3D","`farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton","geteiltes Material: jeder `Koerper` mit `belag` = dieses Teil zeichnet mit diesen Werten statt den eigenen; zeichnet selbst nichts"],
@@ -336,7 +336,7 @@
                 ["`Fliesen`","2D","`bilder` [], `spalten` 16, `zeilen` 9, `karte` [], `kachel` 32, `fest` []","Kachelkarte: `karte` zeilenweise von oben, Kachel n zeigt `bilder[n]` (0 = leer); Lage = **obere linke Ecke**; Nummern in `fest` sind für `Wucht` feste Wände und Böden; gezeichnet wird nur, was zu sehen ist"],
                 ["`Kulisse`","beide","`aktiv` ja, `name` \"\"","Szenenwechsel: mit `aktiv: nein` ruht das Teil samt Kindern wie eine Vorlage (unsichtbar, keine Systeme, Kamera/Blick/Licht darin zählen nicht); `setzeAktiv(ja)` schaltet die Kulisse wieder an"],
                 ["`Belag` (Material)","3D","`relief` karton, `kachel` 0, `abbildung` uv, `modell` klassisch, `metall` 0, `nass` 0 (zusätzlich zu Farbe, Glanz, Leuchten, Bild, strahlen)","Oberflächen: Relief-Bild (Normale + Rauheit), Kachelung in uv oder Weltmaß, physikalisches Licht (`modell: \"pbr\"`), Metall, Nässe mit Pfützen"],
-                ["`Stimmung`","3D","`belichtung` 1, `bloom` 0, `bloomSchwelle` 1, `bloomWeite` 0.7, `nebelDichte` 0, `nebelHoehe` 0, `nebelAbfall` 0.25, `nebelFarbe` #1c1a2a, `saettigung` 1, `vignette` 0, `koernung` 0, `spiegelung` 0, `spiegelHoehe` 0","Bildlook: HDR mit Belichtung und filmischer Tonkurve, Bloom, Höhennebel, Sättigung, Vignette, Filmkorn, Spiegelung nasser Böden; es gilt die wache mit der kleinsten Teil-ID"],
+                ["`Stimmung`","3D","`belichtung` 1, `bloom` 0, `bloomSchwelle` 1, `bloomWeite` 0.7, `nebelDichte` 0, `nebelHoehe` 0, `nebelAbfall` 0.25, `nebelFarbe` #1c1a2a, `saettigung` 1, `vignette` 0, `koernung` 0, `spiegelung` 0, `spiegelHoehe` 0, `regen` 0","Bildlook: HDR mit Belichtung und filmischer Tonkurve, Bloom, Höhennebel, Sättigung, Vignette, Filmkorn, Spiegelung nasser Böden, Regenstärke (Pfützenringe, Rinnsale); es gilt die wache mit der kleinsten Teil-ID"],
                 ["`Himmelszelt`","3D","`bilder` [], `oben` himmel, `horizont` mozzarella, `boden` teig, `sonnenscheibe` 0, `sterne` 0","Skybox: Verlauf mit Sonnenscheibe und Sternen oder sechs Seiten aus Bildchen; ersetzt `herd.himmel(…)`, es gilt das wache mit der kleinsten Teil-ID"],
                 ["`Taster`","2D","`inhalt` \"\", `breite` 120, `hoehe` 36, `farbe` kruste, `farbeDrueber` senf, `farbeGedrueckt` tomate, `textFarbe` weiss, `groesse` 18, `rundung` 8, `aktiv` ja; nur lesen: `drueber`, `gedrueckt`, `geklickt`","Schaltfläche für die Maus: `geklickt` ist genau einen Takt lang `ja`, wenn auf dem Taster gedrückt und über ihm losgelassen wurde"],
                 ["`Leiste`","2D","`wert` 0.5, `breite` 160, `hoehe` 14, `farbe` basilikum, `farbeLeer` grau, `rundung` 7","Füllbalken (Leben, Fortschritt): von links ist der Anteil `wert` (0 … 1) gefüllt"],
@@ -1110,6 +1110,43 @@
             },
             { art: "ausgabe", text: z("Stimmung(5) 2 6") },
             { art: "text", md: "Ein ganzes Beispiel ist das **Neonschild** unter *Beispiele → Herd*: eine Pizzeria-Reklame im Nebel, die Leertaste schaltet die Stimmung aus und an." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Regen: Striche, Licht, Spritzer und Pfützenringe",
+          inhalt: [
+            { art: "text", md: "Regen sind **`Funken`** mit ein paar Zusatzfeldern. **`streckung`** ist die Belichtungszeit in Sekunden: Jeder Tropfen wird als dünner **Strich** entlang seiner Bewegung gezeichnet (Länge = Tempo × `streckung`, z. B. 0.03), der zum Schwanz hin ausläuft – so sieht schneller Regen aus, nicht wie Schnee. **`licht`** (0 … 1) lässt die Tropfen im Licht der Szene leuchten: Neonschilder und Laternen färben sie, gegen das Licht gesehen werden sie heller; abseits der Lichter bleiben sie dunkel. **`volumen`** (halbe Kantenlänge in Einheiten) verteilt den Ausstoß über ein waagerechtes Quadrat um das Teil, und wer es verlässt, kommt auf der anderen Seite wieder herein – häng den Sprüher an den Spieler oder setz ihn jeden Takt dorthin, dann regnet es überall, wo du hinsiehst, mit wenigen tausend Tropfen." },
+            { art: "text", md: "Mit **`aufschlag: ja`** enden die Tropfen unter der Höhe **`boden`** und werfen **`spritzer`** (0 … 16, Standard 3) kurze Spritzer hoch. Die Regenstärke ist ein Wert: **`Stimmung.regen`** (0 … 1) – Funken mit **`regen: ja`** stoßen `rate` × `regen` Tropfen aus, und auf nassen Böden (`Belag` mit `modell: \"pbr\"` und `nass`) laufen **Ringe** durch die Pfützen, an nassen Wänden **Rinnsale** herab. Ohne Stimmung regnen die Funken mit voller Rate, nur die Ringe fehlen." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Regen","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"2ecb3bbab2b821b1","paket":"3993a47001b977c8"},
+                {"art":"bild","bildnummer":8,"szene":"c43c162818fcfea5","paket":"55d69c3e8b52baf5"},
+                {"art":"bild","bildnummer":12,"szene":"0a68a02113ce1474","paket":"cafd1e76dea6668f"},
+                {"art":"bild","bildnummer":16,"szene":"1f7e6afe0dbc6cf2","paket":"de9a92f66c2e8daa"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Regen\", breite: 320, hoehe: 180);",
+                "herd.himmel(\"#07080f\", \"#231a33\");",
+                "herd.kamera().setzeLage(0, 1.6, 6).schaueAuf(0, 1, 0);",
+                "Stimmung st = herd.raum().mit(neu Stimmung(bloom: 0.8, spiegelung: 1, regen: 0.8));",
+                "Belag nass = herd.raum().mit(neu Belag(farbe: \"#4a4a55\", glanz: 0.5, modell: \"pbr\", nass: 1));",
+                "herd.koerper(Form.ebene()).setzeGroesse(20, 1, 20).koerper().setzeBelag(nass.teil());",
+                "herd.licht(0, 2, -1, farbe: \"#ff3df0\", reichweite: 6).licht().setzeStaerke(4);",
+                "Funken regen = herd.raum(0, 8, 3).mit(neu Funken(rate: 2000, lebensdauer: 1.2, tempo: 10, richtungY: -1, streuung: 3,",
+                "    groesse: 0.02, groesseEnde: 0.02, farbe: \"#d0d8ffa0\", farbeEnde: \"#d0d8ffa0\",",
+                "    streckung: 0.03, licht: 1, volumen: 5, aufschlag: ja, regen: ja));",
+                "herd.backe(() -> { st.setzeRegen(Mathe.max(0, st.regen() - 0.01)); });",
+                "Bote.sage((regen.streckung() + \" \" + regen.volumen() + \" \" + regen.spritzer() + \" \" + regen.regen()));"
+              )
+            },
+            { art: "ausgabe", text: z("0.03 5 3 ja") },
+            { art: "text", md: "Ein ganzes Beispiel ist **Neon-Napoli** unter *Beispiele → Herd*: Regen um den Spieler, der in den Farben der Neonschilder glitzert, Spritzer auf dem Asphalt und Ringe in den Pfützen." }
           ]
         },
         {

@@ -858,7 +858,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Stimmung", "regen")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -4520,7 +4520,7 @@ mod stimmung {
         let mut k = welt();
         let s = typ(&mut k, "Stimmung");
         assert_eq!(s, 31); // Typnummer in Merge-Reihenfolge: nach Tafel (30, H-K12)
-        assert_eq!(ARTEN[s as usize - 1].schema.oeffentliche(), 13);
+        assert_eq!(ARTEN[s as usize - 1].schema.oeffentliche(), 14);
         let bel = feld(&mut k, s, "belichtung");
         let bloom = feld(&mut k, s, "bloom");
         let nd = feld(&mut k, s, "nebelDichte");
@@ -4694,5 +4694,169 @@ mod material {
         assert_eq!(k.setze_zahl(koerper[0], belag, 0.0), 0);
         k.bild(6);
         assert!(zusatz(&k).is_none());
+    }
+}
+
+/// Regen: Funken-Nachtragsfelder (streckung, licht, volumen, aufschlag/boden/spritzer, regen) und Stimmung.regen.
+mod regen {
+    use super::*;
+    use crate::paket::ZUSATZ_TEILCHEN_BYTES;
+
+    fn zusatz(k: &Kern) -> Option<Vec<([f32; 3], u32)>> {
+        let l = Leser::neu(k.paket()).unwrap();
+        let (_, d) = l.abschnitte().find(|(a, _)| *a == abschnitt::ZUSATZ_TEILCHEN)?;
+        let f = |c: &[u8], o: usize| f32::from_le_bytes([c[o], c[o + 1], c[o + 2], c[o + 3]]);
+        Some(d.chunks_exact(ZUSATZ_TEILCHEN_BYTES).map(|c| ([f(c, 0), f(c, 4), f(c, 8)], u32::from_le_bytes([c[12], c[13], c[14], c[15]]))).collect())
+    }
+
+    /// Strahl nach unten aus (0, 3, 0), ohne Streuung und Schwerkraft; Kamera schaut von der Seite.
+    fn strahl(k: &mut Kern) -> (i32, i32, i32) {
+        let fu = typ(k, "Funken");
+        k.teil_lage(1, 0.0, 1.5, 12.0);
+        k.teil_schaue(1, 0.0, 1.5, 0.0);
+        let t = k.teil_neu(3);
+        k.teil_lage(t, 0.0, 3.0, 0.0);
+        let c = k.komp_neu(fu);
+        for (n, v) in [("rate", 60.0), ("lebensdauer", 2.0), ("tempo", 10.0), ("richtungY", -1.0), ("streuung", 0.0), ("groesse", 0.2), ("groesseEnde", 0.2)] {
+            let f = feld(k, fu, n);
+            assert_eq!(k.setze_zahl(c, f, v), 0, "{}", n);
+        }
+        assert_eq!(k.komp_haenge(c, t), 0);
+        (fu, t, c)
+    }
+
+    #[test]
+    fn standard_byte_gleich_ohne_zusatz() {
+        let lauf = |setzen: bool| {
+            let mut k = welt();
+            let (fu, _, c) = strahl(&mut k);
+            if setzen {
+                for (n, v) in [("streckung", 0.0), ("licht", 0.0), ("volumen", 0.0), ("aufschlag", 0.0), ("boden", 0.0), ("spritzer", 3.0), ("regen", 0.0)] {
+                    let f = feld(&mut k, fu, n);
+                    assert_eq!(k.setze_zahl(c, f, v), 0, "{}", n);
+                }
+            }
+            for _ in 0..20 {
+                k.takt();
+            }
+            k.bild(1);
+            assert!(zusatz(&k).is_none());
+            (k.hash_szene(), k.paket().to_vec())
+        };
+        assert_eq!(lauf(false), lauf(true));
+        let mut k = welt();
+        let (fu, _, c) = strahl(&mut k);
+        let sp = feld(&mut k, fu, "spritzer");
+        assert!(k.setze_zahl(c, sp, 17.0) < 0);
+        let st = feld(&mut k, fu, "streckung");
+        assert!(k.setze_zahl(c, st, -1.0) < 0);
+    }
+
+    #[test]
+    fn strich_und_licht_parallel_zu_den_teilchen() {
+        let mut k = welt();
+        let (fu, _, c) = strahl(&mut k);
+        let (st, li) = (feld(&mut k, fu, "streckung"), feld(&mut k, fu, "licht"));
+        assert_eq!(k.setze_zahl(c, st, 0.1), 0);
+        assert_eq!(k.setze_zahl(c, li, 0.5), 0);
+        for _ in 0..10 {
+            k.takt();
+        }
+        k.bild(1);
+        let (l, _, lagen, _) = teilchen_3d(&k).unwrap();
+        let z = zusatz(&k).expect("Zusatz bei streckung/licht");
+        assert_eq!(z.len(), l as usize);
+        for ((s, m), p) in z.iter().zip(lagen.iter()) {
+            // halbe Strecke in der Belichtungszeit: 10 · 0,1 / 2 (Tempo ±25 %), nach unten
+            assert!(s[0] == 0.0 && s[2] == 0.0 && s[1] <= -0.375 && s[1] >= -0.625, "{:?}", s);
+            assert_eq!(*m, 128);
+            // Mitte über dem Kopf (Kopf = Mitte + Strich), Kopf unter dem Ausstoßpunkt
+            assert!(p[1] + s[1] < 3.0 && p[1] > p[1] + s[1]);
+        }
+        // nur licht → Strich 0, Merkmale gesetzt
+        assert_eq!(k.setze_zahl(c, st, 0.0), 0);
+        k.bild(2);
+        assert!(zusatz(&k).unwrap().iter().all(|(s, m)| *s == [0.0; 3] && *m == 128));
+    }
+
+    #[test]
+    fn volumen_um_das_teil_mit_umlauf() {
+        let mut k = welt();
+        let (fu, t, c) = strahl(&mut k);
+        let vol = feld(&mut k, fu, "volumen");
+        assert_eq!(k.setze_zahl(c, vol, 2.0), 0);
+        let rx = feld(&mut k, fu, "richtungX");
+        assert_eq!(k.setze_zahl(c, rx, 0.4), 0);
+        for _ in 0..40 {
+            k.takt();
+        }
+        k.bild(1);
+        let (_, _, lagen, _) = teilchen_3d(&k).unwrap();
+        assert!(lagen.len() > 30);
+        assert!(lagen.iter().all(|p| p[0] >= -2.0 && p[0] < 2.0 && p[2] >= -2.0 && p[2] < 2.0), "im Quadrat trotz Schräge");
+        assert!(lagen.iter().any(|p| p[0] < -1.0) && lagen.iter().any(|p| p[0] > 1.0), "verteilt");
+        // Teil springt: nach einem Takt liegen alle Tropfen im neuen Quadrat
+        k.teil_lage(t, 10.0, 3.0, -5.0);
+        k.takt();
+        k.bild(2);
+        let (_, _, lagen, _) = teilchen_3d(&k).unwrap();
+        assert!(lagen.iter().all(|p| p[0] >= 8.0 && p[0] < 12.0 && p[2] >= -7.0 && p[2] < -3.0));
+    }
+
+    #[test]
+    fn aufschlag_mit_spritzern() {
+        let lauf = |spritzer: f64| {
+            let mut k = welt();
+            let (fu, _, c) = strahl(&mut k);
+            for (n, v) in [("aufschlag", 1.0), ("boden", 0.5), ("spritzer", spritzer)] {
+                let f = feld(&mut k, fu, n);
+                assert_eq!(k.setze_zahl(c, f, v), 0);
+            }
+            for _ in 0..40 {
+                k.takt();
+            }
+            k.bild(1);
+            let (_, _, lagen, _) = teilchen_3d(&k).unwrap();
+            assert!(lagen.iter().all(|p| p[1] >= 0.5), "nichts unter dem Boden");
+            let spritzer = lagen.iter().filter(|p| (p[3] - 0.07).abs() < 1e-6).count();
+            let tropfen = lagen.iter().filter(|p| (p[3] - 0.1).abs() < 1e-6).count();
+            (spritzer, tropfen, k.hash_szene())
+        };
+        let (spritz0, tropfen0, _) = lauf(0.0);
+        let (spritz3, tropfen3, h) = lauf(3.0);
+        assert_eq!(spritz0, 0);
+        assert!(spritz3 > 0, "Spritzer");
+        assert_eq!(tropfen0, tropfen3, "Tropfen unabhängig von den Spritzern");
+        assert!(tropfen3 < 40, "Tropfen enden am Boden");
+        assert_eq!(lauf(3.0).2, h, "bitgleich");
+    }
+
+    #[test]
+    fn rate_mal_stimmung_regen() {
+        let lauf = |stimmung: Option<f64>| {
+            let mut k = welt();
+            let (fu, _, c) = strahl(&mut k);
+            let rg = feld(&mut k, fu, "regen");
+            assert_eq!(k.setze_zahl(c, rg, 1.0), 0);
+            if let Some(r) = stimmung {
+                let s = typ(&mut k, "Stimmung");
+                let t = k.teil_neu(3);
+                let st = k.komp_neu(s);
+                let f = feld(&mut k, s, "regen");
+                assert_eq!(k.setze_zahl(st, f, r), 0);
+                assert_eq!(k.komp_haenge(st, t), 0);
+            }
+            for _ in 0..30 {
+                k.takt();
+            }
+            k.bild(1);
+            let n = teilchen_3d(&k).map(|t| t.2.len()).unwrap_or(0);
+            let regen = Leser::neu(k.paket()).unwrap().abschnitte().find(|(a, _)| *a == abschnitt::STIMMUNG).map(|(_, d)| f32::from_le_bytes([d[72], d[73], d[74], d[75]]));
+            (n, regen)
+        };
+        assert_eq!(lauf(None), (30, None));
+        assert_eq!(lauf(Some(1.0)), (30, Some(1.0)));
+        assert_eq!(lauf(Some(0.5)), (15, Some(0.5)));
+        assert_eq!(lauf(Some(0.0)), (0, Some(0.0)));
     }
 }

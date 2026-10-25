@@ -66,6 +66,7 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B10 (viele Lichter, 2026-10-25): `lichter.herd` N = 256 Punktlichter an einem drehenden Träger + 2 Spots, Reichweite 1 … 7, 120 Takte | 0,002 ms | 0,225 ms | 0,23 (0,22) ms | 0,031 ms | 0,399 ms | 0,40 (0,40) ms | – (nur gemessen) |
 | B10 mit N = 1024, 120 Takte | 0,004 ms | 0,876 ms | 0,88 (0,81) ms | 0,009 ms | 0,961 ms | 0,97 (0,98) ms | – (nur gemessen) |
 | B10 mit N = 4096, 60 Takte | 0,017 ms | 3,833 ms | 3,85 (3,66) ms | 0,028 ms | 4,364 ms | 4,39 (4,49) ms | – (nur gemessen) |
+| B11 (Regen, 2026-10-25): `regen.herd` N = 40 000 → 2 × 10 000 Teilchen (Grenze je Sprüher; A mit Volumen, Strichen, Licht, Aufschlag und Spritzern, B deckend im Raum des Teils), 12 Lichter, 220 Takte | 0,140 ms | 0,844 ms | 0,98 (0,89) ms | 0,156 ms | 1,495 ms | 1,64 (1,56) ms | – (nur gemessen; B5 mit 20 000 Funken zum Vergleich 0,67 ms nativ) |
 | B9 mit 4 × 4 Rastern à 256² = 1024 × 1024 Kacheln, 250 Takte | 0,179 ms | 0,033 ms | 0,21 (0,19) ms | 0,254 ms | 0,049 ms | 0,30 (0,30) ms | – (nur gemessen) |
 
 B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =

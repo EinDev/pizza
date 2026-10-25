@@ -68,6 +68,8 @@ const LAEUFE = [
   ['stimmung.herd', { N: 2000 }],
   ['material.herd', {}],
   ['material.herd', { N: 1000 }],
+  ['regen.herd', {}],
+  ['regen.herd', { N: 20000, TAKTE: 120 }],
 ];
 
 const args = process.argv.slice(2);

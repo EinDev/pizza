@@ -242,6 +242,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 14 | TEILCHEN3D | `u32 leuchtend, u32 deckend`, dann (leuchtend + deckend) × 20 Bytes 3D-Teilchen (`Funken`, unten); nur wenn sichtbare Teilchen da sind |
 | 15 | HIMMELSZELT | 208 Bytes Uniform-Block des geltenden `Himmelszelt` (H-K11b, unten); nur wenn eines an einem wachen Teil hängt (dann ist auch Flag 4 gesetzt) |
 | 18 | ZUSATZ3D | Material-Zusatz je 3D-Instanz (16 B, gleiche Reihenfolge wie INST3D): `u32 relief` (wie `INST3D.textur`, nur eigene Texturen; 0 = keins), `f32 kachel`, `f32 metall`, `u32 merkmale` (Bit 0 pbr, Bit 1 Welt-Abbildung, Bits 8–15 nass · 255); nur wenn eine geschriebene Instanz einen hat (`Belag`-Material) |
+| 19 | ZUSATZ_TEILCHEN | Zusatz je 3D-Teilchen (16 B, gleiche Reihenfolge wie TEILCHEN3D): `f32 strich x, y, z` (halbe Strichachse in Welt, 0 = rund), `u32 merkmale` (Bits 0–7 `licht` · 255); nur wenn ein geschriebenes Teilchen gestreckt oder beleuchtet ist (`Funken` „Regen“) |
 | 17 | STIMMUNG | 80 Bytes Uniform-Block der geltenden `Stimmung` (unten); nur wenn eine an einem wachen Teil hängt |
 | 16 | LICHTER | viele Lichter (Clustered Forward, `kern/src/lichter.rs`, unten); nur bei mehr als 8 wirksamen Punktlichtern (Stärke > 0) oder einem Spot (`Licht.kegel` > 0) |
 
@@ -275,7 +276,9 @@ nicht vormultipliziert). Erst die **leuchtenden** (additiv) in Ausstoßreihenfol
 **deckenden** (gemischt) von hinten nach vorn (Abstand entlang der Blickrichtung, dann Ausstoßreihenfolge; Schlüssel
 `ordnungs_bits`). Teilchen außerhalb des Sichtkörpers (Kugel mit Radius `r`) sind entfernt. Die Glut zeichnet sie als
 kamerazugewandte Vierecke nach `DURCH` und vor INST2D: Tiefe testen, nicht schreiben, Nebel, keine Schatten, je Mischart ein
-instanzierter Draw-Call.
+instanzierter Draw-Call. Mit `Funken.streckung` ist `x, y, z` die **Mitte** des Strichs (Kopf = Mitte + `strich` aus ZUSATZ_TEILCHEN) und der
+Sichtkörper-Test nimmt den Radius `r` + halbe Strichlänge; Strich und Licht stehen dann in **ZUSATZ_TEILCHEN** (16 B je Teilchen in
+derselben Reihenfolge), sonst fehlt der Abschnitt und das Paket ist byte-gleich.
 
 **HIMMELSZELT (208 Bytes, std140-gleich):** `oben vec4` · `horizont vec4` · `boden vec4` (linear, w = 1) · `sonne vec4` (xyz zur
 Sonne = `SZENE.sonne_richtung.xyz`, w = halber Scheibenwinkel in Bogenmaß, 0 = keine Scheibe) · `sonne_farbe vec4` (Farbe des
@@ -367,7 +370,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `vorlage.herd`: `Vorlage` 2D/3D mit Kopie-Wellen, Vieleck-Kind, Umhängen, `ohne`, mit N = 40/1 000; `fliesen.herd`: `Fliesen` als CHUNKS × CHUNKS Raster mit
   wanderndem Blick, Wucht-Körpern auf festen Kacheln, gedrehtem/verschobenem/HUD-Raster, klein 2 × 2 × 48² und voll 4 × 4 × 256² =
-  1024 × 1024 Kacheln; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `material.herd`: Belag-Material mit Teigling-Mustern 6/7, Umstellen, Lösen, Durchsichtiges, N = 24/1000; `stimmung.herd`: Stimmung lose/angehängt/zweite/Vorlage/entfernt, `strahlen` an Körper und Belag, N = 20/2000; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  1024 × 1024 Kacheln; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `material.herd`: Belag-Material mit Teigling-Mustern 6/7, Umstellen, Lösen, Durchsichtiges, N = 24/1000; `regen.herd`: Funken als Regen (Volumen um ein wanderndes Teil, Striche, Licht, Aufschlag mit Spritzern, Rate × `Stimmung.regen` mit Wechsel; im Raum des Teils gedreht und deckend), N = 400/20 000; `stimmung.herd`: Stimmung lose/angehängt/zweite/Vorlage/entfernt, `strahlen` an Körper und Belag, N = 20/2000; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `ui.herd`: `Taster`, `Leiste`, `Regler`, ziehbare `Tafel` als HUD unter einem gedrehten, gezoomten `Blick`, Maus per `eingabe` je Takt, `Blick.mausX`/`mausY`, klein und mit N = 2 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
@@ -509,7 +512,14 @@ gleichmäßigen 128²-Rasters je Seite (PCG-Hash, 3,5 % der Zellen, Radius 1,3 �
 · `funken` (3D-Teilchen: Viereck aus `vertex_index`, Kamera-rechts/
 -oben aus den Zeilen 0/1 von `ansicht_proj` – kein neues Uniform; leuchtend = Schein (1 − r²)² mit heißem Kern, im Nebel
 ausgeblendet; deckend = Scheibe mit weichem Rand, zur Nebelfarbe gemischt). Ableitungen nur in gleichförmigem Kontrollfluss, Texturen per
-`textureLoad`/`…Level` (naga-/WebGL2-tauglich).
+`textureLoad`/`…Level` (naga-/WebGL2-tauglich). ZUSATZ_TEILCHEN als zweiter Instanzpuffer (Slot 1: @3 `strich` `Float32x3`, @4 `merkmale`
+`Uint32`; ohne Abschnitt Nullen): Strich = Viereck entlang der Achse, quer zur Kamera, halbe Breite mindestens 0,6 Gerätepixel
+(Weltmaß eines Pixels aus `w` und P11 = Länge von Zeile 1), Deckkraft × Größe/Breite, längs vom Schwanz auslaufend, Kopf und
+Schwanz gerundet; schaut man fast entlang der Achse, rundes Teilchen. Licht je Teilchen **im Vertex-Shader** (Umgebung, Nebelfarbe,
+Sonne, Lichter der Zelle bzw. die 8 aus SZENE, Vorwärtsstreuung 0,35 + 3,65 · max(0, Blick · zum Licht)⁶) – die Bindungen 15/16
+sind dafür auch im Vertex-Stadium sichtbar (nur `textureLoad`, unter WebGL2 Vertex-Texturen). `licht`: `pbr_licht` mit
+`Stimmung.regen` (STIMMUNG `spiegel.z`): Ringe aus `regenringe` (zwei Zell-Lagen, 3 × 3 Nachbarn, Ganzzahl-Hash, Welle
+sin(2x)·e^(−x²) als Ableitung) als Neigung der Normale vor der Spiegelung, Rinnsale an Wänden aus Wertrauschen.
 
 **Sonnenschatten (H2a repariert):** Ursache der „schwachen Flecken“ war ein veralteter Uniform-Block im Shader (560 statt 592 Bytes,
 ohne `hintergrund`/`feld`): Der Shader las den Tiefen-Bias aus der Hintergrundfarbe (≈ 0,9) und die PCF-Schrittweite aus 1,0 – fast
@@ -542,6 +552,8 @@ Schachbrett verkleinert und gedreht, Pizzen immer kleiner ohne dunklen Rand, get
 Atlas-Rahmen zum Vergleich), `3d-textur` (Boden mit Schachbrett 512² flach bis zum Horizont – nah pixelscharf, fern trilinear ohne
 Moiré –, schräge Wand mit Zonenplatte, Würfel mit ausgeschnittener Pizza samt Schatten, Kugel 64², Belag mit 96 × 60, Atlas-Würfel),
 `3d-spiegel` (Spiegelung: Neonröhren auf nassem Plattenboden, Spiegelbild in Pfützen, Bloom, Höhennebel),
+`3d-regen` (Regen: nasser Platz mit Wand, Neonröhren und Laterne als Spot, zwei Sprüher im Volumen um die Kamera – Striche im Licht,
+Spritzer, Pfützenringe und Rinnsale bei `Stimmung.regen` 0.8),
 `3d-material` (Material: nasser Plattenboden in Weltmaß mit Noppen-Relief und Pfützen, metallische Wand in uv-Kachelung, Kugel mit Relief,
 farbige Lichter knapp über dem Boden, Spot; ohne Stimmung),
 `3d-stimmung` (Stimmung: drei Neonröhren, zwei mit `strahlen` 6 und Bloom, Höhennebel, Vignette, 2D-Balken darüber),

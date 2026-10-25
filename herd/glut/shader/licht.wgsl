@@ -79,6 +79,42 @@ fn rauschen2(p: vec2<f32>) -> f32 {
 
 const PI: f32 = 3.14159265;
 
+// Regenringe (Stimmung.regen): zwei Lagen Zellen (0,6 m und 0,37 m), je Zelle und Takt (0,8 s, Phase je Zelle) ein
+// Tropfen an zufälliger Stelle mit Wahrscheinlichkeit ~ regen; der Ring läuft nach außen und verebbt. Liefert die Neigung
+// der Normale (x, z) – Summe der Ableitungen der Wellen, aus dem Ganzzahl-Hash (gleich auf allen Schnittstellen).
+fn regenringe(p: vec2<f32>, zeit: f32, regen: f32) -> vec2<f32> {
+    var g = vec2<f32>(0.0);
+    for (var lage = 0; lage < 2; lage = lage + 1) {
+        let gr = select(0.6, 0.37, lage == 1);
+        let versatz = select(vec2<f32>(0.0), vec2<f32>(113.0, 71.0), lage == 1);
+        let q = p / gr;
+        let basis = floor(q);
+        for (var j = -1; j <= 1; j = j + 1) {
+            for (var i = -1; i <= 1; i = i + 1) {
+                let zelle = basis + vec2<f32>(f32(i), f32(j)) + versatz;
+                let phase = h2(zelle + vec2<f32>(37.0, 11.0));
+                let t = zeit / 0.8 + phase;
+                let runde = floor(t);
+                let tt = t - runde;
+                let k = zelle + vec2<f32>(runde * 7.0, runde * 13.0);
+                if (h2(k + vec2<f32>(3.0, 5.0)) < regen * 0.85 + 0.05) {
+                    let mitte = (zelle - versatz + vec2<f32>(0.15, 0.15) + vec2<f32>(h2(k), h2(k + vec2<f32>(19.0, 2.0))) * 0.7) * gr;
+                    let d = p - mitte;
+                    let l = length(d);
+                    let radius = tt * 0.42 * gr;
+                    let x = (l - radius) / (0.05 * gr);
+                    // Welle sin(2x) · e^(−x²) → Ableitung nach l, verebbend mit dem Alter
+                    let e = exp(-x * x);
+                    let ab = (2.0 * cos(2.0 * x) - 2.0 * x * sin(2.0 * x)) * e;
+                    let alt = (1.0 - tt) * (1.0 - tt);
+                    g = g + d / max(l, 1e-4) * (ab * alt * 0.22);
+                }
+            }
+        }
+    }
+    return g * min(regen * 1.5 + 0.25, 1.0);
+}
+
 // GGX-Glanz (Smith-Sichtbarkeit nach Heitz, Fresnel nach Schlick), schon × π × N·L (Lambert ohne 1/π wie die Engine)
 fn ggx(n: vec3<f32>, v: vec3<f32>, l: vec3<f32>, rauh: f32, f0: vec3<f32>) -> vec3<f32> {
     let h = normalize(l + v);
@@ -226,6 +262,24 @@ fn pbr_licht(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, v: vec3<f32>, albedo
     rauh = mix(rauh, 0.05, pfuetze);
     albedo = albedo * (1.0 - 0.55 * pfuetze);
     n = normalize(mix(n, ng, pfuetze));
+    // Regen (Stimmung.regen): Ringe auf nassen Flächen nach oben (in Pfützen voll, auf feuchtem Belag schwächer),
+    // Rinnsale an nassen Wänden (glatter, etwas dunkler, laufen nach unten)
+    let regen = select(0.0, stimmung.spiegel.z, hdr_an() && !im_spiegel());
+    if (regen > 0.0 && nass > 0.0) {
+        let oben = smoothstep(0.75, 0.9, ng.y);
+        if (oben > 0.0) {
+            let g = regenringe(welt.xz, stimmung.b.z, regen) * (oben * mix(0.3, 1.0, pfuetze));
+            n = normalize(n + vec3<f32>(g.x, 0.0, g.y));
+        }
+        let wand = 1.0 - smoothstep(0.3, 0.6, abs(ng.y));
+        if (wand > 0.0) {
+            let u = dot(welt.xz, normalize(vec2<f32>(-ng.z, ng.x) + vec2<f32>(1e-5, 0.0)));
+            let fluss = rauschen2(vec2<f32>(u * 7.0, welt.y * 0.8 + stimmung.b.z * 1.3));
+            let rinnsal = smoothstep(0.62, 0.8, fluss) * smoothstep(0.35, 0.6, rauschen2(vec2<f32>(u * 2.3, 5.0))) * wand * regen * nass;
+            rauh = mix(rauh, 0.08, rinnsal);
+            albedo = albedo * (1.0 - 0.25 * rinnsal);
+        }
+    }
     rauh = clamp(rauh, 0.045, 1.0);
     let f0 = mix(vec3<f32>(0.04), albedo, metall);
     let diff = albedo * (1.0 - metall);

@@ -1,0 +1,171 @@
+#! bild 90 groesse 1280x720
+# Referenzbild „Regen“ (Funken-Nachtragsfelder, Stimmung.regen): nächtlicher Platz mit nassem Plattenboden (pbr, nass 1) und
+# nasser Wand, drei Neonröhren und eine Laterne (Spot → Lichter über die Zellen). Regen aus zwei Sprühern in einem Volumen um
+# die Kamera: Tropfen als Striche (streckung), von den Lichtern gefärbt und gegen das Licht heller (licht 1), Aufschläge
+# mit Spritzern am Boden (aufschlag, spritzer), Rate × Stimmung.regen; Pfützenringe und Rinnsale an der Wand im Shader.
+welt_neu 1280 720 "Regen"
+welt_himmel "#07080f" "#231a33"
+welt_umgebung "#5060a0" 0.08
+typ_nummer "Koerper" -> T_K
+typ_nummer "Belag" -> T_B
+typ_nummer "Licht" -> T_L
+typ_nummer "Stimmung" -> T_S
+typ_nummer "Funken" -> T_F
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "leuchten" -> K_LE
+feld_nummer T_K "strahlen" -> K_ST
+feld_nummer T_K "schatten" -> K_SCH
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_B "bild" -> B_BILD
+feld_nummer T_B "kachel" -> B_KACHEL
+feld_nummer T_B "abbildung" -> B_ABB
+feld_nummer T_B "modell" -> B_MODELL
+feld_nummer T_B "nass" -> B_NASS
+feld_nummer T_B "glanz" -> B_GLANZ
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_L "kegel" -> L_KEGEL
+feld_nummer T_L "kegelRand" -> L_RAND
+feld_nummer T_S "belichtung" -> S_BEL
+feld_nummer T_S "bloom" -> S_BLOOM
+feld_nummer T_S "nebelDichte" -> S_ND
+feld_nummer T_S "nebelAbfall" -> S_NA
+feld_nummer T_S "nebelFarbe" -> S_NF
+feld_nummer T_S "spiegelung" -> S_SP
+feld_nummer T_S "regen" -> S_REGEN
+feld_nummer T_F "rate" -> F_RATE
+feld_nummer T_F "lebensdauer" -> F_LEBEN
+feld_nummer T_F "tempo" -> F_TEMPO
+feld_nummer T_F "richtungX" -> F_RX
+feld_nummer T_F "richtungY" -> F_RY
+feld_nummer T_F "streuung" -> F_STREU
+feld_nummer T_F "schwerkraft" -> F_SCHWER
+feld_nummer T_F "groesse" -> F_GR
+feld_nummer T_F "groesseEnde" -> F_GRE
+feld_nummer T_F "farbe" -> F_FARBE
+feld_nummer T_F "farbeEnde" -> F_FARBE_E
+feld_nummer T_F "saat" -> F_SAAT
+feld_nummer T_F "streckung" -> F_STRECK
+feld_nummer T_F "licht" -> F_LICHT
+feld_nummer T_F "volumen" -> F_VOL
+feld_nummer T_F "aufschlag" -> F_AUF
+feld_nummer T_F "boden" -> F_BODEN
+feld_nummer T_F "spritzer" -> F_SPRITZ
+feld_nummer T_F "regen" -> F_REGEN
+form_grund 1 0 0 -> WUERFEL
+form_grund 3 16 0 -> ZYLINDER
+form_grund 5 0 0 -> EBENE
+teigling_muster 7 256 256 -> PLATTEN
+
+teil_lage 1 0 1.6 9
+teil_schaue 1 0 1.2 -4
+komp_von 2 T_L -> SONNE
+setze_zahl SONNE L_ST 0
+
+# nasser Plattenboden und nasse Wand (ein Belag)
+teil_neu 3 -> bt
+komp_neu T_B -> b
+setze_zahl b B_BILD PLATTEN
+setze_zahl b B_KACHEL 3
+setze_text b B_ABB "welt"
+setze_text b B_MODELL "pbr"
+setze_zahl b B_NASS 1
+setze_zahl b B_GLANZ 0.5
+komp_haenge b bt
+teil_neu 3 -> boden
+teil_groesse boden 40 1 60
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_zahl k K_BELAG bt
+komp_haenge k boden
+teil_neu 3 -> wand
+teil_lage wand 0 4 -11
+teil_groesse wand 30 8 1
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_zahl k K_BELAG bt
+komp_haenge k wand
+
+# stehende Neonröhren (magenta, cyan, gelb) mit je einem Licht
+wiederhole 3 i
+  teil_neu 3 -> r
+  teil_lage r ((i - 1) * 3.4) 1.6 (-3 - i * 1.5)
+  teil_groesse r 0.14 3.2 0.14
+  komp_neu T_K -> k
+  setze_zahl k K_FORM ZYLINDER
+  setze_zahl k K_F (4281063167 * boden(1 / (1 + i * i)) + 585564159 * boden(1 / (1 + (i - 1) * (i - 1))) + 4291967743 * boden(1 / (1 + (i - 2) * (i - 2))))
+  setze_zahl k K_LE 1
+  setze_zahl k K_ST 8
+  setze_zahl k K_SCH 0
+  komp_haenge k r
+  teil_neu 3 -> l
+  teil_lage l ((i - 1) * 3.4) 1.6 (-2.4 - i * 1.5)
+  komp_neu T_L -> li
+  setze_zahl li L_F (4281063167 * boden(1 / (1 + i * i)) + 585564159 * boden(1 / (1 + (i - 1) * (i - 1))) + 4291967743 * boden(1 / (1 + (i - 2) * (i - 2))))
+  setze_zahl li L_ST 3
+  setze_zahl li L_RW 7
+  komp_haenge li l
+ende
+
+# Laterne rechts vorn: Leuchte und Spot nach unten (Gegenlicht für die Tropfen)
+teil_neu 3 -> kopf
+teil_lage kopf 2.2 4.6 2
+teil_groesse kopf 0.6 0.08 0.3
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#ffd9a0"
+setze_zahl k K_LE 1
+setze_zahl k K_ST 5
+setze_zahl k K_SCH 0
+komp_haenge k kopf
+teil_neu 3 -> spot
+teil_lage spot 2.2 4.5 2
+teil_schaue spot 2.0 0 2.01
+komp_neu T_L -> li
+setze_text li L_F "#ffcf8a"
+setze_zahl li L_ST 7
+setze_zahl li L_RW 10
+setze_zahl li L_KEGEL 55
+setze_zahl li L_RAND 0.6
+komp_haenge li spot
+
+# Regen: zwei Sprüher über der Kamera, Volumen 7 m um sie, Rate × Stimmung.regen
+wiederhole 2 i
+  teil_neu 3 -> q
+  teil_lage q 0 9 4
+  komp_neu T_F -> f
+  setze_zahl f F_SAAT (11 + i)
+  setze_zahl f F_RATE 3000
+  setze_zahl f F_LEBEN 1.1
+  setze_zahl f F_TEMPO 10
+  setze_zahl f F_RX 0.08
+  setze_zahl f F_RY -1
+  setze_zahl f F_STREU 3
+  setze_zahl f F_SCHWER 3
+  setze_zahl f F_GR 0.018
+  setze_zahl f F_GRE 0.018
+  setze_text f F_FARBE "#d8e0ffb0"
+  setze_text f F_FARBE_E "#d8e0ffb0"
+  setze_zahl f F_STRECK 0.03
+  setze_zahl f F_LICHT 1
+  setze_zahl f F_VOL 7
+  setze_zahl f F_AUF 1
+  setze_zahl f F_BODEN 0
+  setze_zahl f F_SPRITZ 3
+  setze_zahl f F_REGEN 1
+  komp_haenge f q
+ende
+
+teil_neu 3 -> s
+komp_neu T_S -> st
+setze_zahl st S_BEL 1.6
+setze_zahl st S_BLOOM 0.9
+setze_zahl st S_ND 0.05
+setze_zahl st S_NA 0.5
+setze_text st S_NF "#2a2440"
+setze_zahl st S_SP 1
+setze_zahl st S_REGEN 0.8
+komp_haenge st s
+takte 90

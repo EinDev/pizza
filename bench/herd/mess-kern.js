@@ -34,6 +34,7 @@ const LAEUFE = [
   ['B10', 'lichter.herd', { N: 256, TAKTE: 120 }],
   ['B10', 'lichter.herd', { N: 1024, TAKTE: 120 }],
   ['B10', 'lichter.herd', { N: 4096, TAKTE: 60 }],
+  ['B11', 'regen.herd', { N: 40000, TAKTE: 180 }],
 ];
 
 if (!process.argv.includes('--ohne-cargo')) {
