@@ -36,8 +36,8 @@ leer haus(salami seite, funghi z0, funghi z1, funghi hoehe, Teil stoff, funghi t
         herd.licht(xf - seite * 1.2, 1.8, zm, farbe: r < 0.75 ? "#ffb070" : "#7fd8ff", reichweite: 5).licht().setzeStaerke(1.6);
     }
     quader(SCHWARZ, xf - seite * 0.06, 1.15, z1 + 0.9, 0.08, 2.3, 1.1, nein);
-    // Vordach
-    quader(STAHL, xf - seite * 0.6, 3.3, zm, 1.2, 0.08, laenge - 0.6, nein);
+    // Vordach: fester Fühler (keine Mauer im Grundriss) – der Regen trommelt darauf, darunter bleibt es trocken
+    begehbar(quader(STAHL, xf - seite * 0.6, 3.3, zm, 1.2, 0.08, laenge - 0.6, nein));
     // Neonleisten an der Fassade, je mit farbigem Licht (färbt Wand und Straße)
     für (salami k = 0; k < 2; k++) {
         funghi ly = 4.5 + wuerfle() * Mathe.min(hoehe - 6, 12);

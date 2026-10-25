@@ -3,7 +3,8 @@
 // Stimmung.regen lässt Ringe in den Pfützen und Rinnsale an den nassen Wänden laufen,
 // und die Funken mit `regen: ja` stoßen rate × regen Tropfen aus. Die Tropfen sind Striche (`streckung` = Belichtungszeit),
 // leuchten im Licht der Neonschilder und Laternen (`licht`), fallen in einem Volumen um den Spieler (`volumen`: wer es verlässt,
-// kommt auf der anderen Seite wieder herein – so wirken wenige tausend Tropfen wie ein Wolkenbruch) und spritzen am Boden auf.
+// kommt auf der anderen Seite wieder herein – so wirken wenige tausend Tropfen wie ein Wolkenbruch). Mit `kollision: "welt"`
+// treffen sie alle festen Fühler – Fahrbahn, Gehwege (15 cm höher), Vordächer, Dächer – und spritzen dort auf.
 bestellt "zustand.pizza";
 
 funghi REGENSTAERKE = 0.85;
@@ -23,7 +24,7 @@ Teil baueWetter() {
         Teil q = herd.raum(0, 0, 0).haenge(r);
         q.mit(neu Funken(rate: 4200, lebensdauer: 1.2, tempo: 11, richtungX: 0.06, richtungY: -1, streuung: 3, schwerkraft: 3,
                          groesse: 0.016, groesseEnde: 0.016, farbe: "#c8d2ffa0", farbeEnde: "#c8d2ffa0", mischung: "leuchtend",
-                         streckung: 0.032, licht: 1, volumen: 9, aufschlag: ja, boden: 0.03, spritzer: 3, regen: ja));
+                         streckung: 0.032, licht: 1, volumen: 9, kollision: "welt", spritzer: 3, regen: ja));
     }
     serviere ((r));
 }
