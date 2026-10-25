@@ -1,0 +1,60 @@
+// Herd §18.6 / HERD.md §13.3 H-K20: Figur – Figur-Steuerung: fällt und steht, läuft eine Treppe hinauf, gleitet an einer Wand,
+// fährt auf einer Plattform mit, springt; ein zu steiler Hang hält auf; Standardwerte und Fehler
+Herd herd = neu Herd("Figur", breite: 320, hoehe: 180);
+Figur vorgabe = neu Figur();
+Bote.sage((vorgabe + " " + vorgabe.schwerkraft() + " " + vorgabe.stufe() + " " + vorgabe.hang() + " " + vorgabe.haut() + " " + vorgabe.mitfahren() + " " + vorgabe.amBoden() + " " + vorgabe.boden()));
+Teil boden = herd.koerper(Form.wuerfel(), 0, -0.5, 0, farbe: "basilikum").setzeGroesse(40, 1, 40);
+boden.mit(neu Fuehler(ausloeser: nein));
+// Treppe: vier Stufen à 0.2 in +x, dann ein Absatz
+für (salami i = 0; i < 4; i++) {
+  Teil stufe = herd.koerper(Form.wuerfel(), 2.2 + i * 0.4, (i + 1) * 0.1, 0, farbe: "kruste").setzeGroesse(0.4, (i + 1) * 0.2, 2);
+  stufe.mit(neu Fuehler(ausloeser: nein));
+}
+Teil absatz = herd.koerper(Form.wuerfel(), 5.4, 0.4, 0, farbe: "kruste").setzeGroesse(2.4, 0.8, 2);
+absatz.mit(neu Fuehler(ausloeser: nein));
+Teil wand = herd.koerper(Form.wuerfel(), 0, 1, -4, farbe: "mozzarella").setzeGroesse(12, 2, 0.5);
+wand.mit(neu Fuehler(ausloeser: nein));
+// Plattform: kinematischer Schwung, fährt in z
+Teil platte = herd.koerper(Form.wuerfel(), -6, 0.5, 4, farbe: "senf").setzeGroesse(2, 0.2, 2);
+platte.mit(neu Fuehler(ausloeser: nein));
+Schwung fahrt = platte.mit(neu Schwung(art: "kinematisch"));
+Rezept figur = (funghi x, funghi y, funghi z) -> {
+  Teil t = herd.raum(x, y + 0.9, z);
+  t.mit(neu Fuehler(form: "kapsel", radius: 0.3, hoehe: 1.8, ausloeser: nein));
+  serviere (t);
+};
+Teil steiger = figur(0, 0, 0);
+Figur fs = steiger.mit(neu Figur(laufX: 1.6));
+Teil gleiter = figur(0, 0, -2);
+Figur fg = gleiter.mit(neu Figur(laufX: 1.5, laufZ: -1.5));
+Teil fahrer = figur(-6, 0.6, 4);
+Figur ff = fahrer.mit(neu Figur());
+Teil springer = figur(8, 0, 6);
+Figur fsp = springer.mit(neu Figur());
+// zu steiler Hang (Gelände 60°): kommt nicht hinauf
+Blech<funghi> h = [];
+für (salami j = 0; j < 5; j++) {
+  für (salami i = 0; i < 9; i++) { h.hinzu((i > 4 ? (i - 4) * 1.732 : 0)); }
+}
+Teil hang = herd.raum(0, 0.01, 14);
+hang.mit(neu Gelaende(hoehen: h, spalten: 9, zeilen: 5, weite: 1, farbe: "oliven"));
+hang.mit(neu Fuehler(form: "netz", ausloeser: nein));
+Teil kletterer = figur(-2, 0.01, 14);
+Figur fk = kletterer.mit(neu Figur(laufX: 2));
+funghi hoch = 0;
+salami gesprungen = 0;
+herd.backe(() -> {
+  falls (herd.bildnummer() == 30) { fahrt.setzeTempoZ(1); fsp.setzeSprung(5); gesprungen = 1; }
+  falls (springer.y() - 0.9 > hoch) { hoch = springer.y() - 0.9; }
+});
+Bote.sage(("Steiger oben: " + (steiger.x() > 4.5) + ", Fuß auf " + (steiger.y() - 0.9).runden(2) + ", amBoden " + fs.amBoden() + ", boden ist der Absatz: " + (fs.boden().id() == absatz.id())));
+Bote.sage(("Gleiter an der Wand: z = " + gleiter.z().runden(2) + ", anWand " + fg.anWand() + ", tempoX " + fg.tempoX().runden(2) + ", tempoZ " + fg.tempoZ().runden(2)));
+Bote.sage(("Fahrer fährt mit: " + ((fahrer.z() - 4) > 2) + ", boden ist die Platte: " + (ff.boden().id() == platte.id()) + ", tempoZ (ohne Mitfahren) " + ff.tempoZ().runden(2)));
+Bote.sage(("Springer: Sprung verbraucht " + fsp.sprung() + ", Sprunghöhe " + hoch.runden(1) + ", wieder am Boden " + fsp.amBoden() + ", Normale " + fsp.bodenNormaleY()));
+Bote.sage(("Kletterer am 60°-Hang: kommt nicht hinauf " + (kletterer.x() < 0.6) + ", steht " + fk.amBoden()));
+probier { fk.setzeAmBoden(ja); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { fk.setzeHang(100); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { herd.raum(0, 0, 0).mit(neu Figur()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+Teil flach = herd.rechteck(10, 10, 5, 5);
+flach.mit(neu Fuehler());
+probier { flach.mit(neu Figur()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

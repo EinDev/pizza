@@ -1,0 +1,10 @@
+Figur() 9.81 0.3 45 0.02 ja nein karton
+Steiger oben: ja, Fuß auf 0.82, amBoden ja, boden ist der Absatz: ja
+Gleiter an der Wand: z = -3.43, anWand ja, tempoX 1.5, tempoZ 0
+Fahrer fährt mit: ja, boden ist die Platte: ja, tempoZ (ohne Mitfahren) 0
+Springer: Sprung verbraucht 0, Sprunghöhe 1.3, wieder am Boden ja, Normale 1
+Kletterer am 60°-Hang: kommt nicht hinauf ja, steht ja
+LaufzeitAnanas: Figur.amBoden kann man nur lesen.
+LaufzeitAnanas: Figur.hang muss zwischen 0 und 90 liegen, nicht 100.
+LaufzeitAnanas: Figur braucht einen Fuehler am selben Teil.
+LaufzeitAnanas: Figur gibt es nur für 3D-Teile.

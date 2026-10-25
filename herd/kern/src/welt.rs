@@ -115,6 +115,11 @@ pub struct Welt {
     pub takte: u64,
     /// Eingabezustand (H-K12; nicht im Szenen-Hash)
     pub eingabe: Eingabe,
+    /// Änderungszähler (H-K20): jeder schreibende Kern-Aufruf zählt hoch (`Kern::w`), lesende nicht. Beim Lesen berechnete
+    /// Abfragen (`Strahl`) gelten bis zur nächsten Änderung. Nicht im Szenen-Hash.
+    pub stand: u64,
+    /// Zwischenergebnisse der `Strahl`-Abfragen für [`Welt::stand`] (H-K20; nicht im Szenen-Hash)
+    pub abfragen: crate::komponenten::strahl::Abfragen,
 }
 
 fn rot2(g: f64) -> (f64, f64) {
@@ -144,6 +149,8 @@ impl Welt {
             ressourcen: Ressourcen::default(),
             takte: 0,
             eingabe: Eingabe::default(),
+            stand: 0,
+            abfragen: Default::default(),
         };
         // Teil 1: Kamera (0, 3, 8) → schaut auf (0, 0, 0); Teil 2: Sonne, Lage = Richtung zur Sonne.
         let kamera = w.teil_neu(true);
@@ -607,6 +614,7 @@ impl Welt {
             }
         }
         self.takte += 1;
+        self.stand += 1;
         // H-K12: Drücken/Loslassen gilt nur in dem Takt, in dem es geschah
         self.eingabe.vor_knoepfe = self.eingabe.knoepfe;
     }

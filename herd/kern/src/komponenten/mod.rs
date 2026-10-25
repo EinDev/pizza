@@ -15,6 +15,7 @@ pub mod bewegung;
 pub mod bild;
 pub mod blick;
 pub mod fuehler;
+pub mod figur;
 pub mod fliesen;
 pub mod funken;
 pub mod gelaende;
@@ -33,6 +34,7 @@ pub mod rechteck;
 pub mod regler;
 pub mod schwung;
 pub mod stimmung;
+pub mod strahl;
 pub mod tafel;
 pub mod taster;
 pub mod text;
@@ -176,6 +178,8 @@ pub static ARTEN: &[&Art] = &[
     &tafel::ART,
     &stimmung::ART,
     &schwung::ART,
+    &figur::ART,
+    &strahl::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];

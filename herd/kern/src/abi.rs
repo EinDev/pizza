@@ -133,7 +133,15 @@ impl Kern {
             }
         }
     }
+    /// Welt für einen **schreibenden** Aufruf: zählt [`Welt::stand`] hoch (H-K20 – berechnete Abfragen gelten bis zur nächsten
+    /// Änderung). Im Zweifel diesen nehmen: ein unnötiges Hochzählen kostet nur eine neue Abfrage.
     fn w(&mut self) -> Erg<&mut Welt> {
+        let w = self.welt.as_mut().ok_or_else(fehler::keine_welt)?;
+        w.stand += 1;
+        Ok(w)
+    }
+    /// Welt für einen **lesenden** Aufruf (ändert nichts am Zustand, nur Caches wie Welt-Matrizen): `stand` bleibt.
+    fn wl(&mut self) -> Erg<&mut Welt> {
         self.welt.as_mut().ok_or_else(fehler::keine_welt)
     }
 
@@ -247,7 +255,7 @@ impl Kern {
     /// Welt-Angaben: 1 Breite, 2 Höhe, 3 Takte, 4 nächste Teil-ID, 5 Anzahl lebender Teile, 6 Anzahl Ressourcen.
     pub fn welt_hole(&mut self, was: i32) -> f64 {
         let e = (|| {
-            let w = self.w()?;
+            let w = self.wl()?;
             Ok(match was {
                 1 => w.breite as f64,
                 2 => w.hoehe as f64,
@@ -298,7 +306,7 @@ impl Kern {
     /// Kinder-IDs; Rückgabe = Anzahl. Ist sie größer als `aus.len()`, wird nichts geschrieben (K-013).
     pub fn teil_kinder(&mut self, teil: i32, aus: &mut [u32]) -> i32 {
         let e = (|| {
-            let w = self.w()?;
+            let w = self.wl()?;
             let z = w.zeile(teil as u32)?;
             let k = &w.teile.kinder[z];
             if k.len() <= aus.len() {
@@ -358,7 +366,7 @@ impl Kern {
 
     pub fn teil_hole(&mut self, teil: i32, feld: i32) -> f64 {
         let e = (|| {
-            let w = self.w()?;
+            let w = self.wl()?;
             let id = teil as u32;
             if feld == teilfeld::ENTFERNT {
                 return match w.zeile(id) {
@@ -466,7 +474,7 @@ impl Kern {
     /// 1 = Hüllen überlappen, 0 = nicht (anderer Raum, unsichtbar, ohne Hülle).
     pub fn teil_trifft(&mut self, a: i32, b: i32) -> i32 {
         let e = (|| {
-            let w = self.w()?;
+            let w = self.wl()?;
             let za = w.zeile(a as u32)?;
             let zb = w.zeile(b as u32)?;
             if w.teile.drei_d[za] != w.teile.drei_d[zb] {
@@ -507,7 +515,7 @@ impl Kern {
     pub fn komp_von(&mut self, teil: i32, typ: i32) -> i32 {
         let e = (|| {
             let a = art_idx(typ)?;
-            let w = self.w()?;
+            let w = self.wl()?;
             let z = w.zeile(teil as u32)?;
             Ok(w.komp_von_zeile(z, a) as i32)
         })();
@@ -516,7 +524,7 @@ impl Kern {
     /// 1 = Typnummer, 2 = Teil (0 = lose), 3 = zerstört (1/0, wirft nie).
     pub fn komp_info(&mut self, komp: i32, was: i32) -> i32 {
         let e = (|| {
-            let w = self.w()?;
+            let w = self.wl()?;
             if was == 3 {
                 return match w.komp(komp as u32) {
                     Ok(_) => Ok(0),
@@ -645,7 +653,7 @@ impl Kern {
 
     pub fn hole_zahl(&mut self, komp: i32, feld: i32) -> f64 {
         let e = (|| {
-            let w = self.w()?;
+            let w = self.wl()?;
             let (a, z) = w.komp(komp as u32)?;
             let art: &'static crate::komponenten::Art = w.arten[a];
             let s = &art.schema;
@@ -710,7 +718,7 @@ impl Kern {
     /// Rückgabe = Länge in Bytes (K-013).
     pub fn hole_text(&mut self, komp: i32, feld: i32, aus: &mut [u8]) -> i32 {
         let e = (|| {
-            let w = self.w()?;
+            let w = self.wl()?;
             let (a, z) = w.komp(komp as u32)?;
             let s = &w.arten[a].schema;
             let f = feld_idx(s, feld)?;
@@ -771,7 +779,7 @@ impl Kern {
     /// heraus (nur in der Ausgabe – der gespeicherte Zustand und damit der Szenen-Hash ändern sich beim Lesen nicht).
     pub fn hole_liste(&mut self, komp: i32, feld: i32, aus: &mut [u32]) -> i32 {
         let e = (|| {
-            let w = self.w()?;
+            let w = self.wl()?;
             let (a, z) = w.komp(komp as u32)?;
             let s = &w.arten[a].schema;
             let f = feld_idx(s, feld)?;
@@ -833,7 +841,7 @@ impl Kern {
     /// `zahl-liste` lesen; Rückgabe = Anzahl, nichts geschrieben, wenn größer als `aus.len()` (K-013, kap in Elementen).
     pub fn hole_zahlen(&mut self, komp: i32, feld: i32, aus: &mut [f64]) -> i32 {
         let e = (|| {
-            let w = self.w()?;
+            let w = self.wl()?;
             let (a, z) = w.komp(komp as u32)?;
             let s = &w.arten[a].schema;
             let f = feld_idx(s, feld)?;
@@ -980,7 +988,7 @@ impl Kern {
     /// 1 = Art (1 Form, 2 Bildchen), 2 = Breite, 3 = Höhe (Bildchen), 4 = Anzahl Ecken, 5 = Anzahl Dreiecke (Form).
     pub fn ressource_hole(&mut self, id: i32, was: i32) -> f64 {
         let e = (|| {
-            let w = self.w()?;
+            let w = self.wl()?;
             match (w.ressourcen.get(id as u32), was) {
                 (None, _) => Err(fehler::ressource("Ressource", id as u32)),
                 (Some(Ressource::Form(_)), 1) => Ok(1.0),

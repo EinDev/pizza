@@ -5777,3 +5777,753 @@ mod hk21 {
         assert!(abschnitt_von(&k, abschnitt::LICHTER_SPIEGEL).is_some());
     }
 }
+
+/// H-K20: `Figur` (Figur-Steuerung) und `Strahl` (Strahl- und Höhenabfrage als berechnete Lesefelder).
+mod hk20 {
+    use super::*;
+
+    struct N {
+        f: i32,
+        f_form: i32,
+        f_aus: i32,
+        f_radius: i32,
+        f_hoehe: i32,
+        f_gruppe: i32,
+        g: i32,
+        lx: i32,
+        lz: i32,
+        sprung: i32,
+        schwer: i32,
+        stufe: i32,
+        hang: i32,
+        haut: i32,
+        schieben: i32,
+        mitfahren: i32,
+        boden_an: i32,
+        boden: i32,
+        boden_h: i32,
+        bny: i32,
+        tx: i32,
+        ty: i32,
+        tz: i32,
+        wand: i32,
+        decke: i32,
+        st: i32,
+        rx: i32,
+        ry: i32,
+        rz: i32,
+        achsen: i32,
+        laenge: i32,
+        s_maske: i32,
+        s_aus: i32,
+        maus: i32,
+        getroffen: i32,
+        abstand: i32,
+        px: i32,
+        py: i32,
+        pz: i32,
+        nx: i32,
+        ny: i32,
+        nz: i32,
+        kp: i32,
+        kp_form: i32,
+        wuerfel: i32,
+        sw: i32,
+    }
+    fn nummern(k: &mut Kern) -> N {
+        let (f, g, st, kp, sw) = (typ(k, "Fuehler"), typ(k, "Figur"), typ(k, "Strahl"), typ(k, "Koerper"), typ(k, "Schwung"));
+        let wuerfel = k.form_grund(1, 0.0, 0.0);
+        N {
+            f,
+            f_form: feld(k, f, "form"),
+            f_aus: feld(k, f, "ausloeser"),
+            f_radius: feld(k, f, "radius"),
+            f_hoehe: feld(k, f, "hoehe"),
+            f_gruppe: feld(k, f, "gruppe"),
+            g,
+            lx: feld(k, g, "laufX"),
+            lz: feld(k, g, "laufZ"),
+            sprung: feld(k, g, "sprung"),
+            schwer: feld(k, g, "schwerkraft"),
+            stufe: feld(k, g, "stufe"),
+            hang: feld(k, g, "hang"),
+            haut: feld(k, g, "haut"),
+            schieben: feld(k, g, "schieben"),
+            mitfahren: feld(k, g, "mitfahren"),
+            boden_an: feld(k, g, "amBoden"),
+            boden: feld(k, g, "boden"),
+            boden_h: feld(k, g, "bodenHoehe"),
+            bny: feld(k, g, "bodenNormaleY"),
+            tx: feld(k, g, "tempoX"),
+            ty: feld(k, g, "tempoY"),
+            tz: feld(k, g, "tempoZ"),
+            wand: feld(k, g, "anWand"),
+            decke: feld(k, g, "anDecke"),
+            st,
+            rx: feld(k, st, "richtungX"),
+            ry: feld(k, st, "richtungY"),
+            rz: feld(k, st, "richtungZ"),
+            achsen: feld(k, st, "achsen"),
+            laenge: feld(k, st, "laenge"),
+            s_maske: feld(k, st, "maske"),
+            s_aus: feld(k, st, "ausloeser"),
+            maus: feld(k, st, "ausMaus"),
+            getroffen: feld(k, st, "getroffen"),
+            abstand: feld(k, st, "abstand"),
+            px: feld(k, st, "punktX"),
+            py: feld(k, st, "punktY"),
+            pz: feld(k, st, "punktZ"),
+            nx: feld(k, st, "normaleX"),
+            ny: feld(k, st, "normaleY"),
+            nz: feld(k, st, "normaleZ"),
+            kp,
+            kp_form: feld(k, kp, "form"),
+            wuerfel,
+            sw,
+        }
+    }
+    /// fester Quader (Mitte p, Größe g) mit Würfel-Körper und Fühler `kasten`, `ausloeser: nein`
+    fn block(k: &mut Kern, n: &N, p: [f64; 3], g: [f64; 3]) -> (i32, i32) {
+        let t = k.teil_neu(3);
+        k.teil_lage(t, p[0], p[1], p[2]);
+        k.teil_groesse(t, g[0], g[1], g[2]);
+        let c = k.komp_neu(n.kp);
+        k.setze_zahl(c, n.kp_form, n.wuerfel as f64);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        let f = k.komp_neu(n.f);
+        k.setze_zahl(f, n.f_aus, 0.0);
+        k.setze_text(f, n.f_form, b"kasten");
+        assert_eq!(k.komp_haenge(f, t), 0);
+        (t, f)
+    }
+    /// Boden 60 × 1 × 60, Oberkante y = 0
+    fn boden(k: &mut Kern, n: &N) -> i32 {
+        block(k, n, [0.0, -0.5, 0.0], [60.0, 1.0, 60.0]).0
+    }
+    /// Figur: Kapsel Radius 0.3, Höhe 1.8, Fuß bei p (Mitte 0.9 darüber); gibt (Teil, Figur)
+    fn figur(k: &mut Kern, n: &N, p: [f64; 3]) -> (i32, i32) {
+        let t = k.teil_neu(3);
+        k.teil_lage(t, p[0], p[1] + 0.9, p[2]);
+        let f = k.komp_neu(n.f);
+        k.setze_text(f, n.f_form, b"kapsel");
+        k.setze_zahl(f, n.f_radius, 0.3);
+        k.setze_zahl(f, n.f_hoehe, 1.8);
+        k.setze_zahl(f, n.f_aus, 0.0);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        let g = k.komp_neu(n.g);
+        assert_eq!(k.komp_haenge(g, t), 0, "{}", k.fehler_text());
+        (t, g)
+    }
+    fn takte(k: &mut Kern, n: usize) {
+        for _ in 0..n {
+            k.takt();
+        }
+    }
+    fn fuss(k: &mut Kern, t: i32) -> f64 {
+        k.teil_hole(t, tf::Y) - 0.9
+    }
+    /// Gelände spalten × zeilen (Weite 1) mit Höhe h(x, z) in lokalen Koordinaten, fester Netz-Fühler; gibt (Teil, Höhen)
+    fn gelaende(k: &mut Kern, n: &N, sp: usize, ze: usize, h: impl Fn(f64, f64) -> f64) -> (i32, Vec<f64>) {
+        let gt = typ(k, "Gelaende");
+        let (gh, gsp, gze) = (feld(k, gt, "hoehen"), feld(k, gt, "spalten"), feld(k, gt, "zeilen"));
+        let mut hoehen = Vec::new();
+        for j in 0..ze {
+            for i in 0..sp {
+                hoehen.push(h(i as f64 - (sp - 1) as f64 / 2.0, j as f64 - (ze - 1) as f64 / 2.0));
+            }
+        }
+        let land = k.teil_neu(3);
+        let g = k.komp_neu(gt);
+        k.setze_zahl(g, gsp, sp as f64);
+        k.setze_zahl(g, gze, ze as f64);
+        k.setze_zahlen(g, gh, &hoehen);
+        assert_eq!(k.komp_haenge(g, land), 0);
+        let f = k.komp_neu(n.f);
+        k.setze_text(f, n.f_form, b"netz");
+        k.setze_zahl(f, n.f_aus, 0.0);
+        assert_eq!(k.komp_haenge(f, land), 0);
+        (land, hoehen)
+    }
+    fn strahl(k: &mut Kern, n: &N, p: [f64; 3], r: [f64; 3]) -> (i32, i32) {
+        let t = k.teil_neu(3);
+        k.teil_lage(t, p[0], p[1], p[2]);
+        let s = k.komp_neu(n.st);
+        k.setze_zahl(s, n.rx, r[0]);
+        k.setze_zahl(s, n.ry, r[1]);
+        k.setze_zahl(s, n.rz, r[2]);
+        assert_eq!(k.komp_haenge(s, t), 0);
+        (t, s)
+    }
+    fn treffer(k: &mut Kern, n: &N, s: i32) -> (f64, f64, [f64; 3], [f64; 3]) {
+        (
+            k.hole_zahl(s, n.getroffen),
+            k.hole_zahl(s, n.abstand),
+            [k.hole_zahl(s, n.px), k.hole_zahl(s, n.py), k.hole_zahl(s, n.pz)],
+            [k.hole_zahl(s, n.nx), k.hole_zahl(s, n.ny), k.hole_zahl(s, n.nz)],
+        )
+    }
+    fn nah(a: [f64; 3], b: [f64; 3], e: f64) -> bool {
+        (0..3).all(|i| (a[i] - b[i]).abs() <= e)
+    }
+
+    #[test]
+    fn schema_typnummern_braucht_lesefelder() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        assert_eq!((n.g, n.st), (33, 34), "Typnummern in Merge-Reihenfolge nach Schwung (32)");
+        let art = ARTEN.iter().find(|a| a.schema.name == "Figur").unwrap();
+        assert!(art.takt.is_some() && art.nachlauf.is_none() && art.bild.is_none() && art.lies.is_some());
+        let art = ARTEN.iter().find(|a| a.schema.name == "Strahl").unwrap();
+        assert!(art.takt.is_none() && art.nachlauf.is_none() && art.bild.is_none() && art.lies.is_some());
+        let t = k.teil_neu(3);
+        let g = k.komp_neu(n.g);
+        assert!(k.komp_haenge(g, t) < 0);
+        assert_eq!(k.fehler_text(), "Figur braucht einen Fuehler am selben Teil.");
+        let f = k.komp_neu(n.f);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        assert_eq!(k.komp_haenge(g, t), 0);
+        assert_eq!(
+            (k.hole_zahl(g, n.schwer), k.hole_zahl(g, n.stufe), k.hole_zahl(g, n.hang), k.hole_zahl(g, n.haut), k.hole_zahl(g, n.mitfahren)),
+            (9.81, 0.3, 45.0, 0.02, 1.0)
+        );
+        assert!(k.setze_zahl(g, n.boden_an, 1.0) < 0);
+        assert_eq!(k.fehler_text(), "Figur.amBoden kann man nur lesen.");
+        assert!(k.setze_zahl(g, n.hang, 95.0) < 0);
+        let t2 = k.teil_neu(2);
+        let s2 = k.komp_neu(n.st);
+        assert!(k.komp_haenge(s2, t2) < 0, "Strahl nur 3D");
+        let (_, s) = strahl(&mut k, &n, [0.0, 5.0, 0.0], [0.0, -1.0, 0.0]);
+        assert_eq!((k.hole_zahl(s, n.ry), k.hole_zahl(s, n.laenge), k.hole_zahl(s, n.s_maske)), (-1.0, 1000.0, 4294967295.0));
+        assert!(k.setze_zahl(s, n.abstand, 1.0) < 0);
+        assert!(k.setze_text(s, n.achsen, b"kamera") < 0);
+        assert_eq!(k.fehler_text(), "Strahl.achsen kennt 'kamera' nicht. Erlaubt: welt, teil.");
+    }
+
+    #[test]
+    fn faellt_landet_und_steht() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let b = boden(&mut k, &n);
+        let (t, g) = figur(&mut k, &n, [0.0, 2.0, 0.0]);
+        let mut gelandet = 0;
+        for i in 0..120 {
+            k.takt();
+            if gelandet == 0 && k.hole_zahl(g, n.boden_an) == 1.0 {
+                gelandet = i;
+            }
+        }
+        // Fall aus 2 m: √(2 · 2 / 9.81) ≈ 0,64 s ≈ 38 Takte
+        assert!((35..=42).contains(&gelandet), "gelandet nach {} Takten", gelandet);
+        let y = fuss(&mut k, t);
+        assert!((y - 0.02).abs() < 0.005, "steht mit Haut über dem Boden: {}", y);
+        assert_eq!(k.hole_zahl(g, n.boden), b as f64);
+        assert_eq!((k.hole_zahl(g, n.bny), k.hole_zahl(g, n.ty)), (1.0, 0.0));
+        assert!(k.hole_zahl(g, n.boden_h).abs() < 0.02);
+        takte(&mut k, 60);
+        assert_eq!(fuss(&mut k, t), y, "steht still (bitgleich)");
+        // ohne Schwerkraft schwebt sie
+        let (t2, g2) = figur(&mut k, &n, [5.0, 3.0, 0.0]);
+        k.setze_zahl(g2, n.schwer, 0.0);
+        takte(&mut k, 30);
+        assert_eq!(fuss(&mut k, t2), 3.0);
+        assert_eq!(k.hole_zahl(g2, n.boden_an), 0.0);
+        // entfernter Boden liest sich als karton
+        k.teil_entferne(b);
+        assert_eq!(k.hole_zahl(g, n.boden), 0.0);
+        takte(&mut k, 20);
+        assert!(fuss(&mut k, t) < -0.3, "fällt ohne Boden");
+    }
+
+    #[test]
+    fn laeuft_und_gleitet_an_der_wand() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        boden(&mut k, &n);
+        // Wand entlang x bei z = −2 (Vorderseite z = −1.5)
+        block(&mut k, &n, [0.0, 1.5, -2.0], [40.0, 3.0, 1.0]);
+        let (t, g) = figur(&mut k, &n, [0.0, 0.0, 0.0]);
+        takte(&mut k, 5);
+        k.setze_zahl(g, n.lx, 3.0);
+        takte(&mut k, 30);
+        assert!((k.hole_zahl(g, n.tx) - 3.0).abs() < 1e-9, "läuft mit Wunschtempo: {}", k.hole_zahl(g, n.tx));
+        assert!((k.teil_hole(t, tf::X) - 1.5).abs() < 1e-9);
+        // schräg in die Wand: gleitet mit dem Anteil entlang der Wand weiter
+        k.setze_zahl(g, n.lz, -3.0);
+        takte(&mut k, 60);
+        let z = k.teil_hole(t, tf::Z);
+        assert!((z - (-1.5 + 0.32)).abs() < 0.01, "an der Wand: z = {}", z);
+        assert!((k.hole_zahl(g, n.tx) - 3.0).abs() < 1e-6, "gleitet mit vollem x-Tempo: {}", k.hole_zahl(g, n.tx));
+        assert_eq!(k.hole_zahl(g, n.wand), 1.0);
+        assert_eq!(k.hole_zahl(g, n.boden_an), 1.0);
+        assert!(fuss(&mut k, t).abs() < 0.03, "bleibt am Boden: {}", fuss(&mut k, t));
+        // geradewegs in die Wand: steht
+        k.setze_zahl(g, n.lx, 0.0);
+        let x = k.teil_hole(t, tf::X);
+        takte(&mut k, 10);
+        assert!((k.teil_hole(t, tf::X) - x).abs() < 1e-9 && (k.teil_hole(t, tf::Z) - z).abs() < 1e-6);
+        assert!(k.hole_zahl(g, n.tx).abs() < 1e-6 && k.hole_zahl(g, n.tz).abs() < 1e-6);
+    }
+
+    #[test]
+    fn treppe_hoch_und_runter() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        boden(&mut k, &n);
+        // 6 Stufen à 0.2 hoch, 0.4 tief ab x = 1; danach ein Absatz; dazu eine Stufe 0.5 (zu hoch) bei z = 6
+        for i in 0..6 {
+            let h = 0.2 * (i + 1) as f64;
+            block(&mut k, &n, [1.2 + 0.4 * i as f64, h / 2.0, 0.0], [0.4, h, 3.0]);
+        }
+        block(&mut k, &n, [5.0, 0.6, 0.0], [3.2, 1.2, 3.0]);
+        block(&mut k, &n, [2.0, 0.25, 6.0], [1.0, 0.5, 3.0]);
+        let (t, g) = figur(&mut k, &n, [-1.0, 0.0, 0.0]);
+        let (t2, g2) = figur(&mut k, &n, [-1.0, 0.0, 6.0]);
+        takte(&mut k, 10);
+        k.setze_zahl(g, n.lx, 2.0);
+        k.setze_zahl(g2, n.lx, 2.0);
+        let mut am_boden = 0;
+        for _ in 0..200 {
+            k.takt();
+            am_boden += k.hole_zahl(g, n.boden_an) as usize;
+        }
+        assert!(k.teil_hole(t, tf::X) > 4.5, "oben angekommen: x = {}", k.teil_hole(t, tf::X));
+        assert!((fuss(&mut k, t) - 1.22).abs() < 0.03, "auf dem Absatz: {}", fuss(&mut k, t));
+        assert!(am_boden >= 190, "die Treppe hinauf fast immer am Boden: {} von 200", am_boden);
+        // zu hohe Stufe: bleibt davor
+        assert!(k.teil_hole(t2, tf::X) < 1.5 - 0.3 + 0.01, "0.5 ist zu hoch: x = {}", k.teil_hole(t2, tf::X));
+        assert!(fuss(&mut k, t2).abs() < 0.03);
+        assert_eq!(k.hole_zahl(g2, n.wand), 1.0);
+        // hinunter: klebt an jeder Stufe (nie in der Luft)
+        k.setze_zahl(g, n.lx, -2.0);
+        let mut luft = 0;
+        let mut tiefster = f64::INFINITY;
+        for _ in 0..200 {
+            k.takt();
+            if k.hole_zahl(g, n.boden_an) == 0.0 {
+                luft += 1;
+            }
+            let y = fuss(&mut k, t);
+            if y < tiefster {
+                tiefster = y;
+            }
+        }
+        assert_eq!(luft, 0, "Treppe hinab ohne Abheben");
+        assert!(k.teil_hole(t, tf::X) < 0.0 && fuss(&mut k, t).abs() < 0.03);
+        assert!(tiefster > -0.01, "nie unter den Boden: {}", tiefster);
+        // mit stufe 0 kommt sie nicht hinauf
+        k.setze_zahl(g, n.stufe, 0.0);
+        k.setze_zahl(g, n.lx, 2.0);
+        takte(&mut k, 90);
+        assert!(k.teil_hole(t, tf::X) < 1.0, "ohne Stufe: x = {}", k.teil_hole(t, tf::X));
+    }
+
+    #[test]
+    fn hang_begehbar_und_zu_steil() {
+        // Rampen als Gelände in +x: 30° (begehbar), genau 45° (gerade noch), 60° (zu steil)
+        for &(grad, hinauf) in &[(30.0, true), (45.0, true), (60.0, false)] {
+            let mut k = welt();
+            let n = nummern(&mut k);
+            let neig = libm::tan(grad * crate::welt::GRAD);
+            gelaende(&mut k, &n, 21, 9, |x, _| if x > 0.0 { x * neig } else { 0.0 });
+            let (t, g) = figur(&mut k, &n, [-4.0, 0.5, 0.0]);
+            takte(&mut k, 40);
+            assert_eq!(k.hole_zahl(g, n.boden_an), 1.0, "{}°: steht vor dem Hang", grad);
+            k.setze_zahl(g, n.lx, 2.0);
+            let mut wand = 0;
+            for i in 0..240 {
+                k.takt();
+                if i >= 180 {
+                    wand += k.hole_zahl(g, n.wand) as usize;
+                }
+            }
+            let x = k.teil_hole(t, tf::X);
+            if hinauf {
+                assert!(x > 3.0, "{}°: geht hinauf (x = {})", grad, x);
+                let y = fuss(&mut k, t);
+                assert!(y > x * neig - 0.5, "{}°: auf dem Hang (y = {}, x = {})", grad, y, x);
+                assert!((k.hole_zahl(g, n.bny) - libm::cos(grad * crate::welt::GRAD)).abs() < 1e-6, "{}°: Normale {}", grad, k.hole_zahl(g, n.bny));
+            } else {
+                assert!(x < 0.6, "{}°: kommt nicht hinauf (x = {})", grad, x);
+                assert!(wand > 0, "{}°: stößt an den Hang", grad);
+                // oben abgesetzt rutscht sie hinunter
+                k.setze_zahl(g, n.lx, 0.0);
+                k.teil_lage(t, 2.0, 2.0 * neig + 1.6, 0.0);
+                takte(&mut k, 90);
+                assert!(k.teil_hole(t, tf::X) < 0.6, "{}°: rutscht hinab (x = {})", grad, k.teil_hole(t, tf::X));
+            }
+        }
+    }
+
+    #[test]
+    fn faehrt_mit_plattformen() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        boden(&mut k, &n);
+        // kinematische Plattform (Schwung) fährt in +x, ein Aufzug (vom Programm gesetzt) fährt hoch
+        let (p, _) = block(&mut k, &n, [0.0, 0.5, 0.0], [3.0, 0.2, 3.0]);
+        let s = k.komp_neu(n.sw);
+        assert_eq!(k.komp_haenge(s, p), 0);
+        let art = feld(&mut k, n.sw, "art");
+        k.setze_text(s, art, b"kinematisch");
+        let (t, g) = figur(&mut k, &n, [0.0, 0.62, 0.0]);
+        let (auf, _) = block(&mut k, &n, [8.0, 0.5, 0.0], [2.0, 0.2, 2.0]);
+        let (t2, g2) = figur(&mut k, &n, [8.0, 0.62, 0.0]);
+        let (t3, g3) = figur(&mut k, &n, [0.5, 0.62, 0.8]);
+        k.setze_zahl(g3, n.mitfahren, 0.0);
+        takte(&mut k, 20);
+        assert_eq!((k.hole_zahl(g, n.boden), k.hole_zahl(g2, n.boden)), (p as f64, auf as f64));
+        let tx = feld(&mut k, n.sw, "tempoX");
+        k.setze_zahl(s, tx, 1.5);
+        let x0 = k.teil_hole(t, tf::X);
+        let x3 = k.teil_hole(t3, tf::X);
+        for i in 0..60 {
+            k.teil_lage(auf, 8.0, 0.5 + (i + 1) as f64 * 0.02, 0.0);
+            k.takt();
+            assert_eq!(k.hole_zahl(g2, n.boden_an), 1.0, "Aufzug: am Boden in Takt {}", i);
+        }
+        let dx = k.teil_hole(t, tf::X) - x0;
+        assert!((dx - 1.5).abs() < 0.03, "fährt mit: {}", dx);
+        assert!(k.hole_zahl(g, n.tx).abs() < 1e-6, "tempo ohne Mitfahren: {}", k.hole_zahl(g, n.tx));
+        assert!((fuss(&mut k, t2) - (0.6 + 1.2 + 0.02)).abs() < 0.02, "Aufzug oben: {}", fuss(&mut k, t2));
+        assert!((k.teil_hole(t3, tf::X) - x3).abs() < 1.0, "ohne mitfahren fährt sie nicht mit: {}", k.teil_hole(t3, tf::X) - x3);
+    }
+
+    #[test]
+    fn springt_nur_am_boden_und_stoesst_an_die_decke() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        boden(&mut k, &n);
+        let (t, g) = figur(&mut k, &n, [0.0, 0.0, 0.0]);
+        takte(&mut k, 10);
+        let y0 = fuss(&mut k, t);
+        k.setze_zahl(g, n.sprung, 5.0);
+        let mut hoch = y0;
+        let mut landung = 0;
+        for i in 0..90 {
+            k.takt();
+            assert_eq!(k.hole_zahl(g, n.sprung), 0.0, "sprung wird verbraucht");
+            let y = fuss(&mut k, t);
+            if y > hoch {
+                hoch = y;
+            }
+            if i > 2 && landung == 0 && k.hole_zahl(g, n.boden_an) == 1.0 {
+                landung = i;
+            }
+        }
+        let soll = 25.0 / (2.0 * 9.81);
+        assert!((hoch - y0 - soll).abs() < 0.06, "Sprunghöhe {} statt {}", hoch - y0, soll);
+        assert!((58..=64).contains(&landung), "landet nach {} Takten", landung);
+        // in der Luft zählt kein Sprung
+        k.setze_zahl(g, n.schwer, 0.0);
+        k.teil_lage(t, 0.0, 3.0, 0.0);
+        takte(&mut k, 2);
+        k.setze_zahl(g, n.sprung, 5.0);
+        takte(&mut k, 5);
+        assert_eq!(k.teil_hole(t, tf::Y), 3.0);
+        // Decke: Sprung unter einem Brett 1 m über dem Kopf
+        let (t2, g2) = figur(&mut k, &n, [6.0, 0.0, 0.0]);
+        block(&mut k, &n, [6.0, 2.9, 0.0], [2.0, 0.2, 2.0]);
+        takte(&mut k, 10);
+        k.setze_zahl(g2, n.sprung, 6.0);
+        let mut decke = false;
+        let mut hoch = 0.0f64;
+        for _ in 0..60 {
+            k.takt();
+            decke |= k.hole_zahl(g2, n.decke) == 1.0;
+            hoch = hoch.max(fuss(&mut k, t2));
+        }
+        assert!(decke, "anDecke");
+        assert!(hoch < 2.8 - 1.8 + 0.01, "Kopf bleibt unter dem Brett: Fuß {}", hoch);
+        assert!(fuss(&mut k, t2).abs() < 0.03 && k.hole_zahl(g2, n.boden_an) == 1.0, "wieder unten");
+    }
+
+    #[test]
+    fn figuren_untereinander_und_schieben() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        boden(&mut k, &n);
+        let (a, ga) = figur(&mut k, &n, [-2.0, 0.0, 0.0]);
+        let (b, gb) = figur(&mut k, &n, [2.0, 0.0, 0.0]);
+        takte(&mut k, 5);
+        k.setze_zahl(ga, n.lx, 2.0);
+        k.setze_zahl(gb, n.lx, -2.0);
+        takte(&mut k, 90);
+        let abstand = k.teil_hole(b, tf::X) - k.teil_hole(a, tf::X);
+        assert!(abstand > 0.3 + 0.32 - 1e-6, "laufen nicht ineinander (Haut der laufenden Figur): {}", abstand);
+        assert_eq!((k.hole_zahl(ga, n.wand), k.hole_zahl(gb, n.wand)), (1.0, 1.0));
+        // dynamische Kiste: hält die Figur auf wie eine Wand, `schieben` stößt sie an
+        let (kiste, _) = block(&mut k, &n, [0.0, 0.5, 5.0], [1.0, 1.0, 1.0]);
+        let ks = k.komp_neu(n.sw);
+        assert_eq!(k.komp_haenge(ks, kiste), 0);
+        let sg = feld(&mut k, n.sw, "schwerkraft");
+        k.setze_zahl(ks, sg, 9.81);
+        let (c, gc) = figur(&mut k, &n, [-2.0, 0.0, 5.0]);
+        let (kiste2, _) = block(&mut k, &n, [0.0, 0.5, 9.0], [1.0, 1.0, 1.0]);
+        let ks2 = k.komp_neu(n.sw);
+        assert_eq!(k.komp_haenge(ks2, kiste2), 0);
+        k.setze_zahl(ks2, sg, 9.81);
+        let (c2, gc2) = figur(&mut k, &n, [-2.0, 0.0, 9.0]);
+        k.setze_zahl(gc, n.schieben, 15.0);
+        takte(&mut k, 10);
+        k.setze_zahl(gc, n.lx, 2.0);
+        k.setze_zahl(gc2, n.lx, 2.0);
+        takte(&mut k, 120);
+        assert!(k.teil_hole(kiste, tf::X) > 1.0, "Kiste geschoben: {}", k.teil_hole(kiste, tf::X));
+        assert!(k.teil_hole(kiste, tf::X) - k.teil_hole(c, tf::X) > 0.5 + 0.3 - 0.01, "Figur bleibt vor der Kiste");
+        assert!(k.teil_hole(kiste2, tf::X).abs() < 0.05, "ohne schieben bleibt die Kiste: {}", k.teil_hole(kiste2, tf::X));
+        assert!((k.teil_hole(c2, tf::X) - (-0.5 - 0.32)).abs() < 0.01, "steht vor der Kiste: {}", k.teil_hole(c2, tf::X));
+        assert_eq!(k.hole_zahl(gc2, n.wand), 1.0);
+    }
+
+    #[test]
+    fn strahl_gegen_jede_form() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        // Kugel r 1 bei (0, 0, 0) – Fühler-Standard ist ausloeser ja: zählt nur mit Strahl.ausloeser ja
+        let ku = k.teil_neu(3);
+        let f = k.komp_neu(n.f);
+        k.setze_text(f, n.f_form, b"kugel");
+        k.setze_zahl(f, n.f_radius, 1.0);
+        k.komp_haenge(f, ku);
+        let (_, s) = strahl(&mut k, &n, [0.0, 5.0, 0.0], [0.0, -1.0, 0.0]);
+        assert_eq!(k.hole_zahl(s, n.getroffen), 0.0, "Auslöser übergangen");
+        k.setze_zahl(s, n.s_aus, 1.0);
+        let (g, d, p, nn) = treffer(&mut k, &n, s);
+        assert_eq!((g, d, p, nn), (ku as f64, 4.0, [0.0, 1.0, 0.0], [0.0, 1.0, 0.0]));
+        k.setze_zahl(f, n.f_aus, 0.0);
+        k.setze_zahl(s, n.s_aus, 0.0);
+        assert_eq!(k.hole_zahl(s, n.getroffen), ku as f64);
+        // von der Seite: Normale = Richtung von der Mitte
+        let (ts, s2) = strahl(&mut k, &n, [-5.0, 0.6, 0.0], [1.0, 0.0, 0.0]);
+        let (g, d, p, nn) = treffer(&mut k, &n, s2);
+        assert_eq!(g, ku as f64);
+        assert!((d - (5.0 - 0.8)).abs() < 1e-12 && nah(p, [-0.8, 0.6, 0.0], 1e-12) && nah(nn, [-0.8, 0.6, 0.0], 1e-12), "{} {:?} {:?}", d, p, nn);
+        // gedrehter Kasten 2 × 2 × 2 bei (6, 0, 0), um y 45°: Kante zeigt zum Strahl
+        let (kb, _) = block(&mut k, &n, [6.0, 0.0, 0.0], [2.0, 2.0, 2.0]);
+        k.teil_setze(kb, tf::DREHUNG, 45.0);
+        k.teil_lage(ts, 3.0, 0.0, 0.0);
+        let (g, d, _, nn) = treffer(&mut k, &n, s2);
+        assert_eq!(g, kb as f64);
+        assert!((d - (3.0 - libm::sqrt(2.0))).abs() < 1e-9, "Kastenkante bei {}", d);
+        assert!(nn[1].abs() < 1e-12 && (nn[0] + libm::sqrt(0.5)).abs() < 1e-9, "Fläche: {:?}", nn);
+        // Kapsel (Achse y, r 0.5, Höhe 3) bei (0, 0, 6): Mantel von der Seite, Kuppe von oben
+        let kt = k.teil_neu(3);
+        k.teil_lage(kt, 0.0, 0.0, 6.0);
+        let kf = k.komp_neu(n.f);
+        k.setze_text(kf, n.f_form, b"kapsel");
+        k.setze_zahl(kf, n.f_radius, 0.5);
+        k.setze_zahl(kf, n.f_hoehe, 3.0);
+        k.setze_zahl(kf, n.f_aus, 0.0);
+        k.komp_haenge(kf, kt);
+        let (_, s3) = strahl(&mut k, &n, [0.0, 1.0, 10.0], [0.0, 0.0, -1.0]);
+        let (g, d, _, nn) = treffer(&mut k, &n, s3);
+        assert_eq!(g, kt as f64);
+        assert!((d - 3.5).abs() < 1e-12 && nah(nn, [0.0, 0.0, 1.0], 1e-12), "Mantel {} {:?}", d, nn);
+        let (_, s4) = strahl(&mut k, &n, [0.0, 10.0, 6.0], [0.0, -1.0, 0.0]);
+        let (g, d, _, nn) = treffer(&mut k, &n, s4);
+        assert_eq!(g, kt as f64);
+        assert!((d - 8.5).abs() < 1e-12 && nah(nn, [0.0, 1.0, 0.0], 1e-12), "Kuppe {} {:?}", d, nn);
+        // Netz: schräges Dreieck aus einem eigenen Netz (Vorderseite oben), Rückseite trifft nicht
+        let rampe = k.form_eigene(&[0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 4.0, 2.0, -4.0], &[0.0, 1.0, 2.0], 0);
+        assert!(rampe > 0, "{}", k.fehler_text());
+        let rt = k.teil_neu(3);
+        k.teil_lage(rt, 10.0, 0.0, 10.0);
+        let rk = k.komp_neu(n.kp);
+        k.setze_zahl(rk, n.kp_form, rampe as f64);
+        k.komp_haenge(rk, rt);
+        let rf = k.komp_neu(n.f);
+        k.setze_text(rf, n.f_form, b"netz");
+        k.setze_zahl(rf, n.f_aus, 0.0);
+        k.komp_haenge(rf, rt);
+        let (rs, s5) = strahl(&mut k, &n, [13.0, 5.0, 8.0], [0.0, -1.0, 0.0]);
+        let (g, d, p, nn) = treffer(&mut k, &n, s5);
+        assert_eq!(g, rt as f64, "Netz von oben");
+        // Ebene durch (0,0,0), (4,0,0), (4,2,−4): y = −z/2 → bei z = −2 (lokal) y = 1
+        assert!((p[1] - 1.0).abs() < 1e-9 && (d - 4.0).abs() < 1e-9, "{:?}", p);
+        assert!((nn[1] - 2.0 / libm::sqrt(5.0)).abs() < 1e-9 && (nn[2] - 1.0 / libm::sqrt(5.0)).abs() < 1e-9, "{:?}", nn);
+        k.teil_lage(rs, 13.0, -5.0, 8.0);
+        k.setze_zahl(s5, n.ry, 1.0);
+        assert_eq!(k.hole_zahl(s5, n.getroffen), 0.0, "Rückseite");
+        // achsen teil: Strahl-Teil um x geneigt → richtung (0, −1, 0) zeigt in Weltachsen nach −z
+        let (at, s6) = strahl(&mut k, &n, [0.0, 0.0, 20.0], [0.0, -1.0, 0.0]);
+        k.setze_text(s6, n.achsen, b"teil");
+        k.teil_setze(at, tf::NEIGUNG, 90.0);
+        let mut richtung = (0.0, 0.0);
+        for neig in [90.0, -90.0] {
+            k.teil_setze(at, tf::NEIGUNG, neig);
+            if k.hole_zahl(s6, n.getroffen) == kt as f64 {
+                richtung = (neig, k.hole_zahl(s6, n.abstand));
+            }
+        }
+        assert!((richtung.1 - (20.0 - 6.5)).abs() < 1e-9, "achsen teil: {:?}", richtung);
+        k.teil_setze(at, tf::NEIGUNG, richtung.0);
+        // Maske: Gruppe 3 nur mit Bit 2
+        k.setze_zahl(kf, n.f_gruppe, 3.0);
+        k.setze_zahl(s6, n.s_maske, 3.0);
+        assert_eq!(k.hole_zahl(s6, n.getroffen), ku as f64, "an der Kapsel vorbei bis zur Kugel");
+        k.setze_zahl(s6, n.s_maske, 4.0);
+        assert_eq!(k.hole_zahl(s6, n.getroffen), kt as f64);
+        // eigenes Teil nie; Länge zu kurz; Richtung 0; loser Strahl
+        let fe = k.komp_neu(n.f);
+        k.setze_text(fe, n.f_form, b"kugel");
+        k.setze_zahl(fe, n.f_radius, 2.0);
+        k.setze_zahl(fe, n.f_aus, 0.0);
+        k.komp_haenge(fe, at);
+        assert_eq!(k.hole_zahl(s6, n.getroffen), kt as f64, "eigenes Teil zählt nicht");
+        k.setze_zahl(s6, n.laenge, 10.0);
+        assert_eq!(treffer(&mut k, &n, s6), (0.0, 0.0, [0.0; 3], [0.0; 3]), "zu kurz: alles 0");
+        k.setze_zahl(s6, n.laenge, 1000.0);
+        k.setze_zahl(s6, n.ry, 0.0);
+        assert_eq!(k.hole_zahl(s6, n.getroffen), 0.0, "Richtung 0");
+        let los = k.komp_neu(n.st);
+        assert_eq!(k.hole_zahl(los, n.getroffen), 0.0);
+        // Gleichstand: zwei gleiche Kugeln an derselben Stelle → kleinere ID
+        let mut kugeln = Vec::new();
+        for _ in 0..2 {
+            let t = k.teil_neu(3);
+            k.teil_lage(t, 30.0, 0.0, 0.0);
+            let f = k.komp_neu(n.f);
+            k.setze_text(f, n.f_form, b"kugel");
+            k.setze_zahl(f, n.f_radius, 1.0);
+            k.setze_zahl(f, n.f_aus, 0.0);
+            k.komp_haenge(f, t);
+            kugeln.push(t);
+        }
+        let (_, s7) = strahl(&mut k, &n, [30.0, 5.0, 0.0], [0.0, -1.0, 0.0]);
+        assert_eq!(k.hole_zahl(s7, n.getroffen), kugeln[0] as f64);
+        // unsichtbar trifft nicht
+        k.teil_setze(kugeln[0], tf::SICHTBAR, 0.0);
+        assert_eq!(k.hole_zahl(s7, n.getroffen), kugeln[1] as f64);
+        // ein Strahl in einer Kugel trifft sie nicht (nur der Eintritt zählt)
+        k.teil_lage(kugeln[1], 30.0, 5.0, 0.0);
+        k.setze_zahl(s7, n.rz, 0.0);
+        assert_eq!(k.hole_zahl(s7, n.getroffen), 0.0);
+    }
+
+    #[test]
+    fn hoehe_ueber_gelaende_wie_das_netz() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let h = |x: f64, z: f64| libm::sin(x * 0.7) * 1.3 + libm::cos(z * 0.45) * 0.8 + x * 0.05;
+        let (land, hoehen) = gelaende(&mut k, &n, 33, 25, h);
+        k.teil_lage(land, 2.0, -1.0, 3.0);
+        k.takt(); // Netz bauen
+        let (lt, lot) = strahl(&mut k, &n, [0.0, 500.0, 0.0], [0.0, -1.0, 0.0]);
+        let mut i = 0;
+        for a in 0..23 {
+            for b in 0..17 {
+                let (x, z) = (-13.7 + a as f64 * 1.21, -9.3 + b as f64 * 1.07);
+                k.teil_lage(lt, x + 2.0, 500.0, z + 3.0);
+                let soll = crate::komponenten::gelaende::hoehe(&hoehen, 33, 25, 1.0, x, z).unwrap() - 1.0;
+                assert_eq!(k.hole_zahl(lot, n.getroffen), land as f64);
+                let y = k.hole_zahl(lot, n.py);
+                assert!((y - soll).abs() < 1e-9, "({}, {}): {} gegen {}", x, z, y, soll);
+                assert!((k.hole_zahl(lot, n.abstand) - (500.0 - y)).abs() < 1e-9);
+                assert!(k.hole_zahl(lot, n.ny) > 0.0);
+                i += 1;
+            }
+        }
+        assert_eq!(i, 391);
+        // neben dem Gelände: kein Treffer
+        k.teil_lage(lt, 40.0, 500.0, 0.0);
+        assert_eq!(k.hole_zahl(lot, n.getroffen), 0.0);
+        // schräger Strahl übers Gelände: trifft dort, wo die Höhe des Netzes gleich der Strahlhöhe ist
+        k.teil_lage(lt, -12.0, 6.0, 1.0);
+        k.setze_zahl(lot, n.rx, 1.0);
+        k.setze_zahl(lot, n.ry, -0.3);
+        assert_eq!(k.hole_zahl(lot, n.getroffen), land as f64);
+        let (px, py, pz) = (k.hole_zahl(lot, n.px), k.hole_zahl(lot, n.py), k.hole_zahl(lot, n.pz));
+        let netz = crate::komponenten::gelaende::hoehe(&hoehen, 33, 25, 1.0, px - 2.0, pz - 3.0).unwrap() - 1.0;
+        assert!((py - netz).abs() < 1e-9, "schräg: {} gegen {}", py, netz);
+        // davor ist der Strahl noch über dem Netz
+        let l = libm::sqrt(1.09);
+        let ab = k.hole_zahl(lot, n.abstand);
+        for s in 1..40 {
+            let t = ab * s as f64 / 40.0;
+            let (x, y) = (-12.0 + t / l, 6.0 - 0.3 * t / l);
+            if let Some(hh) = crate::komponenten::gelaende::hoehe(&hoehen, 33, 25, 1.0, x - 2.0, 1.0 - 3.0) {
+                assert!(y >= hh - 1.0 - 1e-9, "vorher über dem Netz bei t = {}", t);
+            }
+        }
+    }
+
+    #[test]
+    fn strahl_aus_der_maus_und_zwischenergebnis() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        // Kamera (Teil 1) bei (0, 2, 10) blickt nach −z; Ziel: Kasten bei (0, 2, 0)
+        k.teil_lage(1, 0.0, 2.0, 10.0);
+        k.teil_schaue(1, 0.0, 2.0, 0.0);
+        let (kb, _) = block(&mut k, &n, [0.0, 2.0, 0.0], [2.0, 2.0, 2.0]);
+        let (_, s) = strahl(&mut k, &n, [50.0, 50.0, 50.0], [0.0, -1.0, 0.0]);
+        k.setze_zahl(s, n.maus, 1.0);
+        k.eingabe(320.0, 180.0, 0);
+        let (g, d, p, _) = treffer(&mut k, &n, s);
+        assert_eq!(g, kb as f64);
+        assert!((d - 9.0).abs() < 1e-9 && nah(p, [0.0, 2.0, 1.0], 1e-9), "Mitte: {} {:?}", d, p);
+        // rechter Rand in Bildmitte-Höhe: Richtung (tan 30° · 640/360, 0, −1)
+        k.eingabe(640.0, 180.0, 0);
+        let f = libm::tan(30.0 * crate::welt::GRAD) * 640.0 / 360.0;
+        assert_eq!(k.hole_zahl(s, n.getroffen), 0.0, "am Rand vorbei");
+        let (bx, _) = block(&mut k, &n, [f * 10.0, 2.0, 0.0], [1.0, 1.0, 1.0]);
+        let (g, _, p, _) = treffer(&mut k, &n, s);
+        assert_eq!(g, bx as f64);
+        assert!((p[0] / (10.0 - p[2]) - f).abs() < 1e-9 && (p[1] - 2.0).abs() < 1e-9, "{:?}", p);
+        // Zwischenergebnis: gleich bis zur nächsten Änderung, dann neu
+        let stand = k.welt.as_ref().unwrap().stand;
+        for _ in 0..5 {
+            assert_eq!(k.hole_zahl(s, n.getroffen), bx as f64);
+        }
+        assert_eq!(k.welt.as_ref().unwrap().stand, stand, "Lesen ändert nichts");
+        k.teil_lage(bx, 30.0, 0.0, 0.0);
+        assert_eq!(k.hole_zahl(s, n.getroffen), 0.0, "nach dem Verschieben neu gerechnet");
+        // Szenen-Hash: Lesen ändert ihn nicht
+        let h = k.hash_szene();
+        let _ = treffer(&mut k, &n, s);
+        assert_eq!(k.hash_szene(), h);
+    }
+
+    /// Ohne Figur und Strahl ändern die neuen Arten nichts: dieselbe Szene mit und ohne die beiden in der Registry → gleicher
+    /// Hash und gleiches Bildpaket über viele Takte (Schwung, Fühler, Körper).
+    #[test]
+    fn ohne_figur_byte_gleich() {
+        use crate::abi::szenen_hash;
+        use crate::paket::{baue, Bildbau, Gesendet};
+        use crate::welt::Welt;
+        let pos = ARTEN.iter().position(|a| a.schema.name == "Figur").unwrap();
+        assert_eq!(ARTEN[pos + 1].schema.name, "Strahl");
+        let ohne: &'static [&'static crate::komponenten::Art] = &ARTEN[..pos];
+        let mit: &'static [&'static crate::komponenten::Art] = &ARTEN[..pos + 2];
+        let lauf = |r: &'static [&'static crate::komponenten::Art]| -> (u64, Vec<u8>) {
+            let mut w = Welt::neu(320, 180, String::from("F"), r);
+            let i = |name: &str| r.iter().position(|a| a.schema.name == name).unwrap();
+            let (fi, ki, si) = (i("Fuehler"), i("Koerper"), i("Schwung"));
+            let netz = w.ressourcen.form(crate::formen::netz_aus(&crate::formen::FormDaten { art: 1, teile: 0, dicke: 0.0, glatt: false, punkte: Vec::new(), dreiecke: Vec::new() }));
+            for e in 0..6u32 {
+                let t = w.teil_neu(true);
+                w.lage_setzen(t, e as f64 * 1.5, if e == 0 { -0.5 } else { 1.0 + e as f64 }, 0.0);
+                let h = w.komp_neu(ki);
+                let z = w.komp_ort[h as usize].zeile as usize;
+                w.speicher[ki].zahl_mut(crate::komponenten::koerper::FORM)[z] = netz as f64;
+                w.komp_haenge(h, t).unwrap();
+                let h = w.komp_neu(fi);
+                let z = w.komp_ort[h as usize].zeile as usize;
+                w.speicher[fi].zahl_mut(crate::komponenten::fuehler::AUSLOESER)[z] = 0.0;
+                w.komp_haenge(h, t).unwrap();
+                if e > 0 {
+                    let h = w.komp_neu(si);
+                    let z = w.komp_ort[h as usize].zeile as usize;
+                    w.speicher[si].zahl_mut(crate::komponenten::schwung::SCHWERKRAFT)[z] = 9.81;
+                    w.komp_haenge(h, t).unwrap();
+                }
+            }
+            let (mut bau, mut ges, mut aus) = (Bildbau::default(), Gesendet::default(), Vec::new());
+            for b in 0..30 {
+                w.takt();
+                baue(&mut w, &mut bau, &mut ges, &mut aus, b);
+            }
+            (szenen_hash(&mut w), aus)
+        };
+        assert_eq!(lauf(ohne), lauf(mit));
+    }
+}

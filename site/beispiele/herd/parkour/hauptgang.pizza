@@ -1,0 +1,165 @@
+// Parkour – ein Pizzabote turnt durch einen Hindernis-Garten: Treppen hinauf, eine Rampe hinauf (die steile daneben schafft
+// niemand), über fahrende Plattformen und mit dem Aufzug auf den Turm. Unterwegs hängen sechs Teigscheiben: ins Fadenkreuz nehmen
+// und klicken.
+//
+// Steuerung: Klick ins Bild fängt die Maus (Esc gibt sie frei), die Maus dreht den Blick über die Schulter, W A S D laufen,
+// Umschalt sprintet, Leertaste springt. Ohne gefangene Maus: Maus ziehen oder Q/E. Klick zielt (auch ohne Fang).
+//
+// So arbeitet die Engine für dich: Der Bote ist eine Figur – eine Kapsel, die läuft, springt, Stufen bis 30 cm einfach nimmt, an
+// Wänden entlanggleitet, an zu steilen Hängen abrutscht und auf allem mitfährt, was sich unter ihr bewegt. Das Programm sagt nur,
+// wie schnell er laufen möchte. Ein Strahl aus der Kamera findet, was im Fadenkreuz liegt, ein zweiter hält die Kamera vor Wänden.
+
+Herd herd = neu Herd("Parkour", breite: 960, hoehe: 540);
+herd.himmel("#7fb8ec", "#fdf0d8");
+herd.nebel("#fdf0d8", 35, 80);
+herd.umgebung("#fff3dc", staerke: 0.5);
+herd.sonne().setzeLage(-0.4, 1, 0.5);
+
+// Gelände 48 × 48: flacher Garten, ringsum Hügel (sanft begehbar, weiter außen zu steil)
+salami SEITE = 48;
+Blech<funghi> hoehen = [];
+für (salami j = 0; j < SEITE; j++) {
+    für (salami i = 0; i < SEITE; i++) {
+        funghi x = i - (SEITE - 1) / 2;
+        funghi z = j - (SEITE - 1) / 2;
+        funghi d = Mathe.max(Mathe.max(x.abs(), z.abs()) - 14, 0);
+        hoehen.hinzu((d * d * 0.18 + Mathe.sin(x * 0.4) * Mathe.cos(z * 0.35) * 0.15));
+    }
+}
+Teil land = herd.raum(0, 0, 0);
+land.mit(neu Gelaende(hoehen: hoehen, spalten: SEITE, zeilen: SEITE, weite: 1, farbe: "#79b552", glanz: 0.05));
+land.mit(neu Fuehler(form: "netz", ausloeser: nein));
+
+Rezept klotz = (funghi x, funghi y, funghi z, funghi b, funghi h, funghi t, margherita farbe) -> {
+    Teil k = herd.koerper(Form.wuerfel(), x, y, z, farbe: farbe, glanz: 0.2).setzeGroesse(b, h, t);
+    k.mit(neu Fuehler(ausloeser: nein));
+    serviere (k);
+};
+
+// Treppe: 8 Stufen à 20 cm hinauf zum Turm (2 × 1.6 × 3)
+für (salami i = 0; i < 8; i++) {
+    klotz(3.2 + i * 0.45, (i + 1) * 0.1, 3, 0.45, (i + 1) * 0.2, 3, i % 2 == 0 ? "#d9b07a" : "#c79a5e");
+}
+Teil turm = klotz(7.8, 0.8, 3, 2.4, 1.6, 3, "#a87444");
+// Rampe (18°) und daneben eine zu steile (55°)
+Teil rampe = klotz(-5, 0.75, 6, 5, 0.3, 2.5, "#e9d2a6").setzeRollen(18);
+Teil steil = klotz(-5, 1.2, 9, 3, 0.3, 2.5, "#c94c3c").setzeRollen(55);
+Teil podest = klotz(-9.1, 0.8, 6, 3, 1.6, 2.5, "#a87444");
+// zwei fahrende Plattformen zwischen Turm und Insel, ein Aufzug auf den hohen Turm
+Rezept plattform = (funghi x, funghi y, funghi z) -> {
+    Teil p = klotz(x, y, z, 2, 0.25, 2, "#f3c53b");
+    p.mit(neu Schwung(art: "kinematisch"));
+    serviere (p);
+};
+Teil fahrt1 = plattform(10.5, 1.475, 3);
+Teil fahrt2 = plattform(14, 1.475, -1);
+Teil insel = klotz(16.5, 0.8, -5, 3, 1.6, 3, "#a87444");
+Teil aufzug = plattform(16.5, 1.725, -8.5);
+Teil hochturm = klotz(16.5, 2.5, -12, 3, 5, 3, "#8a5a34");
+fahrt1.schwung().setzeTempoX(1.2);
+fahrt2.schwung().setzeTempoZ(-1);
+aufzug.schwung().setzeTempoY(0.8);
+// eine Wand zum Entlanggleiten
+Teil mauer = klotz(-2, 1.2, -6, 10, 2.4, 0.5, "#e6e0d4").setzeDrehung(15);
+
+// Teigscheiben als Ziele
+Blech<Teil> ziele = [];
+Blech<funghi> orte = [0.6, 0.9, 6,   -9, 2.6, 4.6,   16.5, 6.2, -10.4,   -2, 3.0, -6.6,   12, 2.2, -4,   7.8, 2.6, 1.2];
+für (salami i = 0; i < 6; i++) {
+    Teil z = herd.koerper(Form.zylinder(teile: 24), orte.stück(3 * i + 1), orte.stück(3 * i + 2), orte.stück(3 * i + 3), farbe: "#f7ead0", glanz: 0.3)
+                 .setzeGroesse(0.7, 0.12, 0.7).setzeNeigung(90);
+    z.mit(neu Fuehler(form: "kasten", ausloeser: nein));
+    ziele.hinzu(z);
+}
+
+// Der Bote: Figur mit Kapsel, Körper aus Zylinder und Kopf; die Kamera hängt an einem Arm über der Schulter
+Teil bote = herd.raum(0, 0.9, 10);
+bote.mit(neu Fuehler(form: "kapsel", radius: 0.35, hoehe: 1.7, ausloeser: nein));
+Figur figur = bote.mit(neu Figur());
+herd.koerper(Form.zylinder(), 0, -0.2, 0, farbe: "#c0392b", glanz: 0.3).setzeGroesse(0.62, 1.1, 0.5).haenge(bote).setzeLage(0, -0.2, 0);
+herd.koerper(Form.kugel(teile: 20), 0, 0.6, 0, farbe: "#f1c9a0", glanz: 0.3).setzeGroesse(0.42).haenge(bote).setzeLage(0, 0.6, 0);
+herd.koerper(Form.zylinder(), 0, 0.84, 0, farbe: "#fdfdfd", glanz: 0.2).setzeGroesse(0.46, 0.12, 0.46).haenge(bote).setzeLage(0, 0.84, 0);
+Teil arm = herd.raum(0, 0, 0).haenge(bote).setzeLage(0, 0.55, 0);
+Teil kamera = herd.kamera().haenge(arm).setzeLage(0.6, 0, 3.4).setzeDrehung(0).setzeNeigung(0).setzeRollen(0);
+// Strahl nach hinten: die Kamera rückt vor, wenn eine Wand zwischen Schulter und Kamera steht
+Strahl hinten = arm.mit(neu Strahl(richtungX: 0.17, richtungY: 0, richtungZ: 1, achsen: "teil", laenge: 3.5));
+// Strahl aus der Kamera durch das Fadenkreuz
+Strahl visier = kamera.mit(neu Strahl(richtungX: 0, richtungY: 0, richtungZ: -1, achsen: "teil", laenge: 60));
+
+funghi GEHEN = 4;
+funghi blick = 0;
+funghi neigung = -8;
+funghi vx = 0;
+funghi vz = 0;
+funghi sprint = 0;
+salami treffer = 0;
+herd.mausFangen();
+
+Teil kreuz = herd.text("+", 480, 270, groesse: 28, farbe: "#ffffff", ausrichtung: "mitte");
+Teil stand = herd.text("", 20, 24, groesse: 18, farbe: "#2f2a26");
+Teil hinweis = herd.text("Klick: Maus fangen und zielen · WASD laufen · Umschalt sprinten · Leertaste springen", 480, 516, groesse: 16, farbe: "#2f2a26", ausrichtung: "mitte");
+
+Rezept taste = (margherita klein, margherita gross) -> { serviere (herd.taste(klein) || herd.taste(gross)); };
+
+herd.backe(() -> {
+    // Blick: gefangen Rohbewegung, sonst Ziehen oder Q/E
+    falls (herd.mausGefangen()) {
+        blick = blick + herd.mausDX() * 0.12;
+        neigung = neigung - herd.mausDY() * 0.12;
+    } sonst falls (herd.maus(2)) {
+        blick = blick + herd.mausDX() * 0.25;
+        neigung = neigung - herd.mausDY() * 0.25;
+    }
+    falls (taste("q", "Q")) { blick = blick - 2.5; }
+    falls (taste("e", "E")) { blick = blick + 2.5; }
+    neigung = Mathe.max(-60, Mathe.min(35, neigung));
+    // Laufen relativ zum Blick, sanft anfahren und bremsen; die Figur macht daraus Bewegung mit Kollision
+    funghi vor = 0;
+    funghi seit = 0;
+    falls (taste("w", "W")) { vor = vor + 1; }
+    falls (taste("s", "S")) { vor = vor - 1; }
+    falls (taste("a", "A")) { seit = seit - 1; }
+    falls (taste("d", "D")) { seit = seit + 1; }
+    funghi b = Mathe.bogen(blick);
+    funghi wx = Mathe.sin(b) * vor + Mathe.cos(b) * seit;
+    funghi wz = -Mathe.cos(b) * vor + Mathe.sin(b) * seit;
+    funghi wl = Mathe.wurzel(wx * wx + wz * wz);
+    sprint = sprint + (((herd.taste("Umschalt") && vor > 0) ? 1 : 0) - sprint) * 0.12;
+    funghi ziel = GEHEN * (1 + 0.7 * sprint);
+    funghi zx = wl > 0 ? wx / wl * ziel : 0;
+    funghi zz = wl > 0 ? wz / wl * ziel : 0;
+    funghi dvx = zx - vx;
+    funghi dvz = zz - vz;
+    funghi dl = Mathe.wurzel(dvx * dvx + dvz * dvz);
+    funghi schritt = (wl > 0 ? 28 : 36) / 60 * (figur.amBoden() ? 1 : 0.35);
+    falls (dl <= schritt) { vx = zx; vz = zz; } sonst { vx = vx + dvx / dl * schritt; vz = vz + dvz / dl * schritt; }
+    figur.setzeLaufX(vx);
+    figur.setzeLaufZ(vz);
+    falls (herd.gedrueckt("Leertaste") && figur.amBoden()) { figur.setzeSprung(5.2); }
+    // Bote und Kamera drehen mit dem Blick; der Arm neigt sich, die Kamera bleibt vor Wänden
+    bote.setzeDrehung(-blick);
+    arm.setzeNeigung(neigung);
+    funghi abstand = hinten.getroffen() == karton ? 3.4 : Mathe.max(0.4, hinten.abstand() - 0.25);
+    kamera.setzeLage(0.6 * abstand / 3.4, 0, abstand);
+    kamera.kamera().setzeSicht(62 + 6 * sprint);
+    // Plattformen pendeln, der Aufzug fährt zwischen Insel und Hochturm
+    falls (fahrt1.x() > 13.5) { fahrt1.schwung().setzeTempoX(-1.2); }
+    falls (fahrt1.x() < 10.5) { fahrt1.schwung().setzeTempoX(1.2); }
+    falls (fahrt2.z() < -4) { fahrt2.schwung().setzeTempoZ(1); }
+    falls (fahrt2.z() > 1) { fahrt2.schwung().setzeTempoZ(-1); }
+    falls (aufzug.y() > 5.1) { aufzug.schwung().setzeTempoY(-0.8); }
+    falls (aufzug.y() < 1.725) { aufzug.schwung().setzeTempoY(0.8); }
+    // Zielen: was liegt im Fadenkreuz?
+    falls (herd.klick()) {
+        Teil t = visier.getroffen();
+        für (Teil z : ziele) {
+            falls (t != karton && t.id() == z.id() && z.koerper().farbe() != "basilikum") {
+                z.koerper().setzeFarbe("basilikum");
+                treffer++;
+            }
+        }
+    }
+    kreuz.text().setzeFarbe(visier.getroffen() != karton && ziele.filtere((z) -> z.id() == visier.getroffen().id()).länge() > 0 ? "#ffd84a" : "#ffffff");
+    stand.text().setzeInhalt("Teigscheiben: " + treffer + " von 6   Höhe: " + (bote.y() - 0.85).runden(1) + " m" + (figur.amBoden() ? "" : "   (in der Luft)"));
+});
+Bote.sage(("Parkour: " + treffer + " von 6 Teigscheiben, Bote bei (" + bote.x().runden(1) + ", " + (bote.y() - 0.85).runden(1) + ", " + bote.z().runden(1) + "), amBoden " + figur.amBoden()));

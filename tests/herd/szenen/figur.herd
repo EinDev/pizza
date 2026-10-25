@@ -1,0 +1,300 @@
+# H-K20 (HERD.md §13.3): Figur und Strahl. N Figuren (Kapseln) laufen über ein Gelände mit Mulde (Fühler `netz`, als Dreiecke
+# genau), gegen eine Wand (gleiten), eine Treppe hinauf, eine Rampe aus einem eigenen Netz, auf eine kinematische Plattform und
+# einen Aufzug (mitfahren), eine schiebt eine dynamische Kiste, eine springt, eine hat eigene Maske; mitten im Lauf Lage setzen,
+# Kopie und Entfernen. S Strahlen fragen von oben die Höhe ab (Gelände, Treppe, Figuren), dazu einer aus der Maus, einer in den
+# Achsen eines gedrehten Teils, einer mit Maske und einer, der Auslöser trifft. Voll: N = 100 Figuren, S = 1 000 Strahlen.
+# Der Szenen-Hash je Bild enthält Lage, Falltempo, Bodenbezug und alle Lesefelder – test-kern.js vergleicht nativ gegen Wasm.
+vorgabe N 12
+vorgabe S 40
+vorgabe TAKTE 150
+welt_neu 960 540 "Figur"
+welt_himmel "himmel" "mozzarella"
+typ_nummer "Fuehler" -> T_F
+typ_nummer "Figur" -> T_FI
+typ_nummer "Strahl" -> T_ST
+typ_nummer "Schwung" -> T_S
+typ_nummer "Koerper" -> T_K
+typ_nummer "Gelaende" -> T_G
+feld_nummer T_F "form" -> F_FORM
+feld_nummer T_F "breite" -> F_B
+feld_nummer T_F "hoehe" -> F_H
+feld_nummer T_F "radius" -> F_RAD
+feld_nummer T_F "ausloeser" -> F_AUS
+feld_nummer T_F "gruppe" -> F_GR
+feld_nummer T_F "maske" -> F_MA
+feld_nummer T_FI "laufX" -> FI_LX
+feld_nummer T_FI "laufZ" -> FI_LZ
+feld_nummer T_FI "sprung" -> FI_SP
+feld_nummer T_FI "stufe" -> FI_STUFE
+feld_nummer T_FI "hang" -> FI_HANG
+feld_nummer T_FI "schieben" -> FI_SCH
+feld_nummer T_FI "mitfahren" -> FI_MIT
+feld_nummer T_FI "amBoden" -> FI_BODEN
+feld_nummer T_FI "boden" -> FI_BT
+feld_nummer T_FI "bodenHoehe" -> FI_BH
+feld_nummer T_FI "bodenNormaleY" -> FI_BNY
+feld_nummer T_FI "tempoX" -> FI_TX
+feld_nummer T_FI "tempoY" -> FI_TY
+feld_nummer T_FI "anWand" -> FI_WAND
+feld_nummer T_FI "anDecke" -> FI_DECKE
+feld_nummer T_ST "richtungX" -> ST_RX
+feld_nummer T_ST "richtungY" -> ST_RY
+feld_nummer T_ST "richtungZ" -> ST_RZ
+feld_nummer T_ST "achsen" -> ST_ACH
+feld_nummer T_ST "laenge" -> ST_L
+feld_nummer T_ST "maske" -> ST_MA
+feld_nummer T_ST "ausloeser" -> ST_AUS
+feld_nummer T_ST "ausMaus" -> ST_MAUS
+feld_nummer T_ST "getroffen" -> ST_GT
+feld_nummer T_ST "abstand" -> ST_AB
+feld_nummer T_ST "punktX" -> ST_PX
+feld_nummer T_ST "punktY" -> ST_PY
+feld_nummer T_ST "punktZ" -> ST_PZ
+feld_nummer T_ST "normaleX" -> ST_NX
+feld_nummer T_ST "normaleY" -> ST_NY
+feld_nummer T_S "art" -> S_ART
+feld_nummer T_S "tempoX" -> S_TX
+feld_nummer T_S "tempoY" -> S_TY
+feld_nummer T_S "schwerkraft" -> S_G
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_G "hoehen" -> G_H
+feld_nummer T_G "spalten" -> G_SP
+feld_nummer T_G "zeilen" -> G_ZE
+feld_nummer T_G "weite" -> G_W
+teil_lage 1 0 14 26
+teil_schaue 1 0 0 0
+form_grund 1 0 0 -> WUERFEL
+# Fehler: ohne Fühler, 2D, Lesefelder, Grenzen
+teil_neu 3 -> los
+komp_neu T_FI -> fi_los
+komp_haenge fi_los los
+fehler_text
+teil_neu 2 -> flach
+komp_neu T_ST -> st_flach
+komp_haenge st_flach flach
+fehler_text
+setze_zahl fi_los FI_BODEN 1
+fehler_text
+setze_zahl fi_los FI_HANG 120
+fehler_text
+komp_neu T_ST -> st_los
+setze_zahl st_los ST_AB 3
+fehler_text
+setze_text st_los ST_ACH "kamera"
+fehler_text
+hole_zahl st_los ST_GT
+# Gelände 33 × 33, Weite 1.5: flache Mitte, Mulde zum Rand (Höhe quadratisch), leicht gewellt
+teil_neu 3 -> land
+komp_neu T_G -> g
+setze_zahl g G_SP 33
+setze_zahl g G_ZE 33
+setze_zahl g G_W 1.5
+setze_zahlen g G_H [folge 1089 i ((i % 33 - 16) * (i % 33 - 16) * 0.012 + (boden(i / 33) - 16) * (boden(i / 33) - 16) * 0.008 + (i % 5) * 0.02)]
+komp_haenge g land
+komp_neu T_F -> f_land
+setze_zahl f_land F_FORM 6
+setze_zahl f_land F_AUS 0
+komp_haenge f_land land
+# Treppe: 5 Stufen à 0.22 (je 0.45 tief) bei z = −4, oben ein Absatz
+wiederhole 6 e
+  teil_neu 3 -> stufe
+  teil_lage stufe (2.2 + e * 0.45 + boden(e / 5) * 0.8) ((e + 1 - boden(e / 5)) * 0.11) -4
+  teil_groesse stufe (0.45 + boden(e / 5) * 1.2) ((e + 1 - boden(e / 5)) * 0.22) 2.5
+  komp_neu T_K -> k_st
+  setze_zahl k_st K_FORM WUERFEL
+  komp_haenge k_st stufe
+  komp_neu T_F -> f_st
+  setze_zahl f_st F_FORM 3
+  setze_zahl f_st F_AUS 0
+  komp_haenge f_st stufe
+ende
+# Wand bei z = 7 (gleiten), gedreht
+teil_neu 3 -> wand
+teil_lage wand 0 1.5 7
+teil_groesse wand 16 3 0.6
+teil_setze wand 4 8
+komp_neu T_K -> k_w
+setze_zahl k_w K_FORM WUERFEL
+komp_haenge k_w wand
+komp_neu T_F -> f_w
+setze_zahl f_w F_AUS 0
+komp_haenge f_w wand
+# Rampe aus einem eigenen Netz (zwei Dreiecke, 25°), fester Netz-Fühler
+form_eigene [0, 0, 0, 0, 0, -3, 4, 1.86, -3, 4, 1.86, 0] [0, 2, 1, 0, 3, 2] 0 -> RAMPE
+teil_neu 3 -> rampe
+teil_lage rampe -9 0 -2
+komp_neu T_K -> k_r
+setze_zahl k_r K_FORM RAMPE
+komp_haenge k_r rampe
+komp_neu T_F -> f_r
+setze_zahl f_r F_FORM 6
+setze_zahl f_r F_AUS 0
+komp_haenge f_r rampe
+# kinematische Plattform (fährt in x) und Aufzug (fährt hoch)
+teil_neu 3 -> platte
+teil_lage platte -5 0.7 3
+teil_groesse platte 3 0.2 3
+komp_neu T_K -> k_p
+setze_zahl k_p K_FORM WUERFEL
+komp_haenge k_p platte
+komp_neu T_F -> f_p
+setze_zahl f_p F_AUS 0
+komp_haenge f_p platte
+komp_neu T_S -> s_p
+setze_zahl s_p S_ART 1
+komp_haenge s_p platte
+teil_neu 3 -> aufzug
+teil_lage aufzug 6 0.5 2
+teil_groesse aufzug 2 0.2 2
+komp_neu T_K -> k_a
+setze_zahl k_a K_FORM WUERFEL
+komp_haenge k_a aufzug
+komp_neu T_F -> f_a
+setze_zahl f_a F_AUS 0
+komp_haenge f_a aufzug
+komp_neu T_S -> s_a
+setze_zahl s_a S_ART 1
+komp_haenge s_a aufzug
+# dynamische Kiste (wird geschoben) und ein Auslöser (nur Strahlen mit ausloeser ja treffen ihn)
+teil_neu 3 -> kiste
+teil_lage kiste -2 0.6 -8
+komp_neu T_K -> k_k
+setze_zahl k_k K_FORM WUERFEL
+komp_haenge k_k kiste
+komp_neu T_F -> f_k
+setze_zahl f_k F_AUS 0
+komp_haenge f_k kiste
+komp_neu T_S -> s_k
+setze_zahl s_k S_G 9.81
+komp_haenge s_k kiste
+teil_neu 3 -> geist
+teil_lage geist 0 4 0
+komp_neu T_F -> f_geist
+setze_zahl f_geist F_FORM 4
+setze_zahl f_geist F_RAD 0.8
+komp_haenge f_geist geist
+# besondere Figuren: Treppe hinauf, auf der Plattform, auf dem Aufzug, schiebt die Kiste, Rampe hinauf
+teil_neu 3 -> t_treppe
+teil_lage t_treppe 0 1 -4
+teil_neu 3 -> t_platte
+teil_lage t_platte -5 1.75 3
+teil_neu 3 -> t_auf
+teil_lage t_auf 6 1.55 2
+teil_neu 3 -> t_schub
+teil_lage t_schub -5 1.2 -8
+teil_neu 3 -> t_rampe
+teil_lage t_rampe -11 1.2 -3.5
+wiederhole 5 e
+  komp_neu T_F -> f_b
+  setze_zahl f_b F_FORM 5
+  setze_zahl f_b F_RAD 0.3
+  setze_zahl f_b F_H 1.6
+  setze_zahl f_b F_AUS 0
+  komp_haenge f_b (t_treppe + e)
+  komp_neu T_FI -> fi_b
+  komp_haenge fi_b (t_treppe + e)
+ende
+komp_von t_treppe T_FI -> fi_treppe
+setze_zahl fi_treppe FI_LX 2
+komp_von t_schub T_FI -> fi_schub
+setze_zahl fi_schub FI_LX 1.5
+setze_zahl fi_schub FI_SCH 6
+komp_von t_rampe T_FI -> fi_rampe
+setze_zahl fi_rampe FI_LX 1.8
+komp_von t_platte T_FI -> fi_platte
+komp_von t_auf T_FI -> fi_auf
+# N Figuren auf dem Gelände: verschiedene Richtungen, Stufen, Hänge; jede siebte mit eigener Gruppe/Maske, jede fünfte mit Körper statt Kapsel-Maßen
+wiederhole N e
+  teil_neu 3 -> ft
+  teil_lage ft ((e % 10) * 1.9 - 9.5) (2 + (e % 3) * 0.4) ((boden(e / 10) % 10) * 1.9 - 9.5 + 14 * boden(e / 100))
+  komp_neu T_F -> ff
+  setze_zahl ff F_FORM (5 - 2 * boden((e % 5) / 4))
+  setze_zahl ff F_RAD (0.25 + (e % 4) * 0.03)
+  setze_zahl ff F_H 1.7
+  setze_zahl ff F_B 0.6
+  setze_zahl ff F_AUS 0
+  setze_zahl ff F_GR (1 + boden((e % 7) / 6))
+  setze_zahl ff F_MA (4294967295 - boden((e % 7) / 6) * 2)
+  komp_haenge ff ft
+  komp_neu T_FI -> fi
+  setze_zahl fi FI_LX ((e % 5 - 2) * 0.9)
+  setze_zahl fi FI_LZ ((e % 3 - 1) * 1.3 + 0.4)
+  setze_zahl fi FI_STUFE (0.2 + (e % 3) * 0.1)
+  setze_zahl fi FI_HANG (35 + (e % 4) * 8)
+  komp_haenge fi ft
+ende
+# S Strahlen von oben (Höhenabfrage) im Raster über der Mitte
+teil_neu 3 -> marke
+wiederhole S e
+  teil_neu 3 -> rt
+  teil_lage rt ((e % 20) * 1.1 - 10.4 + boden(e / 400) * 0.37) 30 ((boden(e / 20) % 20) * 1.1 - 10.4 + boden(e / 400) * 0.21)
+  komp_neu T_ST -> rs
+  setze_zahl rs ST_L 100
+  setze_zahl rs ST_AUS (boden((e % 13) / 12))
+  setze_zahl rs ST_MA (4294967295 - boden((e % 11) / 10))
+  komp_haenge rs rt
+ende
+# Strahl aus der Maus und einer in den Achsen eines gedrehten Teils
+teil_neu 3 -> rmaus
+komp_neu T_ST -> st_maus
+setze_zahl st_maus ST_MAUS 1
+komp_haenge st_maus rmaus
+eingabe 470 300 0
+teil_neu 3 -> rdreh
+teil_lage rdreh -12 3 -2
+teil_setze rdreh 4 -90
+teil_setze rdreh 5 -20
+komp_neu T_ST -> st_dreh
+setze_zahl st_dreh ST_RX 0
+setze_zahl st_dreh ST_RY 0
+setze_zahl st_dreh ST_RZ -1
+setze_text st_dreh ST_ACH "teil"
+komp_haenge st_dreh rdreh
+takte 40
+hole_zahl fi_treppe FI_BODEN
+hole_zahl fi_treppe FI_BH
+hole_zahl fi_platte FI_BT
+hole_zahl fi_auf FI_BT
+hole_zahl st_maus ST_GT
+hole_zahl st_maus ST_AB
+hole_zahl st_maus ST_PX
+hole_zahl st_maus ST_NY
+hole_zahl st_dreh ST_GT
+hole_zahl st_dreh ST_AB
+# Plattform und Aufzug fahren los, eine Figur springt, eine wird versetzt, eine kopiert, eine Stufe entfernt
+setze_zahl s_p S_TX 0.8
+setze_zahl s_a S_TY 0.4
+setze_zahl fi_rampe FI_SP 4
+komp_von (t_rampe + 6) T_FI -> fi_n1
+teil_lage (t_rampe + 6) 0 3 0
+teil_kopie (t_rampe + 6) -> kopie
+teil_lage kopie 1 4 1
+teil_entferne (land + 6)
+takte TAKTE
+hole_zahl fi_treppe FI_BODEN
+hole_zahl fi_treppe FI_BH
+hole_zahl fi_treppe FI_TX
+teil_hole t_treppe 1
+teil_hole t_treppe 2
+hole_zahl fi_platte FI_BODEN
+teil_hole t_platte 1
+teil_hole t_platte 2
+hole_zahl fi_auf FI_BODEN
+teil_hole t_auf 2
+teil_hole kiste 1
+teil_hole t_schub 1
+hole_zahl fi_schub FI_WAND
+teil_hole t_rampe 1
+teil_hole t_rampe 2
+hole_zahl fi_rampe FI_BNY
+hole_zahl fi_n1 FI_BODEN
+teil_hole kopie 2
+hole_zahl st_maus ST_GT
+hole_zahl st_maus ST_AB
+hole_zahl st_dreh ST_GT
+hole_zahl st_dreh ST_PY
+wiederhole S e
+  komp_von (marke + 1 + e) T_ST -> rs
+  hole_zahl rs ST_GT
+  hole_zahl rs ST_PY
+ende

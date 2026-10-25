@@ -38,6 +38,7 @@ const LAEUFE = [
   ['B12', 'schwung.herd', { N: 500, K: 0, TAKTE: 240 }],
   ['B12', 'schwung.herd', { N: 0, K: 2000, TAKTE: 120 }],
   ['B13', 'schatten.herd', { N: 1000, L: 8, NACHT: 1, AUS: 0, TAKTE: 120 }],
+  ['B14', 'figur.herd', { N: 100, S: 0, TAKTE: 240 }],
 ];
 
 if (!process.argv.includes('--ohne-cargo')) {
@@ -94,5 +95,25 @@ for (const [name, datei, vorgaben] of LAEUFE) {
   if (name === 'B2') setter = { nativ: zeilen[0].setter_ns, wasm: setterWasm(w.inst) };
   console.log('| ' + name + ' ' + JSON.stringify(vorgaben) + ' | ' + f(n.takt_ms) + ' ms | ' + f(n.bild_ms) + ' ms | ' + f(n.kern_je_bild_ms) + ' (' + f(n.kern_je_bild_median_ms) + ') ms | ' +
     f(w.takt_ms) + ' ms | ' + f(w.bild_ms) + ' ms | ' + f(w.kern_je_bild_ms) + ' (' + f(w.kern_je_bild_median_ms) + ') ms |');
+}
+// B14 (H-K20): 1 000 Strahlen je Takt lesen (punktY) in kern.wasm aus JS; nativ: cargo test --release -j 2 -p herd-skript --test strahlen -- --ignored --nocapture
+if (!nur || nur === 'B14') {
+  const inst = new WebAssembly.Instance(modul, {});
+  const sp = new Spieler(inst, { N: 100, S: 1000, TAKTE: 20 });
+  sp.mess = { takt() {}, bild() {} };
+  sp.spiele(lies(fs.readFileSync(path.join(SZENEN, 'figur.herd'), 'utf8')));
+  const k = inst.exports;
+  const marke = sp.vars.get('marke');
+  const typ = sp.vars.get('T_ST');
+  const py = sp.vars.get('ST_PY');
+  const strahlen = Array.from({ length: 1000 }, (_, e) => k.komp_von(marke + 1 + e, typ));
+  const zeiten = [];
+  for (let i = 0; i < 120; i++) {
+    k.takt();
+    const t0 = performance.now();
+    for (const s of strahlen) k.hole_zahl(s, py);
+    zeiten.push(performance.now() - t0);
+  }
+  console.log('\nB14 Wasm: 1 000 Strahlen lesen je Takt ' + f(zeiten.reduce((a, b) => a + b, 0) / zeiten.length) + ' ms (nach 100 Figuren, Ziele je Takt neu)');
 }
 if (setter) console.log('\nSetter teil_lage je Aufruf (B2, 10 000 Teile × 60): nativ ' + setter.nativ.toFixed(1) + ' ns, Wasm aus JS ' + setter.wasm.toFixed(1) + ' ns');

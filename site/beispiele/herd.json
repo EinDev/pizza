@@ -272,6 +272,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Licht", "Stimmung", "Spiegelung", "Regen", "Taster"],
       "herd": true
+    },
+    {
+      "id": "parkour",
+      "titel": "Parkour: Figur und Strahl",
+      "beschreibung": "Ein Pizzabote turnt durch einen Hindernis-Garten: Treppen hinauf, eine Rampe hinauf (die steile daneben schafft niemand), über fahrende Plattformen und mit dem Aufzug auf den Turm – in der Schulterperspektive mit Mausfang. Figur macht aus dem Wunschtempo echte Bewegung mit Stufen, Hängen, Wandgleiten und Mitfahren; ein Strahl durchs Fadenkreuz trifft die sechs Teigscheiben.",
+      "ordner": "herd/parkour",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Figur", "Strahl", "Mausfang", "Gelaende"],
+      "herd": true
     }
   ]
 }

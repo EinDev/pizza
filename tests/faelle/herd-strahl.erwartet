@@ -1,0 +1,14 @@
+Strahl() -1 welt 1000 nein nein karton 0
+Höhe bei (1.5, 2.25): 0.5625 (Ebene des Netz-Dreiecks: 0.5625), getroffen Gelände: ja, Abstand 49.4375
+neben dem Gelände: karton 0 0
+Kiste: ja in 4 bei x = 9, Normale -1 0
+gedreht (Teil-Achsen): trifft karton (Richtung zeigt jetzt nach +z, dort ist nichts)
+auf den Ball durch die Kiste? ja (Kiste zuerst, 4)
+Ball: ja in 2.5, Normale z -1
+Ball mit Maske 1: karton
+Geist (Auslöser) ohne ausloeser: karton
+Geist mit ausloeser ja: ja in 3
+Maus 160,90: trifft Gelände ja, Punkt (0, 0.23, 0.62)
+LaufzeitAnanas: Strahl.abstand kann man nur lesen.
+LaufzeitAnanas: Strahl.achsen kennt 'kamera' nicht. Erlaubt: welt, teil.
+LaufzeitAnanas: Strahl gibt es nur für 3D-Teile.

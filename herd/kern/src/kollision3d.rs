@@ -1293,3 +1293,483 @@ impl<'a> Raster<'a> {
         }
     }
 }
+
+// ------------------------------------------------------------------------------------------------ Strahl (H-K20)
+
+/// Treffer eines Strahls: Abstand (Welt, ≥ 0) und Normale der getroffenen Fläche (Welt, Länge 1, zeigt aus der Form heraus).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Treffer {
+    pub t: f64,
+    pub n: V,
+}
+
+/// Strahl ab `o` in Richtung `d` (Länge 1) bis `laenge` gegen die Form `f` – nur der **Eintritt** zählt: liegt `o` in einer
+/// Kugel, Kapsel oder einem Kasten, trifft der Strahl diese Form nicht (wie Unity). Netz und Gelände sind einseitig wie in der
+/// Physik (nur die Vorderseite, Gelände von oben). Gleichstand innerhalb einer Form: das frühere Dreieck.
+pub fn strahl(o: V, d: V, laenge: f64, f: &Form, u: &Umgebung) -> Option<Treffer> {
+    let t = match *f {
+        Form::Kugel { m, r } => strahl_kugel(o, d, m, r),
+        Form::Kapsel { m, achse, halb, r } => strahl_kapsel(o, d, strecke(m, achse, halb), r),
+        Form::Kasten { m, achsen, h } => strahl_kasten(o, d, m, &achsen, h),
+        Form::Netz { netz, welt, inv } => {
+            let Some(Some(baum)) = u.ressourcen.baeume.get((netz as usize).wrapping_sub(1)) else { return None };
+            baum.strahl(o, d, laenge, &welt, &inv)
+        }
+        Form::Gelaende { zeile, welt, inv } => {
+            let gs = u.gelaende?;
+            Raster::aus(gs, zeile, welt, inv).strahl(o, d, laenge)
+        }
+    }?;
+    if t.t >= 0.0 && t.t <= laenge {
+        Some(t)
+    } else {
+        None
+    }
+}
+
+fn strahl_kugel(o: V, d: V, m: V, r: f64) -> Option<Treffer> {
+    let oc = minus(o, m);
+    let c = punkt(oc, oc) - r * r;
+    if !(c > 0.0) {
+        return None; // innen (oder Radius 0)
+    }
+    let b = punkt(oc, d);
+    let h = b * b - c;
+    if !(h >= 0.0) {
+        return None;
+    }
+    let t = -b - libm::sqrt(h);
+    if !(t >= 0.0) {
+        return None;
+    }
+    let p = plus(o, mal(d, t));
+    Some(Treffer { t, n: norm_oder(minus(p, m), OBEN) })
+}
+
+/// Kapsel = Vereinigung aus Mantel und zwei Kugeln: der erste Eintritt ist der kleinste Eintritt der Teile.
+fn strahl_kapsel(o: V, d: V, s: (V, V), r: f64) -> Option<Treffer> {
+    let q = naechster_auf_strecke(o, s.0, s.1);
+    let oq = minus(o, q);
+    if !(punkt(oq, oq) > r * r) {
+        return None;
+    }
+    let mut best: Option<Treffer> = None;
+    let mut nimm = |t: Option<Treffer>| {
+        if let Some(t) = t {
+            if best.is_none_or(|b| t.t < b.t) {
+                best = Some(t);
+            }
+        }
+    };
+    nimm(strahl_kugel(o, d, s.0, r));
+    nimm(strahl_kugel(o, d, s.1, r));
+    // Mantel: |(o + t d − p0) × achse|² = r², Fußpunkt zwischen den Enden
+    let ba = minus(s.1, s.0);
+    let baba = punkt(ba, ba);
+    if baba > 1e-18 {
+        let oa = minus(o, s.0);
+        let (bard, baoa) = (punkt(ba, d), punkt(ba, oa));
+        let a = baba - bard * bard;
+        if a > 1e-12 * baba {
+            let b = baba * punkt(d, oa) - baoa * bard;
+            let c = baba * punkt(oa, oa) - baoa * baoa - r * r * baba;
+            let h = b * b - a * c;
+            if h >= 0.0 {
+                let t = (-b - libm::sqrt(h)) / a;
+                let y = baoa + t * bard;
+                if t >= 0.0 && y > 0.0 && y < baba {
+                    let p = plus(oa, mal(d, t));
+                    let n = minus(p, mal(ba, y / baba));
+                    nimm(Some(Treffer { t, n: norm_oder(n, OBEN) }));
+                }
+            }
+        }
+    }
+    best
+}
+
+/// Gedrehter Kasten über die drei Plattenpaare in seinen Achsen; Eintrittsachse = die mit dem spätesten Eintritt (gleich: x, y, z).
+fn strahl_kasten(o: V, d: V, m: V, ax: &[V; 3], h: V) -> Option<Treffer> {
+    let rel = minus(o, m);
+    let (mut t0, mut t1) = (f64::NEG_INFINITY, f64::INFINITY);
+    let mut achse = 3;
+    let mut seite = 0.0;
+    for k in 0..3 {
+        let (p, q) = (punkt(rel, ax[k]), punkt(d, ax[k]));
+        if betrag(q) < 1e-300 {
+            if p < -h[k] || p > h[k] {
+                return None;
+            }
+            continue;
+        }
+        let (mut a, mut b) = ((-h[k] - p) / q, (h[k] - p) / q);
+        let mut s = -1.0;
+        if a > b {
+            core::mem::swap(&mut a, &mut b);
+            s = 1.0;
+        }
+        if a > t0 {
+            t0 = a;
+            achse = k;
+            seite = s;
+        }
+        if b < t1 {
+            t1 = b;
+        }
+    }
+    if achse == 3 || !(t0 <= t1) || !(t0 > 0.0) {
+        return None; // innen, dahinter oder verfehlt
+    }
+    Some(Treffer { t: t0, n: mal(ax[achse], seite) })
+}
+
+/// Dreieck e (Welt) einseitig nach Möller–Trumbore: nur von vorn (gegen den Uhrzeigersinn), Abstand in [0, tmax].
+fn strahl_dreieck(o: V, d: V, e: &[V; 3], tmax: f64) -> Option<Treffer> {
+    let e1 = minus(e[1], e[0]);
+    let e2 = minus(e[2], e[0]);
+    let p = kreuz(d, e2);
+    let det = punkt(e1, p);
+    if !(det > 1e-300) {
+        return None; // Rückseite oder parallel
+    }
+    let inv = 1.0 / det;
+    let s = minus(o, e[0]);
+    let u = punkt(s, p) * inv;
+    if !(0.0..=1.0).contains(&u) {
+        return None;
+    }
+    let q = kreuz(s, e1);
+    let v = punkt(d, q) * inv;
+    if !(v >= 0.0 && u + v <= 1.0) {
+        return None;
+    }
+    let t = punkt(e2, q) * inv;
+    if !(t >= 0.0 && t <= tmax) {
+        return None;
+    }
+    Some(Treffer { t, n: norm_oder(kreuz(e1, e2), OBEN) })
+}
+
+/// Eintritt und Austritt (Parameter) eines Strahls in einen achsenparallelen Kasten, `None` ohne Schnitt in [0, tmax].
+fn strahl_huelle(o: V, d: V, lo: V, hi: V, tmax: f64) -> Option<(f64, f64)> {
+    let (mut t0, mut t1) = (0.0f64, tmax);
+    for k in 0..3 {
+        if betrag(d[k]) < 1e-300 {
+            if o[k] < lo[k] || o[k] > hi[k] {
+                return None;
+            }
+            continue;
+        }
+        let inv = 1.0 / d[k];
+        let (mut a, mut b) = ((lo[k] - o[k]) * inv, (hi[k] - o[k]) * inv);
+        if a > b {
+            core::mem::swap(&mut a, &mut b);
+        }
+        if a > t0 {
+            t0 = a;
+        }
+        if b < t1 {
+            t1 = b;
+        }
+        if !(t0 <= t1) {
+            return None;
+        }
+    }
+    Some((t0, t1))
+}
+
+/// Richtung `d` (Welt) unter dem linearen Teil der Matrix `m` (3 × 4 zeilenweise).
+#[inline]
+fn richtung_unter(m: &[f64; 12], d: V) -> V {
+    [m[0] * d[0] + m[1] * d[1] + m[2] * d[2], m[4] * d[0] + m[5] * d[1] + m[6] * d[2], m[8] * d[0] + m[9] * d[1] + m[10] * d[2]]
+}
+
+impl Baum {
+    /// Erster Treffer des Strahls (Welt `o`, `d`) gegen die Dreiecke unter `welt`: Knoten lokal geprüft (`inv`; der Parameter t
+    /// ist lokal und in Welt derselbe), Dreiecke in Welt wie die Physik. Feste Reihenfolge (links zuerst), Gleichstand → kleineres Dreieck.
+    pub fn strahl(&self, o: V, d: V, laenge: f64, welt: &[f64; 12], inv: &[f64; 12]) -> Option<Treffer> {
+        if self.knoten.is_empty() {
+            return None;
+        }
+        let ol = punkt_3d(inv, o);
+        let dl = richtung_unter(inv, d);
+        let mut best: Option<(Treffer, u32)> = None;
+        let mut stapel: Vec<u32> = Vec::with_capacity(32);
+        stapel.push(0);
+        while let Some(k) = stapel.pop() {
+            let n = self.knoten[k as usize];
+            let grenze = best.map_or(laenge, |b| b.0.t);
+            if strahl_huelle(ol, dl, n.lo, n.hi, grenze).is_none() {
+                continue;
+            }
+            if n.anzahl > 0 {
+                for &t in &self.ordnung[n.links as usize..(n.links + n.anzahl) as usize] {
+                    let dr = self.dreiecke[t as usize];
+                    let e = [punkt_3d(welt, self.punkte[dr[0] as usize]), punkt_3d(welt, self.punkte[dr[1] as usize]), punkt_3d(welt, self.punkte[dr[2] as usize])];
+                    let grenze = best.map_or(laenge, |b| b.0.t);
+                    if let Some(h) = strahl_dreieck(o, d, &e, grenze) {
+                        if best.is_none_or(|(b, bt)| h.t < b.t || (h.t == b.t && t < bt)) {
+                            best = Some((h, t));
+                        }
+                    }
+                }
+            } else {
+                stapel.push(n.links + 1);
+                stapel.push(n.links);
+            }
+        }
+        best.map(|b| b.0)
+    }
+}
+
+impl Raster<'_> {
+    /// Die beiden Dreiecke der Zelle (i, j) in Welt, wie [`Raster::dreieck_unter`].
+    fn zelle(&self, i: u32, j: u32) -> [[V; 3]; 2] {
+        let pk = |i: u32, j: u32| punkt_3d(&self.welt, gelaende::punkt(self.hoehen, self.spalten, self.zeilen, self.weite, i, j));
+        let (a, b, c, d) = (pk(i, j + 1), pk(i + 1, j + 1), pk(i + 1, j), pk(i, j));
+        [[a, b, c], [a, c, d]]
+    }
+
+    /// Erster Treffer des Strahls gegen das Höhenraster (von oben): Zellen entlang des Strahls in der Draufsicht (Amanatides–Woo im
+    /// Raster), je Zelle beide Dreiecke; die erste Zelle mit Treffer liefert den nächsten. Ein senkrechter Strahl prüft genau die Zelle
+    /// unter sich – die Höhenabfrage ist so exakt das gezeichnete Netz.
+    pub fn strahl(&self, o: V, d: V, laenge: f64) -> Option<Treffer> {
+        if self.spalten < 2 || self.zeilen < 2 || !(self.weite > 0.0) {
+            return None;
+        }
+        let ol = punkt_3d(&self.inv, o);
+        let dl = richtung_unter(&self.inv, d);
+        let (sp, ze) = (self.spalten as f64, self.zeilen as f64);
+        // Rasterkoordinaten g(t) = g0 + t · dg
+        let g0 = [ol[0] / self.weite + (sp - 1.0) * 0.5, ol[2] / self.weite + (ze - 1.0) * 0.5];
+        let dg = [dl[0] / self.weite, dl[2] / self.weite];
+        let grenzen = [sp - 1.0, ze - 1.0];
+        let (mut t0, mut t1) = (0.0f64, laenge);
+        for k in 0..2 {
+            if betrag(dg[k]) < 1e-300 {
+                if !(g0[k] >= 0.0 && g0[k] <= grenzen[k]) {
+                    return None;
+                }
+                continue;
+            }
+            let (mut a, mut b) = ((0.0 - g0[k]) / dg[k], (grenzen[k] - g0[k]) / dg[k]);
+            if a > b {
+                core::mem::swap(&mut a, &mut b);
+            }
+            if a > t0 {
+                t0 = a;
+            }
+            if b < t1 {
+                t1 = b;
+            }
+        }
+        if !(t0 <= t1) {
+            return None;
+        }
+        let zelle_von = |x: f64, k: usize| -> i64 {
+            let c = libm::floor(x);
+            let hoch = grenzen[k] - 1.0;
+            (if c < 0.0 { 0.0 } else if c > hoch { hoch } else { c }) as i64
+        };
+        let start = [g0[0] + dg[0] * t0, g0[1] + dg[1] * t0];
+        let mut c = [zelle_von(start[0], 0), zelle_von(start[1], 1)];
+        let schritt = [if dg[0] > 0.0 { 1i64 } else { -1 }, if dg[1] > 0.0 { 1i64 } else { -1 }];
+        // Parameter bis zur nächsten Zellgrenze je Achse und Abstand zwischen den Grenzen
+        let mut naechst = [f64::INFINITY; 2];
+        let mut delta = [f64::INFINITY; 2];
+        for k in 0..2 {
+            if betrag(dg[k]) >= 1e-300 {
+                let rand = if schritt[k] > 0 { (c[k] + 1) as f64 } else { c[k] as f64 };
+                naechst[k] = (rand - g0[k]) / dg[k];
+                delta[k] = 1.0 / betrag(dg[k]);
+            }
+        }
+        let max = (self.spalten + self.zeilen) as usize + 2;
+        for _ in 0..max {
+            let mut best: Option<Treffer> = None;
+            for e in &self.zelle(c[0] as u32, c[1] as u32) {
+                if let Some(h) = strahl_dreieck(o, d, e, laenge) {
+                    if best.is_none_or(|b| h.t < b.t) {
+                        best = Some(h);
+                    }
+                }
+            }
+            if best.is_some() {
+                return best;
+            }
+            // nächste Zelle
+            let k = if naechst[0] <= naechst[1] { 0 } else { 1 };
+            if !(naechst[k] <= t1) {
+                return None;
+            }
+            naechst[k] += delta[k];
+            c[k] += schritt[k];
+            if c[k] < 0 || c[k] as f64 > grenzen[k] - 1.0 {
+                return None;
+            }
+        }
+        None
+    }
+}
+
+impl Raster<'_> {
+    /// Ruft `f` für jedes Dreieck (Welt, Nummer = Zelle · 2 + Hälfte) der Zellen unter dem Welt-Kasten `lo`–`hi` (Draufsicht im
+    /// Raster), Zellen zeilenweise.
+    fn dreiecke_in(&self, lo: V, hi: V, mut f: impl FnMut(&[V; 3], u32)) {
+        if self.spalten < 2 || self.zeilen < 2 || !(self.weite > 0.0) {
+            return;
+        }
+        let (llo, lhi) = kasten_3d(&self.inv, lo, hi);
+        let (sp, ze) = (self.spalten as f64, self.zeilen as f64);
+        let bereich = |a: f64, b: f64, n: f64| -> Option<(u32, u32)> {
+            let (a, b) = (libm::floor(a / self.weite + (n - 1.0) * 0.5), libm::floor(b / self.weite + (n - 1.0) * 0.5));
+            if !(b >= 0.0 && a <= n - 2.0) {
+                return None;
+            }
+            let a = if a < 0.0 { 0.0 } else { a };
+            let b = if b > n - 2.0 { n - 2.0 } else { b };
+            Some((a as u32, b as u32))
+        };
+        let (Some((i0, i1)), Some((j0, j1))) = (bereich(llo[0], lhi[0], sp), bereich(llo[2], lhi[2], ze)) else { return };
+        for j in j0..=j1 {
+            for i in i0..=i1 {
+                let zelle = (j * (self.spalten - 1) + i) * 2;
+                let [e0, e1] = self.zelle(i, j);
+                f(&e0, zelle);
+                f(&e1, zelle + 1);
+            }
+        }
+    }
+}
+
+/// Wie [`kontakte`], nur das Gelände **als Dreiecke** (nächster Punkt je Dreieck der Zellen unter dem Umschließenden von A, einseitig
+/// wie ein Netz) – genau auch an Knicken und Kanten des Rasters. Für `Figur` (H-K20); die Physik (`Schwung`) bleibt bei den
+/// Probepunkten (K-162), damit ihre Abläufe unverändert bleiben.
+pub fn kontakte_genau(a: &Form, b: &Form, u: &Umgebung, aus: &mut Vec<Punkt>) {
+    if let (true, Form::Gelaende { zeile, welt, inv }) = (a.beweglich(), *b) {
+        let Some(gs) = u.gelaende else { return };
+        let Some((lo, hi)) = umschliesse(a, u.ressourcen) else { return };
+        let r = [RAND; 3];
+        let raster = Raster::aus(gs, zeile, welt, inv);
+        let s = aus.len();
+        raster.dreiecke_in(minus(lo, r), plus(hi, r), |e, t| gegen_dreieck(a, e, t, aus));
+        for p in &mut aus[s..] {
+            p.n = mal(p.n, -1.0);
+        }
+        return;
+    }
+    kontakte(a, b, u, aus);
+}
+
+// ------------------------------------------------------------------------------------------------ Ziele (H-K20)
+
+/// Eine Fühler-Form als Ziel für `Strahl` und Hindernis für `Figur`: Teil, gedrehte Form, umschließender Kasten, Gruppe (Bit),
+/// Maske, Auslöser, dynamischer `Schwung` (bewegt sich durch Physik) und `Figur` am Teil.
+#[derive(Clone, Copy, Debug)]
+pub struct Ziel {
+    pub teil: u32,
+    pub form: Form,
+    pub lo: V,
+    pub hi: V,
+    pub gruppe: u32,
+    pub maske: u32,
+    pub ausloeser: bool,
+    pub dynamisch: bool,
+    pub figur: bool,
+}
+
+/// Aufrechte Kapsel (Achse = Welt-y) aus einer Fühler-Form (H-K20 `Figur`): Kapsel und Kugel behalten Mitte, Radius und Länge,
+/// sonst aus dem umschließenden Kasten (Radius = halbe größere Seite in x/z, Höhe = Seite in y).
+pub fn aufrecht(f: &Form, r: &Ressourcen) -> Option<Form> {
+    Some(match *f {
+        Form::Kapsel { m, halb, r, .. } => Form::Kapsel { m, achse: OBEN, halb, r },
+        Form::Kugel { m, r } => Form::Kapsel { m, achse: OBEN, halb: 0.0, r },
+        _ => {
+            let (lo, hi) = umschliesse(f, r)?;
+            let (ex, ey, ez) = ((hi[0] - lo[0]) * 0.5, (hi[1] - lo[1]) * 0.5, (hi[2] - lo[2]) * 0.5);
+            let rr = if ex > ez { ex } else { ez };
+            let halb = ey - rr;
+            Form::Kapsel { m: mal(plus(lo, hi), 0.5), achse: OBEN, halb: if halb > 0.0 { halb } else { 0.0 }, r: rr }
+        }
+    })
+}
+
+/// Alle 3D-Fühler-Formen (wach, sichtbar, mit Form) nach Teil-ID: gedreht wie in der Physik, Netze mit fertigem Hüllen-Baum, die
+/// Form einer `Figur` als aufrechte Kapsel. Netz und Gelände nur, wenn das Teil sich nicht bewegt (sonst Kasten wie in der Physik).
+pub fn ziele(w: &mut Welt) -> Vec<Ziel> {
+    let Some(fi) = w.art_index("Fuehler") else { return Vec::new() };
+    let si = w.art_index("Schwung");
+    let gi = w.art_index("Figur");
+    let fs = core::mem::take(&mut w.speicher[fi]);
+    let gesammelt = fuehler::sammle(w, &fs);
+    let mut aus: Vec<Ziel> = Vec::with_capacity(gesammelt.len());
+    for &(fz, c) in &gesammelt {
+        if !c.drei_d {
+            continue;
+        }
+        let tz = w.zeile_opt(c.teil).expect("Kandidat lebt");
+        let schwung_art = si.and_then(|si| w.komp_zeile(tz, si).map(|z| w.speicher[si].zahl(crate::komponenten::schwung::ART_FELD)[z] as u32));
+        let figur = gi.is_some_and(|gi| w.komp_zeile(tz, gi).is_some());
+        let beweglich = figur || schwung_art.is_some_and(|a| a != crate::komponenten::schwung::art::FEST);
+        let Some(mut form) = form_aus_fuehler(w, &fs, fz, tz, c.huelle, beweglich) else { continue };
+        if figur {
+            match aufrecht(&form, &w.ressourcen) {
+                Some(f) => form = f,
+                None => continue,
+            }
+        }
+        let kasten = match form {
+            Form::Netz { netz, .. } => {
+                baum_bereit(&mut w.ressourcen, netz);
+                match c.huelle {
+                    Huelle::Kasten(lo, hi) => (lo, hi),
+                    _ => continue,
+                }
+            }
+            Form::Gelaende { .. } => match c.huelle {
+                Huelle::Kasten(lo, hi) => (lo, hi),
+                _ => continue,
+            },
+            _ => match umschliesse(&form, &w.ressourcen) {
+                Some(b) => b,
+                None => continue,
+            },
+        };
+        aus.push(Ziel {
+            teil: c.teil,
+            form,
+            lo: kasten.0,
+            hi: kasten.1,
+            gruppe: c.gruppe,
+            maske: c.maske,
+            ausloeser: c.ausloeser,
+            dynamisch: schwung_art == Some(crate::komponenten::schwung::art::DYNAMISCH),
+            figur,
+        });
+    }
+    w.speicher[fi] = fs;
+    aus.sort_by_key(|z| z.teil);
+    aus
+}
+
+/// Erster Treffer eines Strahls gegen die Ziele: (Ziel-Index, Treffer); Gleichstand → kleinere Teil-ID (die Ziele sind nach ID
+/// sortiert, es bleibt der frühere). `ohne` = eigenes Teil, `maske` gegen die Gruppe des Ziels, Auslöser nur mit `ausloeser`.
+#[allow(clippy::too_many_arguments)]
+pub fn strahl_ziele(ziele: &[Ziel], u: &Umgebung, o: V, d: V, laenge: f64, ohne: u32, maske: u32, ausloeser: bool) -> Option<(usize, Treffer)> {
+    let mut best: Option<(usize, Treffer)> = None;
+    for (i, z) in ziele.iter().enumerate() {
+        if z.teil == ohne || maske & z.gruppe == 0 || (z.ausloeser && !ausloeser) {
+            continue;
+        }
+        let grenze = best.map_or(laenge, |b| b.1.t);
+        if strahl_huelle(o, d, z.lo, z.hi, grenze).is_none() {
+            continue;
+        }
+        if let Some(h) = strahl(o, d, grenze, &z.form, u) {
+            if best.is_none_or(|b| h.t < b.1.t) {
+                best = Some((i, h));
+            }
+        }
+    }
+    best
+}

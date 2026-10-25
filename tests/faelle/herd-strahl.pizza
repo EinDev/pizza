@@ -1,0 +1,53 @@
+// Herd §18.6 / HERD.md §13.3 H-K20: Strahl – Strahl- und Höhenabfrage als berechnete Lesefelder: Höhe über einem Gelände (genau
+// das Netz), Treffer auf Kasten und Kugel mit Abstand, Punkt und Normale, Achsen des Teils, Maske, Auslöser, aus der Maus; Fehler
+Herd herd = neu Herd("Strahl", breite: 320, hoehe: 180);
+Strahl vorgabe = neu Strahl();
+Bote.sage((vorgabe + " " + vorgabe.richtungY() + " " + vorgabe.achsen() + " " + vorgabe.laenge() + " " + vorgabe.ausloeser() + " " + vorgabe.ausMaus() + " " + vorgabe.getroffen() + " " + vorgabe.abstand()));
+Blech<funghi> h = [];
+für (salami j = 0; j < 9; j++) {
+  für (salami i = 0; i < 9; i++) { h.hinzu(((i - 4) * (i - 4) * 0.1 + j * 0.05)); }
+}
+Teil land = herd.raum(0, 0, 0);
+land.mit(neu Gelaende(hoehen: h, spalten: 9, zeilen: 9, weite: 1, farbe: "oliven"));
+land.mit(neu Fuehler(form: "netz", ausloeser: nein));
+Teil kiste = herd.koerper(Form.wuerfel(), 10, 1, 0, farbe: "senf").setzeGroesse(2, 2, 2);
+kiste.mit(neu Fuehler(ausloeser: nein));
+Teil ball = herd.koerper(Form.kugel(), 10, 1, 6, farbe: "tomate");
+ball.mit(neu Fuehler(form: "kugel", radius: 0.5, ausloeser: nein, gruppe: 2));
+Teil geist = herd.koerper(Form.kugel(), -10, 1, 0, farbe: "#ffffff80");
+geist.mit(neu Fuehler(form: "kugel", radius: 1));
+// Höhenabfrage: Strahl nach unten
+Strahl lot = herd.raum(1.5, 50, 2.25).mit(neu Strahl());
+herd.backe(() -> {
+  falls (herd.bildnummer() == 2) {
+    Bote.sage(("Höhe bei (1.5, 2.25): " + lot.punktY().runden(4) + " (Ebene des Netz-Dreiecks: " + (0.4 + 0.5 * 0.3 + 0.25 * 0.05).runden(4) + "), getroffen Gelände: " + (lot.getroffen().id() == land.id()) + ", Abstand " + lot.abstand().runden(4)));
+    lot.teil().setzeLage(20, 50, 0);
+    Bote.sage(("neben dem Gelände: " + lot.getroffen() + " " + lot.abstand() + " " + lot.punktY()));
+    // waagerecht auf die Kiste, dann in den Achsen eines gedrehten Teils
+    Teil zeiger = herd.raum(5, 1.5, 0);
+    Strahl s = zeiger.mit(neu Strahl(richtungX: 1, richtungY: 0));
+    Bote.sage(("Kiste: " + (s.getroffen().id() == kiste.id()) + " in " + s.abstand() + " bei x = " + s.punktX() + ", Normale " + s.normaleX() + " " + s.normaleY()));
+    zeiger.setzeDrehung(-90);
+    s.setzeAchsen("teil");
+    Bote.sage(("gedreht (Teil-Achsen): trifft " + s.getroffen() + " (Richtung zeigt jetzt nach +z, dort ist nichts)"));
+    zeiger.setzeLage(10, 1, -5);
+    Bote.sage(("auf den Ball durch die Kiste? " + (s.getroffen().id() == kiste.id()) + " (Kiste zuerst, " + s.abstand() + ")"));
+    zeiger.setzeLage(10, 1, 3);
+    Bote.sage(("Ball: " + (s.getroffen().id() == ball.id()) + " in " + s.abstand() + ", Normale z " + s.normaleZ()));
+    s.setzeMaske(1);
+    Bote.sage(("Ball mit Maske 1: " + s.getroffen()));
+    // Auslöser trifft nur mit ausloeser ja
+    Strahl g = herd.raum(-10, 5, 0).mit(neu Strahl());
+    Bote.sage(("Geist (Auslöser) ohne ausloeser: " + g.getroffen()));
+    g.setzeAusloeser(ja);
+    Bote.sage(("Geist mit ausloeser ja: " + (g.getroffen().id() == geist.id()) + " in " + g.abstand()));
+  }
+  falls (herd.bildnummer() == 6) {
+    // aus der Maus: Kamera blickt von (0, 3, 8) auf den Ursprung, Maus in der Bildmitte
+    Strahl m = herd.raum(0, 0, 0).mit(neu Strahl(ausMaus: ja));
+    Bote.sage(("Maus " + herd.mausX() + "," + herd.mausY() + ": trifft Gelände " + (m.getroffen().id() == land.id()) + ", Punkt (" + m.punktX().runden(2) + ", " + m.punktY().runden(2) + ", " + m.punktZ().runden(2) + ")"));
+  }
+});
+probier { lot.setzeAbstand(3); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { lot.setzeAchsen("kamera"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { herd.rechteck(10, 10, 5, 5).mit(neu Strahl()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

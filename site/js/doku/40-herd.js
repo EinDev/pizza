@@ -342,7 +342,9 @@
                 ["`Leiste`","2D","`wert` 0.5, `breite` 160, `hoehe` 14, `farbe` basilikum, `farbeLeer` grau, `rundung` 7","Füllbalken (Leben, Fortschritt): von links ist der Anteil `wert` (0 … 1) gefüllt"],
                 ["`Regler`","2D","`wert` 0.5, `von` 0, `bis` 1, `breite` 160, `farbe` kruste, `knauf` senf; nur lesen: `geaendert`","Schieberegler: mit gedrückter Maus ziehen setzt `wert` zwischen `von` und `bis`"],
                 ["`Tafel`","2D","`breite` 240, `hoehe` 160, `farbe` #2f2a26e0, `titel` \"\", `rundung` 10, `ziehbar` nein","Fläche für Bedienelemente: ihr Inhalt sind ihre Kinder; verdeckt, was darunter liegt, `ziehbar` = mit der Maus verschieben"],
-                ["`Schwung`","3D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY`/`tempoZ` 0, `drehtempoX`/`drehtempoY`/`drehtempoZ` 0, `schwerkraft` 0, `daempfung` 0, `drehdaempfung` 0.05, `abprall` 0, `reibung` 0.5, `stossX`/`stossY`/`stossZ` 0, `drehsperre` nein; nur lesen: `amBoden`, `ruht`","3D-Physik: Kästen, Kugeln und Kapseln fallen, rollen, kippen und stapeln sich – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Schwung ist fest, mit `form: \"netz\"` auch ein Gelände oder eine eigene Form"]
+                ["`Schwung`","3D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY`/`tempoZ` 0, `drehtempoX`/`drehtempoY`/`drehtempoZ` 0, `schwerkraft` 0, `daempfung` 0, `drehdaempfung` 0.05, `abprall` 0, `reibung` 0.5, `stossX`/`stossY`/`stossZ` 0, `drehsperre` nein; nur lesen: `amBoden`, `ruht`","3D-Physik: Kästen, Kugeln und Kapseln fallen, rollen, kippen und stapeln sich – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Schwung ist fest, mit `form: \"netz\"` auch ein Gelände oder eine eigene Form"],
+                ["`Figur`","3D","`laufX`/`laufZ` 0, `sprung` 0, `schwerkraft` 9.81, `stufe` 0.3, `hang` 45, `haut` 0.02, `schieben` 0, `mitfahren` ja; nur lesen: `amBoden`, `boden`, `bodenHoehe`, `bodenNormaleX`/`Y`/`Z`, `tempoX`/`Y`/`Z`, `anWand`, `anDecke`","Figur-Steuerung: eine aufrechte Kapsel läuft mit dem Wunschtempo, springt, steigt Stufen, gleitet an Wänden, rutscht an zu steilen Hängen und fährt auf bewegten Böden mit – braucht einen `Fuehler`"],
+                ["`Strahl`","3D","`richtungX`/`richtungZ` 0, `richtungY` −1, `achsen` welt, `laenge` 1000, `maske` alle, `ausloeser` nein, `ausMaus` nein; nur lesen: `getroffen`, `abstand`, `punktX`/`Y`/`Z`, `normaleX`/`Y`/`Z`","Strahl-Abfrage: was liegt in einer Richtung (oder unter der Maus)? Beim Lesen gerechnet, trifft Fühler-Formen; nach unten gerichtet die Höhe über einem Gelände"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -1399,6 +1401,85 @@
             },
             { art: "ausgabe", text: z("Schwung(4) dynamisch nach 160 Bildern: amBoden ja, ruht ja", "liegt flach: ja, Ball rollt: ja") },
             { art: "text", md: "Ein ganzes Beispiel ist der **Kistenturm** unter *Beispiele → Herd*: Ein Turm aus Pizzakartons steht auf einer Lichtung zwischen Hügeln, ein Klick wirft eine Teigkugel – der Turm kippt, und die Kartons purzeln über das Gelände." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Figur und Strahl: laufen, springen, zielen",
+          inhalt: [
+            { art: "text", md: "Eine **`Figur`** ist die Spielfigur aus Unitys CharacterController: eine **aufrechte Kapsel** (Form vom `Fuehler` am selben Teil, am besten `form: \"kapsel\"` mit `radius` und `hoehe`), der das Programm nur sagt, **wie schnell sie laufen möchte** – `laufX`/`laufZ` in Einheiten/s, Weltachsen. Den Rest macht der Herd jeden Takt: Schwerkraft (**9.81** schon eingestellt), Stufen bis `stufe` (0.3) nimmt sie einfach, Hänge bis `hang` Grad (45) läuft sie hinauf, steilere halten sie auf; an Wänden gleitet sie entlang, und steht sie auf etwas, das sich bewegt (eine kinematische Plattform, ein Aufzug mit `Ablauf`), fährt sie mit (`mitfahren`). `sprung` ist ein Einmal-Sprung (Tempo nach oben, nur am Boden, danach 0). Lesen kann man `amBoden`, `boden` (worauf sie steht), `bodenHoehe`, die Normale des Bodens, `anWand`, `anDecke` und das **tatsächliche** Tempo `tempoX`/`Y`/`Z`." },
+            { art: "text", md: "Anfahren, Bremsen und Sprinten bleiben im Programm – so fühlt sich die Steuerung an, wie du willst. Hindernisse sind alle Fühler mit `ausloeser: nein` (feste, kinematische, dynamische, Netze, Gelände, andere Figuren); dynamische `Schwung`-Körper schiebt die Figur nur mit **`schieben`** an (Stoß je Sekunde Berührung). `haut` hält einen kleinen Abstand zu allem." },
+            { art: "text", md: "Ein **`Strahl`** fragt: *Was liegt in dieser Richtung?* Ab der Lage seines Teils in `richtungX`/`Y`/`Z` (Welt- oder mit `achsen: \"teil\"` Teil-Achsen) bis `laenge`, oder mit **`ausMaus: ja`** von der Kamera durch die Maus. Die Antworten sind Felder, die **beim Lesen** gerechnet werden: `getroffen` (das Teil oder `karton`), `abstand`, `punktX`/`Y`/`Z`, `normaleX`/`Y`/`Z`. Getroffen werden Fühler-Formen (Auslöser nur mit `ausloeser: ja`, Gruppen über `maske`), nie das eigene Teil. **Höhenabfrage:** ein Strahl nach unten über einem Gelände mit `form: \"netz\"` liefert genau die Höhe des gezeichneten Netzes." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Figur","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"1f4c11811e140c23","paket":"cbae0962289243b9"},
+                {"art":"bild","bildnummer":8,"szene":"f63b07a74d7d1c2e","paket":"bb83fbbca7082fb6"},
+                {"art":"bild","bildnummer":12,"szene":"0011e88e4e575439","paket":"07cb1a2c46815111"},
+                {"art":"bild","bildnummer":16,"szene":"b5589f1fd71c1417","paket":"59f2e5e5fb8c8513"},
+                {"art":"bild","bildnummer":20,"szene":"f441775e79cb2905","paket":"8a4c736c36731d56"},
+                {"art":"bild","bildnummer":24,"szene":"86343e8c9395b3ae","paket":"08005ed71ede7c75"},
+                {"art":"bild","bildnummer":28,"szene":"da6ac83a251016f8","paket":"6699373e529cfc53"},
+                {"art":"bild","bildnummer":32,"szene":"d50289688afc84ad","paket":"8891c17c03e269c6"},
+                {"art":"bild","bildnummer":36,"szene":"479ce29149417fd2","paket":"62c768b44e504637"},
+                {"art":"bild","bildnummer":40,"szene":"e2bee88c19f9a5d5","paket":"eaf2960fb5bbd778"},
+                {"art":"bild","bildnummer":44,"szene":"0086a5034f145044","paket":"1f970dc379cab7ac"},
+                {"art":"bild","bildnummer":48,"szene":"a350b9b194957507","paket":"3df613fe848e09c4"},
+                {"art":"bild","bildnummer":52,"szene":"ec8ee6275aa57480","paket":"b0d8e6c35aee7108"},
+                {"art":"bild","bildnummer":56,"szene":"b5b1e2cd20705f60","paket":"565b48e68675b7e0"},
+                {"art":"bild","bildnummer":60,"szene":"5b4f140c4f3818aa","paket":"fb5bba94dfde30fc"},
+                {"art":"bild","bildnummer":64,"szene":"2cd7d4533712baeb","paket":"462e0f4bee40d3bb"},
+                {"art":"bild","bildnummer":68,"szene":"2837d87c6b2151a4","paket":"b862bb71abc7d00a"},
+                {"art":"bild","bildnummer":72,"szene":"69394337892e60b9","paket":"f413daa151dc1917"},
+                {"art":"bild","bildnummer":76,"szene":"4e38f8f3aa20af30","paket":"d464361ec8a82a11"},
+                {"art":"bild","bildnummer":80,"szene":"65883afacc321fc0","paket":"7fabcc0d7df3055a"},
+                {"art":"bild","bildnummer":84,"szene":"c85a5c8f9449a6b1","paket":"4501ec4e8339126f"},
+                {"art":"bild","bildnummer":88,"szene":"23ecd7a0dc0787de","paket":"735da347ac318d1b"},
+                {"art":"bild","bildnummer":92,"szene":"ba936bbfee6fd26b","paket":"b23853bee7c6e4c8"},
+                {"art":"bild","bildnummer":96,"szene":"d2f6ce8b5f7ffa77","paket":"c3bcd6f3175cdf79"},
+                {"art":"bild","bildnummer":100,"szene":"23090f9b447b9b00","paket":"4e64d7a4c8104797"},
+                {"art":"bild","bildnummer":104,"szene":"e811fc82dd1f259e","paket":"bc3408b35796508f"},
+                {"art":"bild","bildnummer":108,"szene":"55e92a1051637637","paket":"0b351aa8fc23ec3f"},
+                {"art":"bild","bildnummer":112,"szene":"556d576dc3fd3d66","paket":"517ebe2e21950113"},
+                {"art":"bild","bildnummer":116,"szene":"81bd6d634a7c4306","paket":"2c727d3de142c4f0"},
+                {"art":"bild","bildnummer":120,"szene":"5f85c42edbde724a","paket":"e36c403112de8aa0"},
+                {"art":"bild","bildnummer":124,"szene":"cf8ac903c28aa6c0","paket":"2e9c2ef281bcc268"},
+                {"art":"bild","bildnummer":128,"szene":"b3c53dba4ce79295","paket":"c8705eb3a5250cd6"},
+                {"art":"bild","bildnummer":132,"szene":"e2f8008a575d9f90","paket":"90c6d15417472a33"},
+                {"art":"bild","bildnummer":136,"szene":"0a4b9dc46f37a4ec","paket":"155b2846d67e0edf"},
+                {"art":"bild","bildnummer":140,"szene":"ac5842a68ff030b0","paket":"4b3e6893a3fd8c00"},
+                {"art":"bild","bildnummer":144,"szene":"d050008bbe541cdf","paket":"94325dee54c02f20"},
+                {"art":"bild","bildnummer":148,"szene":"ece0744fe92acbd4","paket":"10152455cc58d2f9"},
+                {"art":"bild","bildnummer":152,"szene":"eed33dc46596a017","paket":"7319a8e55e05b65c"},
+                {"art":"bild","bildnummer":156,"szene":"a0675ed225690fe0","paket":"1874d092bf7fe916"},
+                {"art":"bild","bildnummer":160,"szene":"528462ec60426712","paket":"1fd64c20cb6c1503"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Figur\", breite: 320, hoehe: 180);",
+                "herd.kamera().setzeLage(2, 4, 8).schaueAuf(2, 0.5, 0);",
+                "Teil boden = herd.koerper(Form.wuerfel(), 0, -0.5, 0, farbe: \"basilikum\").setzeGroesse(12, 1, 12);",
+                "boden.mit(neu Fuehler(ausloeser: nein));",
+                "für (salami i = 0; i < 4; i++) {",
+                "  Teil stufe = herd.koerper(Form.wuerfel(), 1.2 + i * 0.4, (i + 1) * 0.1, 0, farbe: \"kruste\").setzeGroesse(0.4, (i + 1) * 0.2, 2);",
+                "  stufe.mit(neu Fuehler(ausloeser: nein));",
+                "}",
+                "Teil bote = herd.koerper(Form.zylinder(), -1, 0.9, 0, farbe: \"tomate\").setzeGroesse(0.6, 1.8, 0.6);",
+                "bote.mit(neu Fuehler(form: \"kapsel\", ausloeser: nein));   // Maße aus dem Zylinder: Radius 0.3, Höhe 1.8",
+                "Figur f = bote.mit(neu Figur(laufX: 1.2));",
+                "Strahl lot = herd.raum(1.6, 10, 0.6).mit(neu Strahl());",
+                "herd.backe(() -> {",
+                "  falls (herd.gedrueckt(\"Leertaste\") && f.amBoden()) { f.setzeSprung(5); }",
+                "});",
+                "Bote.sage((f + \" nach \" + herd.bildnummer() + \" Bildern: Fuß auf \" + (bote.y() - 0.9).runden(2) + \", amBoden \" + f.amBoden()));",
+                "Bote.sage((\"Strahl trifft eine Stufe: \" + (lot.getroffen() != karton) + \" in Höhe \" + lot.punktY().runden(2)));"
+              )
+            },
+            { art: "ausgabe", text: z("Figur(8) nach 160 Bildern: Fuß auf 0.82, amBoden ja", "Strahl trifft eine Stufe: ja in Höhe 0.4") },
+            { art: "text", md: "Ein ganzes Beispiel ist **Parkour** unter *Beispiele → Herd*: ein Pizzabote in der Schulterperspektive mit Mausfang – Treppen, Rampen, fahrende Plattformen, ein Aufzug, und ein Strahl durchs Fadenkreuz trifft Teigscheiben; ein zweiter Strahl holt die Kamera vor Wände." }
           ]
         }
       ]

@@ -2330,6 +2330,46 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Gehwegen (0,15) zeigen so die Szene dahinter statt das Innere der Platte; Restfehler: Versatz 2 · Höhenunterschied im Spiegelbild.
   Tests `tests::hk21`, Szene `spiegel.herd`, Referenzbild `3d-spiegel-voll`, Beispiel `regenplatz`; Neon-Napoli spiegelt voll.
 
+### K-165 Herd: `Figur` (Figur-Steuerung) und `Strahl` (Strahl- und Höhenabfrage) (H-K20)
+- **Frage:** Wie bekommt 3D eine Spielfigur wie Unity `CharacterController` und eine Abfrage wie `Physics.Raycast`, deterministisch
+  (nativ = Wasm = Interpreter), ohne neue Sprache (Methoden mit Argumenten) und auf der Kollision aus H-K17?
+- **Entscheidung (Kern-only, HERD.md §13.3 H-K20):** zwei Komponenten, Typnummern **33 `Figur`** (Takt nach `Schwung`) und **34 `Strahl`**
+  (kein System) in Merge-Reihenfolge. **`Figur`:** Felder wie im Plan, **Schwerkraft-Standard 9.81** (anders als `Wucht`/`Schwung`: eine
+  Figur ohne Schwerkraft ist kein sinnvoller Standard), `stufe` 0.3, `hang` 45°, `haut` 0.02, `schieben` 0, `mitfahren` ja; Lesefelder
+  `amBoden`, `boden` (Teil; beim Lesen entfernt → `karton`), `bodenHoehe`, `bodenNormale*`, `tempo*` (tatsächlich, ohne Mitfahren),
+  `anWand`, `anDecke`. Die Kapsel steht immer **aufrecht** (Achse Welt-y, wie Unity) – die Drehung des Teils bleibt frei für Blick und
+  Körper. Das Programm gibt nur das **Wunschtempo**; Anfahren, Bremsen und Sprinten bleiben im Programm (Steuergefühl), die Figur macht
+  daraus Bewegung mit Kollision. **Hindernisse:** alle 3D-Fühler mit `ausloeser: nein` einschließlich **dynamischer** `Schwung`-Körper
+  (wie Unity; sonst liefe die Figur durch Kisten) – angeschoben werden diese nur mit `schieben` (Stoß je Sekunde Berührung, waagerecht);
+  für `Schwung` ist die Figur ein fester Körper. **`Strahl`:** Lesefelder `getroffen`, `abstand`, `punkt*`, `normale*` **beim Lesen
+  berechnet** (Haken `lies` aus H-K12, Spalten bleiben 0 → Szenen-Hash unverändert; HERD.md §13.1 Regel 6); Ziele nur Fühler-Formen
+  (wie die Physik), nie das eigene Teil, Auslöser nur mit `ausloeser: ja`, Netz/Gelände einseitig, nur der Eintritt zählt; kein Treffer →
+  `karton` und 0. Höhenabfrage = Strahl nach unten gegen ein Gelände mit `form: "netz"` (genau das gezeichnete Netz).
+- **Verfahren `Figur`:** kein geschlossenes Kapsel-Wischen, sondern **Teilschritte** (≤ halber Radius, höchstens 16) mit je bis zu
+  **4 Durchgängen Herausschieben** aus den Kontakten (`kollision3d::kontakte_genau`; was frühere Kontakte desselben Durchgangs schon
+  behoben haben, zählt ab – zwei Bodenplatten an einer Fuge schieben nicht doppelt): Boden senkrecht (Normale ≤ `hang`), Decke entlang
+  der Normale, Wand waagerecht (gleiten). **Kanten-Regel:** ein Kontakt bis `stufe` über dem Fuß mit Normale nach oben, hinter dem ein
+  kurzer Strahl nach unten begehbare Fläche desselben Hindernisses findet, ist Boden – niedrige Stufen und Bordsteine nimmt die Kapsel
+  wie eine Rampe, steile Hänge bleiben Wand. **Stufe** höher als der Radius: Hoch–Vor–Runter-Versuch, nur wenn eine Wand bis `stufe` über
+  dem Fuß aufhielt; **Kleben** und das Runter der Stufe als senkrechtes Wischen durch Halbieren (bis 0.005 genau) – Treppe und Hang hinab
+  ohne Abheben. Das Gelände zählt für die Figur **als Dreiecke** (nächster Punkt je Dreieck der Zellen unter der Kapsel), nicht nur über
+  die Ebene unter dem Probepunkt wie bei `Schwung` (dort am Hangfuß plötzlich tiefe Überlappung → Ruckeln); `Schwung` bleibt unverändert.
+  Mitfahren: Punkt im Raum des Bodens merken, im nächsten Takt durch dessen Welt-Matrix rechnen – jede Bewegung des Bodens zählt
+  (kinematischer Schwung, Ablauf, Gleiten, Programm).
+- **Zwischenergebnis `Strahl`:** neues Feld `Welt::stand` (Änderungszähler, nicht im Hash): jeder **schreibende** Kern-Aufruf zählt hoch
+  (`Kern::w`), lesende nicht (`Kern::wl` für `hole_*`, `teil_hole`, `welt_hole`, `komp_von`/`komp_info`, `teil_kinder`/`teil_trifft`,
+  `ressource_hole`); `Welt::abfragen` hält für einen Stand die Ziele (alle Fühler-Formen, einmal gebaut) und je `Strahl` das Ergebnis –
+  mehrere Lesefelder eines Strahls kosten eine Abfrage, 1 000 Strahlen je Takt bauen die Ziele einmal. Die Ziele werden nicht nach Raum
+  sortiert (linear mit Kasten-Vortest); erst bei vielen tausend Fühlern lohnte ein Baum.
+- **Grenzen (Doku):** Tempo je Takt ≤ 8 Radien (Teilschritte), Drehung des Bodens dreht die Figur nicht mit, keine Kräfte von
+  dynamischen Körpern auf die Figur, Fühler-Maße wachsen mit der Größe des Teils (ein auf 1.8 gestreckter Körper streckt auch die Kapsel).
+- **Messung (B14):** siehe `bench/herd/ERGEBNISSE.md` (Ziele 100 Figuren ≤ 0,5 ms, 1 000 Strahlen ≤ 1 ms je Takt nativ).
+- **Betroffen:** neu `komponenten/figur.rs`, `komponenten/strahl.rs`; `kollision3d.rs` additiv (Strahl gegen Kugel/Kapsel/Kasten/Netz/
+  Gelände, `Raster::dreiecke_in`, `kontakte_genau`, `Ziel`/`ziele`/`aufrecht`/`strahl_ziele`); `welt.rs` (`stand`, `abfragen`), `abi.rs`
+  (`w`/`wl`), `mod.rs` (Anhängestellen), `kern.wasm`/`schema.json`; Szene `figur.herd`, Fälle `herd-figur`/`herd-strahl`, Beispiel
+  `parkour`, SPEC §18.6, Doku `herd-ausbau`, `herd/README.md` §2/§7, B14 (`bench/herd/mess-kern.js`, `herd/skript/tests/strahlen.rs`).
+  Kein Bildpaket, keine Glut, kein Interpreter/Laufzeit/Host (Teil-Lesefelder laufen schon über `hole_zahl`). **Status:** fest.
+
 ## Offene Umsetzungen (Aufträge für andere Agents)
 
 | Nr. | Datei(en) | Was | Testfall |
