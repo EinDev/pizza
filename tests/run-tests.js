@@ -875,7 +875,9 @@ function doku() {
         if (!fehler && Array.isArray(item.herdErwartet)) fehler = herdVergleich(item.herdErwartet, r.ereignisse);
         const naechstes = liste[i + 1];
         if (!fehler && naechstes && naechstes.art === 'ausgabe' && typeof naechstes.text === 'string') {
-          if (norm(naechstes.text) !== norm(ausgabeText(r.ereignisse))) gruppe('doku').notiz.push(name + ': folgender ausgabe-Block weicht von der echten Ausgabe ab (nur Hinweis)');
+          // Das Hawaii-Panik-Banner darf der ausgabe-Block weglassen (ARCHITEKTUR §4) – dann ohne Panik vergleichen.
+          const ohnePanik = r.ereignisse.filter(e => e.typ !== 'panik');
+          if (norm(naechstes.text) !== norm(ausgabeText(r.ereignisse)) && norm(naechstes.text) !== norm(ausgabeText(ohnePanik))) gruppe('doku').notiz.push(name + ': folgender ausgabe-Block weicht von der echten Ausgabe ab (nur Hinweis)');
         }
         ergebnis('doku', name, fehler);
       } else {
