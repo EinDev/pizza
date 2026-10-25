@@ -1,0 +1,125 @@
+#! bild 2 groesse 1280x720
+# Referenzbild „Punkt- und Spotschatten“ (H-K18, Abschnitt SCHATTENLICHTER): ein nächtlicher Hof – Boden, Rückwand, Säulen,
+# Kisten und Kugeln; drei Punktlichter mit Würfelschatten (Güte fein, mittel, grob; Weichheit 1, 2, 0) mit leuchtenden
+# Birnen, die selbst keinen Schatten werfen, zwei Spots von der Wand (30° fein mit Weichheit 2, 45° mittel), keine Sonne.
+# Prüft: Würfelseiten als Kacheln (Nähte an den Würfelkanten unsichtbar), Kachel-Spot, weiche und harte Kanten, kein
+# Übersprechen zwischen Kacheln, Schatten auf klassischem und pbr-Belag.
+welt_neu 1280 720 "Punktschatten"
+welt_himmel "#05060c" "#10101c"
+welt_umgebung "#4050a0" 0.06
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Belag" -> T_B
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_K "leuchten" -> K_LEUCHT
+feld_nummer T_K "schatten" -> K_SCH
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_B "modell" -> B_MODELL
+feld_nummer T_B "farbe" -> B_F
+feld_nummer T_B "glanz" -> B_GLANZ
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_L "kegel" -> L_KEGEL
+feld_nummer T_L "kegelRand" -> L_RAND
+feld_nummer T_L "schattenGuete" -> L_GUETE
+feld_nummer T_L "schattenWeich" -> L_WEICH
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 16 0 -> KUGEL
+form_grund 3 16 0 -> ZYLINDER
+form_grund 5 0 0 -> EBENE
+
+teil_lage 1 0 6.5 13
+teil_schaue 1 0 0.8 0
+komp_von 2 T_L -> SONNE
+setze_zahl SONNE L_ST 0
+
+# Boden: links klassisch, rechts pbr (zwei Hälften), Rückwand
+teil_neu 3 -> boden
+teil_lage boden -7.5 0 0
+teil_groesse boden 15 1 30
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_text k K_F "#8a8478"
+setze_zahl k K_GLANZ 0.3
+komp_haenge k boden
+teil_neu 3 -> bp
+komp_neu T_B -> belag
+setze_text belag B_MODELL "pbr"
+setze_text belag B_F "#8a8478"
+setze_zahl belag B_GLANZ 0.45
+komp_haenge belag bp
+teil_neu 3 -> boden2
+teil_lage boden2 7.5 0 0
+teil_groesse boden2 15 1 30
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_zahl k K_BELAG bp
+komp_haenge k boden2
+teil_neu 3 -> wand
+teil_lage wand 0 4 -6
+teil_groesse wand 30 8 0.6
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#6e6a72"
+komp_haenge k wand
+
+# Säulen in einer Reihe, Kisten und Kugeln dazwischen
+wiederhole 6 i
+  teil_neu 3 -> s
+  teil_lage s ((i - 2.5) * 3.2) 1.6 -2.5
+  teil_groesse s 0.5 3.2 0.5
+  komp_neu T_K -> k
+  setze_zahl k K_FORM ZYLINDER
+  setze_text k K_F "#b8b0a0"
+  komp_haenge k s
+ende
+wiederhole 7 i
+  teil_neu 3 -> kiste
+  teil_lage kiste ((i - 3) * 2.4 + 0.6) (0.35 + (i % 2) * 0.2) (1.2 + (i % 3) * 0.9)
+  teil_groesse kiste (0.7 + (i % 2) * 0.3) (0.7 + (i % 2) * 0.4) 0.7
+  komp_neu T_K -> k
+  setze_zahl k K_FORM (WUERFEL + (KUGEL - WUERFEL) * boden(1 / (1 + i % 3)))
+  setze_text k K_F "#c87850"
+  setze_zahl k K_GLANZ 0.4
+  komp_haenge k kiste
+ende
+
+# drei Punktlichter (Würfelschatten) mit Birnen ohne eigenen Schatten
+wiederhole 3 j
+  teil_neu 3 -> l
+  teil_lage l ((j - 1) * 5.5) (1.9 + j * 0.25) (0.2 + j * 0.6)
+  komp_neu T_L -> li
+  setze_zahl li L_F (4294944767 - j * 2236928 + j * 40)
+  setze_zahl li L_ST 2.2
+  setze_zahl li L_RW 9
+  setze_zahl li L_GUETE (3 - j)
+  setze_zahl li L_WEICH (1 + (j % 2) - boden(j / 2) * 2)
+  komp_haenge li l
+  komp_neu T_K -> k
+  setze_zahl k K_FORM KUGEL
+  setze_text k K_F "#fff4d8"
+  setze_zahl k K_LEUCHT 1
+  setze_zahl k K_SCH 0
+  komp_haenge k l
+  teil_groesse l 0.16 0.16 0.16
+ende
+
+# zwei Spots von der Wand schräg auf den Hof
+wiederhole 2 j
+  teil_neu 3 -> sp
+  teil_lage sp ((j * 2 - 1) * 9) 6.5 -5.4
+  teil_schaue sp ((j * 2 - 1) * 4.5) 0 2
+  komp_neu T_L -> li
+  setze_text li L_F "#9fd0ff"
+  setze_zahl li L_ST 9
+  setze_zahl li L_RW 16
+  setze_zahl li L_KEGEL (30 + j * 15)
+  setze_zahl li L_RAND 0.3
+  setze_zahl li L_GUETE (3 - j)
+  setze_zahl li L_WEICH (2 - j)
+  komp_haenge li sp
+ende
+takte 2

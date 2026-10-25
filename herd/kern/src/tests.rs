@@ -858,7 +858,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Stimmung", "regen")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -5278,3 +5278,288 @@ mod hk17 {
     }
 }
 
+
+/// H-K18: Schatten für Punkt- und Spotlichter, Sonnen-Kaskaden (Abschnitt SCHATTENLICHTER, `crate::lichter::schatten_waehlen`).
+mod hk18 {
+    use super::*;
+    use crate::lichter::{LICHTER_KOPF_BYTES, LICHT_BYTES, MAX_SCHATTEN_LICHTER, SCHATTENLICHTER_KOPF_BYTES, SCHATTEN_ANSICHT_BYTES, SCHATTEN_SEITE};
+    use crate::paket::{zug, ZUG_BYTES};
+
+    struct N {
+        l: i32,
+        rw: i32,
+        kegel: i32,
+        sch: i32,
+        guete: i32,
+        weich: i32,
+        kask: i32,
+        weite: i32,
+    }
+    fn nummern(k: &mut Kern) -> N {
+        let l = typ(k, "Licht");
+        N {
+            l,
+            rw: feld(k, l, "reichweite"),
+            kegel: feld(k, l, "kegel"),
+            sch: feld(k, l, "schatten"),
+            guete: feld(k, l, "schattenGuete"),
+            weich: feld(k, l, "schattenWeich"),
+            kask: feld(k, l, "kaskaden"),
+            weite: feld(k, l, "schattenWeite"),
+        }
+    }
+    fn f(d: &[u8], o: usize) -> f32 {
+        f32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn u(d: &[u8], o: usize) -> u32 {
+        u32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn abschnitt_von(k: &Kern, art: u32) -> Option<Vec<u8>> {
+        Leser::neu(k.paket()).unwrap().abschnitte().find(|(a, _)| *a == art).map(|(_, d)| d.to_vec())
+    }
+    fn zuege(k: &Kern) -> Vec<[u32; 4]> {
+        abschnitt_von(k, abschnitt::ZUEGE3D).map(|d| d.chunks_exact(ZUG_BYTES).map(|z| [u(z, 0), u(z, 4), u(z, 8), u(z, 12)]).collect()).unwrap_or_default()
+    }
+    /// Boden und ein Raster aus Kisten (alle werfen Schatten), Kamera (0, 6, 14) auf den Ursprung.
+    fn szene(k: &mut Kern) {
+        let kt = typ(k, "Koerper");
+        let form = feld(k, kt, "form");
+        let ebene = k.form_grund(5, 0.0, 0.0);
+        let wuerfel = k.form_grund(1, 0.0, 0.0);
+        k.teil_lage(1, 0.0, 6.0, 14.0);
+        k.teil_schaue(1, 0.0, 0.0, 0.0);
+        let b = k.teil_neu(3);
+        k.teil_groesse(b, 60.0, 1.0, 60.0);
+        let c = k.komp_neu(kt);
+        assert_eq!(k.setze_zahl(c, form, ebene as f64), 0);
+        assert_eq!(k.komp_haenge(c, b), 0);
+        for i in 0..25 {
+            let t = k.teil_neu(3);
+            k.teil_lage(t, (i % 5) as f64 * 3.0 - 6.0, 0.5, (i / 5) as f64 * 3.0 - 6.0);
+            let c = k.komp_neu(kt);
+            assert_eq!(k.setze_zahl(c, form, wuerfel as f64), 0);
+            assert_eq!(k.komp_haenge(c, t), 0);
+        }
+    }
+    fn licht(k: &mut Kern, n: &N, x: f64, y: f64, z: f64, rw: f64) -> (i32, i32) {
+        let t = k.teil_neu(3);
+        k.teil_lage(t, x, y, z);
+        let c = k.komp_neu(n.l);
+        assert_eq!(k.setze_zahl(c, n.rw, rw), 0);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        (c, t)
+    }
+
+    #[test]
+    fn ohne_nutzung_byte_gleich() {
+        let lauf = |setzen: bool| {
+            let mut k = welt();
+            let n = nummern(&mut k);
+            szene(&mut k);
+            let mut c = Vec::new();
+            for i in 0..4 {
+                c.push(licht(&mut k, &n, i as f64 * 3.0 - 4.5, 2.0, 0.0, 6.0).0);
+            }
+            let sonne = k.komp_von(2, n.l);
+            if setzen {
+                for &l in c.iter().chain(core::iter::once(&sonne)) {
+                    assert_eq!(k.setze_text(l, n.guete, b"aus"), 0);
+                    assert_eq!(k.setze_zahl(l, n.weich, 1.0), 0);
+                    assert_eq!(k.setze_zahl(l, n.kask, 1.0), 0);
+                    assert_eq!(k.setze_zahl(l, n.weite, 0.0), 0);
+                }
+            }
+            // zweimal: das zweite Paket ohne die Ressourcen-Deltas des ersten
+            k.bild(1);
+            k.bild(1);
+            assert!(abschnitt_von(&k, abschnitt::SCHATTENLICHTER).is_none());
+            assert!(abschnitt_von(&k, abschnitt::LICHTER).is_none(), "4 Punktlichter ohne Schatten: wie v1");
+            (k.hash_szene(), k.paket().to_vec())
+        };
+        let (h, p) = lauf(false);
+        assert_eq!((h, p.clone()), lauf(true));
+        // Grenzen der neuen Felder
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let (c, _) = licht(&mut k, &n, 0.0, 2.0, 0.0, 6.0);
+        assert!(k.setze_zahl(c, n.kask, 5.0) < 0);
+        assert!(k.setze_zahl(c, n.kask, 2.5) < 0);
+        assert!(k.setze_zahl(c, n.weich, 4.5) < 0);
+        assert!(k.setze_zahl(c, n.weite, -1.0) < 0);
+        assert!(k.setze_text(c, n.guete, b"ultra") < 0);
+        // an → Abschnitt, Hash anders; wieder aus → byte-gleich
+        let mut k = welt();
+        let n = nummern(&mut k);
+        szene(&mut k);
+        let mut c = Vec::new();
+        for i in 0..4 {
+            c.push(licht(&mut k, &n, i as f64 * 3.0 - 4.5, 2.0, 0.0, 6.0).0);
+        }
+        k.bild(1);
+        k.bild(1);
+        assert_eq!((k.hash_szene(), k.paket()), (h, &p[..]));
+        assert_eq!(k.setze_text(c[1], n.guete, b"mittel"), 0);
+        k.bild(1);
+        assert_ne!(k.hash_szene(), h);
+        assert!(abschnitt_von(&k, abschnitt::SCHATTENLICHTER).is_some());
+        assert!(abschnitt_von(&k, abschnitt::LICHTER).is_some(), "Schatten erzwingt LICHTER");
+        assert_eq!(k.setze_text(c[1], n.guete, b"aus"), 0);
+        k.bild(1);
+        assert_eq!((k.hash_szene(), k.paket()), (h, &p[..]));
+    }
+
+    #[test]
+    fn auswahl_budget_packen_und_zellen() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        szene(&mut k);
+        // 12 Lichter mit Schatten im Bild (Abstand zur Kamera wächst mit i), eines hinter der Kamera, eines ohne `schatten`
+        let mut c = Vec::new();
+        for i in 0..12 {
+            let (l, _) = licht(&mut k, &n, (i % 4) as f64 * 2.0 - 3.0, 1.5, 4.0 - i as f64 * 1.5, 3.0);
+            assert_eq!(k.setze_text(l, n.guete, if i % 3 == 0 { b"fein" as &[u8] } else { b"grob" }), 0);
+            c.push(l);
+        }
+        let (hinten, _) = licht(&mut k, &n, 0.0, 6.0, 40.0, 3.0);
+        assert_eq!(k.setze_text(hinten, n.guete, b"fein"), 0);
+        assert_eq!(k.setze_zahl(c[0], n.sch, 0.0), 0);
+        k.bild(1);
+        let d = abschnitt_von(&k, abschnitt::SCHATTENLICHTER).unwrap();
+        assert_eq!((f(&d, 0), f(&d, 4), f(&d, 8)), (1.0, 0.0, 1.0));
+        let ansichten = f(&d, 12) as usize;
+        assert_eq!(d.len(), SCHATTENLICHTER_KOPF_BYTES + ansichten * SCHATTEN_ANSICHT_BYTES);
+        // 8 Plätze (c[1] … c[8], die nächsten mit `schatten`): fein = c[3], c[6] (je 6 × 1024² = 6,3 M Texel), grob je
+        // 6 × 256² = 0,4 M → alle passen (zusammen 15 M von 16,8 M)
+        let plaetze: Vec<[f32; 4]> = (0..MAX_SCHATTEN_LICHTER)
+            .map(|p| {
+                let o = 16 + 64 + p * 16;
+                [f(&d, o), f(&d, o + 4), f(&d, o + 8), f(&d, o + 12)]
+            })
+            .collect();
+        assert!(plaetze.iter().all(|p| p[1] == 6.0), "{plaetze:?}");
+        assert_eq!(ansichten, 48);
+        // Rechtecke liegen in ihren Seiten und überlappen nicht
+        let mut rechtecke: Vec<(u32, u32, u32, u32)> = Vec::new();
+        for a in 0..ansichten {
+            let o = SCHATTENLICHTER_KOPF_BYTES + a * SCHATTEN_ANSICHT_BYTES + 64;
+            let (s, x, y, e) = (f(&d, o) as u32, f(&d, o + 4) as u32, f(&d, o + 8) as u32, f(&d, o + 12) as u32);
+            assert!(x + e <= SCHATTEN_SEITE && y + e <= SCHATTEN_SEITE && (e == 256 || e == 1024), "{a}: {s} {x} {y} {e}");
+            for &(s2, x2, y2, e2) in &rechtecke {
+                assert!(s != s2 || x + e <= x2 || x2 + e2 <= x || y + e <= y2 || y2 + e2 <= y, "Überlappung");
+            }
+            rechtecke.push((s, x, y, e));
+        }
+        assert_eq!(rechtecke[0], (1, 0, 0, 1024), "Sonne v1 in Schicht 0, Kacheln ab Schicht 1, fein zuerst");
+        // Zellen: Einträge der Schattenlichter tragen Platz + 1 in Bits 16 … 19
+        let l = abschnitt_von(&k, abschnitt::LICHTER).unwrap();
+        let zahl = u(&l, LICHTER_KOPF_BYTES) as usize;
+        let worte = u(&l, LICHTER_KOPF_BYTES + 4) as usize;
+        let w0 = LICHTER_KOPF_BYTES + 8 + zahl * LICHT_BYTES;
+        let zellen = (f(&l, 0) * f(&l, 4) * f(&l, 8)) as usize;
+        let mut mit = [false; 9];
+        for i in zellen..worte {
+            let wort = u(&l, w0 + i * 4);
+            assert!(wort & 0xFFFF < zahl as u32 && wort >> 16 <= 8);
+            mit[(wort >> 16) as usize] = true;
+        }
+        assert!(mit.iter().all(|&m| m), "alle 8 Plätze und Lichter ohne Schatten in den Zellen");
+        // Werfer je Ansicht als eigene Züge
+        let z = zuege(&k);
+        assert!(z.iter().any(|z| z[0] == zug::SCHATTEN), "Sonne v1");
+        let ans: Vec<u32> = z.iter().filter(|z| z[0] & 0xFF == zug::ANSICHT).map(|z| z[0] >> 8).collect();
+        assert!(!ans.is_empty() && ans.iter().all(|&a| (a as usize) < ansichten));
+        // Auswahl stabil: gleiches Bild → gleiches Paket (ab dem zweiten, ohne Ressourcen-Deltas)
+        k.bild(1);
+        let p = k.paket().to_vec();
+        k.bild(1);
+        assert_eq!(k.paket(), &p[..]);
+    }
+
+    #[test]
+    fn spot_eine_kachel_weiter_wuerfel_und_fein_budget() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        szene(&mut k);
+        let (sp, t) = licht(&mut k, &n, 0.0, 5.0, 0.0, 10.0);
+        k.teil_schaue(t, 0.0, 0.0, 0.001);
+        assert_eq!(k.setze_zahl(sp, n.kegel, 40.0), 0);
+        assert_eq!(k.setze_text(sp, n.guete, b"mittel"), 0);
+        k.bild(1);
+        let d = abschnitt_von(&k, abschnitt::SCHATTENLICHTER).unwrap();
+        assert_eq!(f(&d, 12), 1.0);
+        assert_eq!((f(&d, 80), f(&d, 84)), (0.0, 1.0));
+        assert_eq!(k.setze_zahl(sp, n.kegel, 75.0), 0);
+        k.bild(2);
+        let d = abschnitt_von(&k, abschnitt::SCHATTENLICHTER).unwrap();
+        assert_eq!(f(&d, 12), 6.0, "Spot über 60° → Würfel");
+        // 8 feine Würfel brauchen 50 M Texel, der Atlas hat 16,8 M: nur 2 Lichter werfen, die übrigen still nicht
+        assert_eq!(k.setze_text(sp, n.guete, b"aus"), 0);
+        for i in 0..8 {
+            let (l, _) = licht(&mut k, &n, i as f64 - 4.0, 1.5, 0.0, 3.0);
+            assert_eq!(k.setze_text(l, n.guete, b"fein"), 0);
+        }
+        k.bild(3);
+        let d = abschnitt_von(&k, abschnitt::SCHATTENLICHTER).unwrap();
+        assert_eq!(f(&d, 12), 12.0);
+        assert_eq!((f(&d, 80 + 16 * 2), f(&d, 84 + 16 * 2)), (0.0, 0.0), "Platz 3 frei");
+    }
+
+    #[test]
+    fn kaskaden_und_weite() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        szene(&mut k);
+        let sonne = k.komp_von(2, n.l);
+        k.bild(1);
+        let v1 = k.paket().to_vec();
+        // Weite allein: v1-Verfahren mit anderer Reichweite, kein Abschnitt
+        assert_eq!(k.setze_zahl(sonne, n.weite, 12.0), 0);
+        k.bild(1);
+        assert!(abschnitt_von(&k, abschnitt::SCHATTENLICHTER).is_none());
+        assert_ne!(k.paket(), &v1[..]);
+        // Weichheit allein: Abschnitt ohne Kaskaden und Ansichten
+        assert_eq!(k.setze_zahl(sonne, n.weite, 0.0), 0);
+        assert_eq!(k.setze_zahl(sonne, n.weich, 2.5), 0);
+        k.bild(1);
+        let d = abschnitt_von(&k, abschnitt::SCHATTENLICHTER).unwrap();
+        assert_eq!((f(&d, 0), f(&d, 4), f(&d, 8), f(&d, 12)), (1.0, 0.0, 2.5, 0.0));
+        assert_eq!(d.len(), SCHATTENLICHTER_KOPF_BYTES);
+        // 3 Kaskaden bis 30: Schichten 0 … 2, kein v1-Zug, SZENE: Sonne mit Schatten
+        assert_eq!(k.setze_zahl(sonne, n.kask, 3.0), 0);
+        assert_eq!(k.setze_zahl(sonne, n.weite, 30.0), 0);
+        k.bild(2);
+        let d = abschnitt_von(&k, abschnitt::SCHATTENLICHTER).unwrap();
+        assert_eq!((f(&d, 4), f(&d, 12)), (3.0, 3.0));
+        for c in 0..3 {
+            let o = SCHATTENLICHTER_KOPF_BYTES + c * SCHATTEN_ANSICHT_BYTES + 64;
+            assert_eq!((f(&d, o), f(&d, o + 12)), (c as f32, SCHATTEN_SEITE as f32));
+            // Texel wachsen mit der Kaskade
+            if c > 0 {
+                assert!(f(&d, o + 16) > f(&d, o + 16 - SCHATTEN_ANSICHT_BYTES));
+            }
+            assert!(f(&d, 16 + c * 16) > 0.0 && f(&d, 20 + c * 16) > 0.0, "Normalenversatz und Bias");
+        }
+        let z = zuege(&k);
+        assert!(!z.iter().any(|z| z[0] == zug::SCHATTEN));
+        let mut ans: Vec<u32> = z.iter().filter(|z| z[0] & 0xFF == zug::ANSICHT).map(|z| z[0] >> 8).collect();
+        ans.dedup();
+        assert_eq!(ans, [0, 1, 2]);
+        let s = abschnitt_von(&k, abschnitt::SZENE).unwrap();
+        assert_eq!(f(&s, 128 + 16 + 12), 1.0);
+        assert!(Leser::neu(k.paket()).unwrap().flags() & crate::paket::flag::SCHATTEN != 0);
+        // Kamera dreht sich auf der Stelle: Kugel-Radius (Texelgröße) bleibt gleich
+        let texel = f(&d, SCHATTENLICHTER_KOPF_BYTES + 80);
+        k.teil_schaue(1, 5.0, 0.0, 3.0);
+        k.bild(3);
+        let d2 = abschnitt_von(&k, abschnitt::SCHATTENLICHTER).unwrap();
+        assert_eq!(f(&d2, SCHATTENLICHTER_KOPF_BYTES + 80), texel);
+        // Punktlicht mit Schatten hinter den Kaskaden: erste Kachel in Schicht 3, Platz zählt ab Ansicht 3
+        let (l, _) = licht(&mut k, &n, 0.0, 2.0, 2.0, 5.0);
+        assert_eq!(k.setze_text(l, n.guete, b"grob"), 0);
+        k.bild(4);
+        let d = abschnitt_von(&k, abschnitt::SCHATTENLICHTER).unwrap();
+        assert_eq!(f(&d, 12), 9.0);
+        assert_eq!(f(&d, 80), 3.0);
+        assert_eq!(f(&d, SCHATTENLICHTER_KOPF_BYTES + 3 * SCHATTEN_ANSICHT_BYTES + 64), 3.0);
+    }
+}

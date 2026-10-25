@@ -315,7 +315,7 @@
                 ["`Text`","2D","`inhalt` \"\", `groesse` 16, `farbe` ofen, `ausrichtung` links (links|mitte|rechts)","Text in der eingebauten Schrift; `ausrichtung` bezieht sich auf x, y ist die Oberkante"],
                 ["`Bild`","2D","`bildchen` karton, `groesse` 1, `farbe` weiss, `spiegeln` nein","ein Bildchen, pixelscharf; `groesse` = Bildschirmpixel je Bildchen-Pixel, `farbe` tönt"],
                 ["`Koerper`","3D","`form` karton, `farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton, `schatten` ja, `belag` karton","3D-Körper aus einer Form; `glanz` 0 … 1, `leuchten` 0 … 1, `bild` = Textur, `schatten` = wirft Schatten, `belag` = Teil mit geteiltem Material (`Belag`)"],
-                ["`Licht`","3D","`art` punkt (punkt|sonne), `farbe` weiss, `staerke` 1, `reichweite` 10, `schatten` ja, `kegel` 0, `kegelRand` 0.25","Punktlicht, Spot (`kegel` > 0: halber Öffnungswinkel, leuchtet entlang −z des Teils) oder Sonne (`art`); beliebig viele Punktlichter und Spots wirken (bis 4096 sichtbare, je Zelle der Sicht 255)"],
+                ["`Licht`","3D","`art` punkt (punkt|sonne), `farbe` weiss, `staerke` 1, `reichweite` 10, `schatten` ja, `kegel` 0, `kegelRand` 0.25, `schattenGuete` aus, `schattenWeich` 1, `kaskaden` 1, `schattenWeite` 0","Punktlicht, Spot (`kegel` > 0: halber Öffnungswinkel, leuchtet entlang −z des Teils) oder Sonne (`art`); beliebig viele Punktlichter und Spots wirken (bis 4096 sichtbare, je Zelle der Sicht 255); bis 8 werfen mit `schattenGuete` Schatten, die Sonne mit `kaskaden` in Stufen"],
                 ["`Kamera`","3D","`sicht` 60, `nah` 0.1, `fern` 500, `aktiv` ja","Blickwinkel `sicht` in Grad; es zeichnet die aktive Kamera mit der kleinsten ID"],
                 ["`Bewegung`","2D + 3D","`tempoX` 0, `tempoY` 0, `tempoZ` 0, `beschleunigungX` 0, `beschleunigungY` 0, `beschleunigungZ` 0, `drehtempo` 0, `daempfung` 0","je Takt: Tempo += Beschleunigung·dt, Dämpfung, Lage += Tempo·dt; `drehtempo` in Grad/s"],
                 ["`Animation`","2D","`bilder` [], `proSekunde` 8, `schleife` ja, `laeuft` ja, `nummer` 1 – braucht Bild","blättert durch `bilder` (braucht ein `Bild` am selben Teil); ohne `schleife` stoppt sie am Ende"],
@@ -1036,7 +1036,7 @@
           titel: "Viele Lichter und Spots",
           inhalt: [
             { art: "text", md: "Jedes `Licht` mit `art: \"punkt\"` leuchtet – auch hunderte auf einmal: Lichterketten, Neonschilder, Laternen. Die Engine teilt die Sicht in Zellen (16 Kacheln breit, je nach Seitenverhältnis 9 hoch, 24 Tiefenscheiben) und merkt sich je Zelle, welche Lichter dort hinreichen; jedes Pixel rechnet nur die Lichter seiner Zelle. Damit das schnell bleibt, gib jedem Licht eine passende `reichweite` – ein Licht wirkt nur innerhalb dieses Abstands (zum Rand hin weich abnehmend). Bis 4096 sichtbare Lichter je Bild (die nächsten zur Kamera zuerst), je Zelle höchstens 255." },
-            { art: "text", md: "Ein **Spot** ist ein Licht mit **`kegel`** > 0 (halber Öffnungswinkel in Grad, bis 90): Er leuchtet in die Richtung, in die sein Teil schaut – `schaueAuf(x, y, z)` richtet ihn aus wie die Kamera. **`kegelRand`** (0 … 1) ist der Anteil des Kegels, der weich ausläuft (0 = harte Kante). Punktlichter und Spots werfen keine Schatten (nur die Sonne)." },
+            { art: "text", md: "Ein **Spot** ist ein Licht mit **`kegel`** > 0 (halber Öffnungswinkel in Grad, bis 90): Er leuchtet in die Richtung, in die sein Teil schaut – `schaueAuf(x, y, z)` richtet ihn aus wie die Kamera. **`kegelRand`** (0 … 1) ist der Anteil des Kegels, der weich ausläuft (0 = harte Kante). Schatten werfen Punktlichter und Spots erst mit `schattenGuete` (nächster Abschnitt)." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -1064,6 +1064,43 @@
             },
             { art: "ausgabe", text: z("Licht(44) 25 1") },
             { art: "text", md: "Ein ganzes Beispiel ist das **Lichterfest** unter *Beispiele → Herd*: 144 Glühbirnen in sechs Lichterketten über einer Altstadtgasse und Laternen als Spots." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Schatten von Punktlichtern, Spots und Sonnen-Kaskaden",
+          inhalt: [
+            { art: "text", md: "Die Sonne wirft immer Schatten. Ein Punktlicht oder Spot wirft erst, wenn du **`schattenGuete`** setzt: `\"grob\"`, `\"mittel\"` oder `\"fein\"` (256, 512 oder 1024 Bildpunkte je Richtung). Für ein Punktlicht rendert die Engine sechs Bilder um das Licht herum (je eine Würfelseite), für einen Spot bis 60° eines – alle als Kacheln in einem gemeinsamen Schatten-Atlas. **Höchstens 8** Lichter werfen je Bild Schatten: die, die im Bild wirken, die nächsten zur Kamera zuerst. Passt eine Kachel nicht mehr in den Atlas (viele feine Würfel), wirft das Licht still keinen Schatten. Wer wirft, bestimmt wie immer `Koerper.schatten` – eine leuchtende Birne direkt am Licht sollte `setzeSchatten(nein)` bekommen, sonst verdeckt sie ihr eigenes Licht." },
+            { art: "text", md: "**`schattenWeich`** (0 … 4) macht die Kanten weicher (1 = wie bisher, 0 = hart) – auch für die Sonne. Für weite Sichten teilt **`kaskaden`** (1 … 4, nur Sonne) die Sicht in Stufen: vorn feine Schatten, hinten grobe; **`schattenWeite`** sagt, wie weit (in Einheiten ab der Kamera) die Sonne Schatten wirft (0 = automatisch wie bisher, höchstens 60)." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":2},{"typ":"takt","anzahl":2}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Schatten","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":2,"szene":"c2c343a047daaf2b","paket":"f4899d9dad95e3cf"},
+                {"art":"bild","bildnummer":4,"szene":"aff318d2491be3fb","paket":"b7064c5c6839f4f2"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Schatten\", breite: 320, hoehe: 180);",
+                "herd.himmel(\"#0b0d18\", \"#1d1830\");",
+                "herd.sonne().licht().setzeStaerke(0);",
+                "herd.koerper(Form.ebene(), farbe: \"#8a8478\").setzeGroesse(30, 1, 30);",
+                "für (salami i = 0; i < 5; i++) {",
+                "    herd.koerper(Form.wuerfel(), (i - 2) * 1.6, 0.5, -1 + (i % 2), farbe: \"#c87850\");",
+                "}",
+                "Teil birne = herd.licht(0, 2.2, 1, farbe: \"#ffd9a0\", reichweite: 9);",
+                "birne.licht().setzeStaerke(2).setzeSchattenGuete(\"mittel\").setzeSchattenWeich(1.5);",
+                "Teil spot = herd.licht(-4, 5, 3, farbe: \"#9fd0ff\", reichweite: 12);",
+                "spot.schaueAuf(0, 0, -1);",
+                "spot.licht().setzeKegel(30).setzeStaerke(5).setzeSchattenGuete(\"fein\");",
+                "herd.backe(() -> { birne.verschiebe(0.2, 0, 0); });",
+                "Bote.sage((birne.licht().schattenGuete() + \" \" + spot.licht().schattenGuete() + \" \" + birne.x()));"
+              )
+            },
+            { art: "ausgabe", text: z("mittel fein 0.8") },
+            { art: "text", md: "Ein ganzes Beispiel ist die **Laternengasse** unter *Beispiele → Herd*: sechs Laternen und zwei Wandstrahler mit Schatten, per Taster auf Tag mit Sonnen-Kaskaden umschaltbar." }
           ]
         },
         {

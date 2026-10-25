@@ -67,6 +67,7 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B10 mit N = 1024, 120 Takte | 0,004 ms | 0,876 ms | 0,88 (0,81) ms | 0,009 ms | 0,961 ms | 0,97 (0,98) ms | – (nur gemessen) |
 | B10 mit N = 4096, 60 Takte | 0,017 ms | 3,833 ms | 3,85 (3,66) ms | 0,028 ms | 4,364 ms | 4,39 (4,49) ms | – (nur gemessen) |
 | B11 (Regen, 2026-10-25): `regen.herd` N = 40 000 → 2 × 10 000 Teilchen (Grenze je Sprüher; A mit Volumen, Strichen, Licht, Aufschlag und Spritzern, B deckend im Raum des Teils), 12 Lichter, 220 Takte | 0,140 ms | 0,844 ms | 0,98 (0,89) ms | 0,156 ms | 1,495 ms | 1,64 (1,56) ms | – (nur gemessen; B5 mit 20 000 Funken zum Vergleich 0,67 ms nativ) |
+| B13 (Schatten, H-K18, 2026-10-25): `schatten.herd` N = 1000 Würfel, L = 8 Punktlichter mit Würfelschatten, NACHT = 1, AUS = 0, 120 Takte – Auswahl, Packen, 48 Kachel-Matrizen, Werfer je Kachel (Hülle gegen Kachel-Frustum) als Instanz-Kopien | 0,001 ms | 0,424 ms | 0,43 (0,42) ms | 0,019 ms | 0,533 ms | 0,53 (0,47) ms | – (nur gemessen; Draw-Calls siehe Glut) |
 | B9 mit 4 × 4 Rastern à 256² = 1024 × 1024 Kacheln, 250 Takte | 0,179 ms | 0,033 ms | 0,21 (0,19) ms | 0,254 ms | 0,049 ms | 0,30 (0,30) ms | – (nur gemessen) |
 | B12 (H-K17, 2026-10-25): `schwung.herd` N = 500 Kisten mit `Schwung` als 10 × 10 Türme à 5 Lagen auf einem Tisch in einer Gelände-Mulde (+ Rampe aus eigenem Netz, Drehscheibe, Kind, Kugel, Kapsel), 240 Takte | 1,696 ms | 0,047 ms | 1,75 (1,75) ms | 2,010 ms | 0,141 ms | 2,13 (1,96) ms | Takt ≤ 2 ms bei 500 Kisten (nativ) – erreicht |
 | B12 mit K = 2 000 Kugeln/Kapseln (ohne Kisten), 120 Takte | 3,210 ms | 0,011 ms | 3,23 (2,14) ms | 3,132 ms | 0,017 ms | 3,15 (2,11) ms | – (nur gemessen) |
@@ -124,6 +125,8 @@ Aussagekraft für echte GPUs hat der Abschnitt „vom Nutzer auszuführen“.
 | B3 N=300 | 301 3D | 603 (301 Schatten) | **15** (7 Schatten) | 43,8 / 41,3 ms |
 | B3 N=1000 (voll) | 1 001 3D | 1 947 (1 001 Schatten) | **15** (7 Schatten) | 113,9 / 109,3 ms |
 | B4 RATE=300 | 2 960 2D | 2 960 | **1** | 14,9 / 11,8 ms |
+| B13 (H-K18, 2026-10-25): `schatten.herd` N=1000 L=8 NACHT=1 AUS=0 – 8 Punktlichter mit Würfelschatten (Güte reihum grob/mittel/fein) + 1 000 Würfel + Boden, letztes Bild | 1 110 3D (inkl. Werfer-Kopien je Kachel) | – | **76** (73 Schatten; Ziel ≤ 120) | – / 46,5 ms (Median über alle Bilder; 60 fps EXE vom Nutzer auf echter GPU) |
+| `3d-punktschatten` (3 Würfel + 2 Spot-Kacheln) / `3d-kaskaden` (4 Kaskaden) | 124 / 255 3D | – | 62 (57 Schatten) / 16 (12 Schatten) | – / 20,0 / 16,4 ms |
 
 Ziele erfüllt, soweit auf WARP messbar: B1 ≤ 4 Draw-Calls (1), B3 ≤ 30 Draw-Calls inkl. Schatten (15). Die Draw-Calls wachsen mit
 der Zahl der **Arten** (Netze), nicht der Objekte. Erstes Bild (Pipelines anlegen, Ressourcen, Shadow-Map) ≈ 100–230 ms auf WARP.

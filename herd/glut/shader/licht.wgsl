@@ -4,8 +4,24 @@
 // Normalenkomponente), Relief (Normale + Rauheit, Tangenten aus der Abbildung bzw. aus den Bildschirmableitungen), Modell pbr
 // (GGX + Smith + Schlick, Metall, Umgebungsglanz), Nässe (Pfützen aus Rauschen in Weltlage, feuchte Flächen dunkler und glatter).
 
-@group(0) @binding(2) var schatten_t: texture_depth_2d;
+// Schatten-Tiefentextur: Schichten à 2048² – Schicht 0 = Sonne (v1) bzw. die Kaskaden, dahinter die Atlas-Seiten der
+// Punkt-/Spot-Kacheln (H-K18); ein Textur-Array, eine Textureinheit, ein Vergleichs-Sampler
+@group(0) @binding(2) var schatten_t: texture_depth_2d_array;
 @group(0) @binding(3) var vergleich: sampler_comparison;
+
+// Schatten für Punkt-/Spotlichter und Sonnen-Kaskaden (Abschnitt SCHATTENLICHTER, Bindung 18; ohne Abschnitt Nullen → v1)
+struct SchattenAnsicht {
+    vp: mat4x4<f32>,
+    rect: vec4<f32>,    // Schicht, x, y, Kante (Texel)
+    texel: vec4<f32>,   // x = Weltmaß eines Texels (Kaskade) bzw. je Einheit Abstand (Kachel)
+}
+struct Schattenlichter {
+    kopf: vec4<f32>,                        // an, Kaskaden (0 = Sonne über SZENE), Weichheit der Sonne, Ansichten
+    kaskaden: array<vec4<f32>, 4>,          // Normalenversatz (Welt), Tiefen-Bias
+    plaetze: array<vec4<f32>, 8>,           // erste Ansicht, Zahl (1 Spot, 6 Würfel), Weichheit
+    ansichten: array<SchattenAnsicht, 52>,  // erst die Kaskaden, dann die Kacheln
+}
+@group(0) @binding(18) var<uniform> schatten2: Schattenlichter;
 @group(0) @binding(4) var atlas: texture_2d_array<f32>;
 
 // Viele Lichter (Abschnitt LICHTER, Clustered Forward): Kopf, je Licht 3 Texel (pos+reichweite, farbe+cos außen,
@@ -217,20 +233,142 @@ fn zeltfilter(uv: vec2<f32>, bezug: f32) -> f32 {
     let o1 = (vec2<f32>(3.0) + st) / w1;
     let o2 = st / w2 + vec2<f32>(2.0);
     var summe = 0.0;
-    summe = summe + w0.x * w0.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o0.x, o0.y) * t, bezug);
-    summe = summe + w1.x * w0.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o1.x, o0.y) * t, bezug);
-    summe = summe + w2.x * w0.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o2.x, o0.y) * t, bezug);
-    summe = summe + w0.x * w1.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o0.x, o1.y) * t, bezug);
-    summe = summe + w1.x * w1.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o1.x, o1.y) * t, bezug);
-    summe = summe + w2.x * w1.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o2.x, o1.y) * t, bezug);
-    summe = summe + w0.x * w2.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o0.x, o2.y) * t, bezug);
-    summe = summe + w1.x * w2.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o1.x, o2.y) * t, bezug);
-    summe = summe + w2.x * w2.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o2.x, o2.y) * t, bezug);
+    summe = summe + w0.x * w0.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o0.x, o0.y) * t, 0, bezug);
+    summe = summe + w1.x * w0.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o1.x, o0.y) * t, 0, bezug);
+    summe = summe + w2.x * w0.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o2.x, o0.y) * t, 0, bezug);
+    summe = summe + w0.x * w1.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o0.x, o1.y) * t, 0, bezug);
+    summe = summe + w1.x * w1.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o1.x, o1.y) * t, 0, bezug);
+    summe = summe + w2.x * w1.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o2.x, o1.y) * t, 0, bezug);
+    summe = summe + w0.x * w2.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o0.x, o2.y) * t, 0, bezug);
+    summe = summe + w1.x * w2.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o1.x, o2.y) * t, 0, bezug);
+    summe = summe + w2.x * w2.y * textureSampleCompareLevel(schatten_t, vergleich, b + vec2<f32>(o2.x, o2.y) * t, 0, bezug);
     return summe / 144.0;
+}
+
+// ---- H-K18: freier Zeltfilter (Kacheln, Kaskaden, schattenWeich ≠ 1) ----
+// eine bilineare Vergleichs-Abtastung an Texel-Lage p (Schicht s), auf [lo, hi] geklemmt (kein Übersprechen zur Nachbarkachel)
+fn schatten_probe(p: vec2<f32>, s: i32, lo: vec2<f32>, hi: vec2<f32>, groesse: f32, bezug: f32) -> f32 {
+    return textureSampleCompareLevel(schatten_t, vergleich, clamp(p, lo, hi) / groesse, s, bezug);
+}
+
+// Zeltfilter wie `zeltfilter` (9 bilineare Vergleiche, Castaño 2013), aber mit Texel-Schritt w (Radius ≈ 2,5 · w Texel);
+// w = 0: ein bilinearer Vergleich. p = Texel-Lage in der Schicht.
+fn zelt_frei(p: vec2<f32>, s: i32, lo: vec2<f32>, hi: vec2<f32>, w: f32, bezug: f32) -> f32 {
+    let g = f32(textureDimensions(schatten_t).x);
+    if (w < 0.01) {
+        return schatten_probe(p, s, lo, hi, g, bezug);
+    }
+    let q = p / w;
+    let basis = floor(q + vec2<f32>(0.5));
+    let st = q + vec2<f32>(0.5) - basis;
+    let b = (basis - vec2<f32>(0.5)) * w;
+    let w0 = vec2<f32>(4.0) - 3.0 * st;
+    let w1 = vec2<f32>(7.0);
+    let w2 = vec2<f32>(1.0) + 3.0 * st;
+    let o0 = ((vec2<f32>(3.0) - 2.0 * st) / w0 - vec2<f32>(2.0)) * w;
+    let o1 = ((vec2<f32>(3.0) + st) / w1) * w;
+    let o2 = (st / w2 + vec2<f32>(2.0)) * w;
+    var summe = 0.0;
+    summe = summe + w0.x * w0.y * schatten_probe(b + vec2<f32>(o0.x, o0.y), s, lo, hi, g, bezug);
+    summe = summe + w1.x * w0.y * schatten_probe(b + vec2<f32>(o1.x, o0.y), s, lo, hi, g, bezug);
+    summe = summe + w2.x * w0.y * schatten_probe(b + vec2<f32>(o2.x, o0.y), s, lo, hi, g, bezug);
+    summe = summe + w0.x * w1.y * schatten_probe(b + vec2<f32>(o0.x, o1.y), s, lo, hi, g, bezug);
+    summe = summe + w1.x * w1.y * schatten_probe(b + vec2<f32>(o1.x, o1.y), s, lo, hi, g, bezug);
+    summe = summe + w2.x * w1.y * schatten_probe(b + vec2<f32>(o2.x, o1.y), s, lo, hi, g, bezug);
+    summe = summe + w0.x * w2.y * schatten_probe(b + vec2<f32>(o0.x, o2.y), s, lo, hi, g, bezug);
+    summe = summe + w1.x * w2.y * schatten_probe(b + vec2<f32>(o1.x, o2.y), s, lo, hi, g, bezug);
+    summe = summe + w2.x * w2.y * schatten_probe(b + vec2<f32>(o2.x, o2.y), s, lo, hi, g, bezug);
+    return summe / 144.0;
+}
+
+// Sonne mit Abschnitt SCHATTENLICHTER: Kaskaden (die erste, die den Punkt mit Filterrand enthält; am Rand der letzten weich
+// ausgeblendet) oder die v1-Matrix aus SZENE mit anderer Weichheit
+fn sonne_neu(welt: vec3<f32>, n: vec3<f32>, ndl: f32) -> f32 {
+    if (szene.sonne_richtung.w < 0.5) {
+        return 1.0;
+    }
+    let k = u32(schatten2.kopf.y + 0.5);
+    let w = schatten2.kopf.z;
+    let schief = 0.5 + 1.5 * (1.0 - ndl);
+    if (k == 0u) {
+        let lp = szene.licht_proj * vec4<f32>(welt + n * (szene.schatten.y * schief), 1.0);
+        let ndc = lp.xyz / lp.w;
+        let uv = vec2<f32>(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+        let g = 1.0 / szene.schatten.x;
+        let s = zelt_frei(uv * g, 0, vec2<f32>(0.5), vec2<f32>(g - 0.5), w, ndc.z - szene.schatten.z);
+        let rand = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+        let ergebnis = mix(1.0, s, clamp(rand * 40.0, 0.0, 1.0));
+        return select(ergebnis, 1.0, rand <= 0.0 || ndc.z >= 1.0 || ndc.z <= 0.0);
+    }
+    for (var c = 0u; c < 4u; c = c + 1u) {
+        if (c < k) {
+            let kp = schatten2.kaskaden[c];
+            let a = schatten2.ansichten[c];
+            let lp = a.vp * vec4<f32>(welt + n * (kp.x * schief), 1.0);
+            let ndc = lp.xyz / lp.w;
+            let uv = vec2<f32>(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+            let g = a.rect.w;
+            let innen = (2.5 * max(w, 0.4) + 2.0) / g;
+            let rand = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+            if (rand > innen && ndc.z < 1.0 && ndc.z > 0.0) {
+                let s = zelt_frei(uv * g, i32(a.rect.x + 0.5), vec2<f32>(0.5), vec2<f32>(g - 0.5), w, ndc.z - kp.y);
+                if (c + 1u == k) {
+                    return mix(1.0, s, clamp((rand - innen) * 40.0, 0.0, 1.0));
+                }
+                return s;
+            }
+        }
+    }
+    return 1.0;
+}
+
+// Anteil Licht eines Punkt-/Spotlichts mit Schatten-Platz `platz` (0 … 7) am Weltpunkt: Würfelseite nach der größten Achse
+// (keine Cube-Map), Normalen- und Lichtversatz in Texeln der Kachel, Zeltfilter innerhalb der Kachel
+fn punktschatten(platz: u32, welt: vec3<f32>, n: vec3<f32>, lpos: vec3<f32>) -> f32 {
+    let p = schatten2.plaetze[platz];
+    let d = welt - lpos;
+    let ad = abs(d);
+    var seite = 0u;
+    if (p.y > 1.5) {
+        if (ad.x >= ad.y && ad.x >= ad.z) {
+            seite = select(1u, 0u, d.x > 0.0);
+        } else if (ad.y >= ad.z) {
+            seite = select(3u, 2u, d.y > 0.0);
+        } else {
+            seite = select(5u, 4u, d.z > 0.0);
+        }
+    }
+    let a = schatten2.ansichten[u32(p.x + 0.5) + seite];
+    let abst = length(d);
+    // Weltmaß eines Texels an dieser Stelle, mal Filterbreite (breite Zelte brauchen mehr Abstand gegen Akne)
+    let tw = a.texel.x * abst * (1.0 + p.z);
+    let ld = -d / max(abst, 1e-4);
+    let ndl = max(dot(n, ld), 0.0);
+    let q = welt + n * (tw * (0.75 + 1.5 * (1.0 - ndl))) + ld * tw;
+    let c = a.vp * vec4<f32>(q, 1.0);
+    let ndc = c.xyz / max(c.w, 1e-6);
+    let aussen = c.w <= 1e-6 || ndc.z >= 1.0 || ndc.z <= 0.0 || abs(ndc.x) >= 1.0 || abs(ndc.y) >= 1.0;
+    let uv = vec2<f32>(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+    let r = a.rect;
+    let s = zelt_frei(r.yz + uv * r.w, i32(r.x + 0.5), r.yz + vec2<f32>(0.5), r.yz + vec2<f32>(r.w - 0.5), p.z, ndc.z);
+    return select(s, 1.0, aussen);
+}
+
+// Schatten-Faktor eines Zellen-Eintrags (Bits 16 … 19 = Platz + 1, 0 = ohne Schatten)
+fn zellschatten(wort: u32, welt: vec3<f32>, n: vec3<f32>, lpos: vec3<f32>) -> f32 {
+    let platz = wort >> 16u;
+    if (platz == 0u) {
+        return 1.0;
+    }
+    return punktschatten(platz - 1u, welt, n, lpos);
 }
 
 // Anteil Sonnenlicht (1 = voll beleuchtet).
 fn sonnenlicht(welt: vec3<f32>, n: vec3<f32>, ndl: f32) -> f32 {
+    // H-K18: Kaskaden oder andere Weichheit über den Abschnitt SCHATTENLICHTER (sonne_neu); sonst unverändert v1
+    if (schatten2.kopf.x > 0.5 && (schatten2.kopf.y > 0.5 || schatten2.kopf.z != 1.0)) {
+        return sonne_neu(welt, n, ndl);
+    }
     // Normalenversatz gegen Akne: ein halber Texel, bei streifendem Licht bis 2 Texel (mehr löst Schatten ab)
     let versatz = n * (szene.schatten.y * (0.5 + 1.5 * (1.0 - ndl)));
     let lp = szene.licht_proj * vec4<f32>(welt + versatz, 1.0);
@@ -319,7 +457,8 @@ fn pbr_licht(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, v: vec3<f32>, albedo
         let erstes = kopf >> 8u;
         let zahl = kopf & 255u;
         for (var j = 0u; j < zahl; j = j + 1u) {
-            let li = zellwort(erstes + j);
+            let wort = zellwort(erstes + j);
+            let li = wort & 65535u;
             let lp = licht_texel(li, 0u);
             let lf = licht_texel(li, 1u);
             let lr = licht_texel(li, 2u);
@@ -327,7 +466,10 @@ fn pbr_licht(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, v: vec3<f32>, albedo
             let abst = length(d);
             let ld = d / max(abst, 0.0001);
             let x = clamp(1.0 - abst / max(lp.w, 0.0001), 0.0, 1.0);
-            let daempf = x * x * smoothstep(lf.w, lr.w, dot(-ld, lr.xyz));
+            var daempf = x * x * smoothstep(lf.w, lr.w, dot(-ld, lr.xyz));
+            if ((wort >> 16u) != 0u && daempf > 0.0) {
+                daempf = daempf * zellschatten(wort, welt, n, lp.xyz);
+            }
             // Lichtgröße: Glanzpunkte nie schärfer als eine kleine Leuchte (Rauheit ≥ 0.1 für Punktlichter)
             c = c + lf.rgb * daempf * (diff * max(dot(n, ld), 0.0) + ggx(n, v, ld, max(rauh, 0.1), f0));
         }
@@ -467,7 +609,8 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
         let erstes = kopf >> 8u;
         let zahl = kopf & 255u;
         for (var j = 0u; j < zahl; j = j + 1u) {
-            let li = zellwort(erstes + j);
+            let wort = zellwort(erstes + j);
+            let li = wort & 65535u;
             let lp = licht_texel(li, 0u);
             let lf = licht_texel(li, 1u);
             let lr = licht_texel(li, 2u);
@@ -477,7 +620,10 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
             let x = clamp(1.0 - abst / max(lp.w, 0.0001), 0.0, 1.0);
             // Spot: weicher Rand zwischen cos(außen) und cos(innen); Punktlicht: außen −2, innen −1.5 → immer 1
             let kegel = smoothstep(lf.w, lr.w, dot(-ld, lr.xyz));
-            let daempf = x * x * kegel;
+            var daempf = x * x * kegel;
+            if ((wort >> 16u) != 0u && daempf > 0.0) {
+                daempf = daempf * zellschatten(wort, a.welt, n, lp.xyz);
+            }
             let nl = max(dot(n, ld), 0.0);
             let hl = normalize(ld + v);
             let sp = pow(max(dot(n, hl), 0.0), hart) * staerke * norm * min(nl * 4.0, 1.0);

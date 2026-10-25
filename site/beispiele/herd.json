@@ -252,6 +252,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Schwung", "Physik", "Gelaende", "Maus"],
       "herd": true
+    },
+    {
+      "id": "laternengasse",
+      "titel": "Laternengasse: Schatten von Laternen und Sonne",
+      "beschreibung": "Eine Altstadtgasse bei Nacht: Sechs Laternen und zwei Wandstrahler werfen Schatten – Fässer, Kisten und Bänke zeichnen dunkle Fächer aufs Pflaster. Der Taster (oder die Leertaste) schaltet auf Tag: Die Sonne wirft mit Kaskaden Schatten bis ans Ende der Gasse.",
+      "ordner": "herd/laternengasse",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Licht", "Schatten", "Spot", "Taster"],
+      "herd": true
     }
   ]
 }

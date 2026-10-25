@@ -74,7 +74,7 @@ fn teilchen_licht(p: vec3<f32>) -> vec3<f32> {
         let erstes = kopf >> 8u;
         let zahl = kopf & 255u;
         for (var j = 0u; j < zahl; j = j + 1u) {
-            let li = zellwort(erstes + j);
+            let li = zellwort(erstes + j) & 65535u;
             let lp = licht_texel(li, 0u);
             let lf = licht_texel(li, 1u);
             let lr = licht_texel(li, 2u);

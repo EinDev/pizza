@@ -7,12 +7,21 @@
 //! deren Kugel (Lage, Reichweite) sie berühren könnte (konservativ: Quader um die Kugel, je Scheibe projiziert). Der Shader
 //! sucht die Zelle seines Fragments und rechnet nur deren Lichter. Alles in f64 mit `libm`, Reihenfolgen nach (Abstand, Teil-ID)
 //! – bitgleich nativ = Wasm. Pakete ohne viele Lichter bleiben byte-gleich (kein Abschnitt).
+//!
+//! **Schatten für Punkt- und Spotlichter (H-K18):** [`schatten_waehlen`] nimmt höchstens [`MAX_SCHATTEN_LICHTER`] Lichter mit
+//! `schattenGuete` ≠ aus, deren Kugel das Kamera-Frustum schneidet, nach (Abstand Kamera – Lichtrand, Teil-ID), und packt ihre
+//! Kacheln (Würfel = 6 Seiten mit 90°-Perspektive + Rand, keine Cube-Map; Spot bis 60° = 1 Kachel) nach (Güte absteigend,
+//! Auswahlreihenfolge) in den Schatten-Atlas: 4096² Texel als [`SCHATTEN_SEITEN`] Schichten à 2048² hinter den Sonnen-Schichten
+//! derselben Tiefen-Textur. Gepackt wird in Morton-Reihenfolge (Quadrate mit absteigender Zweierpotenz-Kante füllen lückenlos);
+//! ein Licht, dessen Kacheln nicht alle passen, wirft still keinen Schatten. Ein schattenwerfendes Licht erzwingt den Abschnitt
+//! `LICHTER`; sein Zellen-Eintrag trägt in Bits 16 … 19 die Nummer seines Schatten-Platzes + 1 (Indizes < 4096 bleiben in Bits
+//! 0 … 15). Abschnitt `SCHATTENLICHTER` ([`schatten_abschnitt`]) nur bei Nutzung.
 
 use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::paket::{abschnitt as art, lin4, ordnungs_bits, put_u32, put_v4, transf, LichtB, MAX_LICHTER, M4};
-use crate::paket::{abschnitt_beginn, abschnitt_ende};
+use crate::paket::{abschnitt_beginn, abschnitt_ende, blick, m4_mal, punkt, put_f32, v_norm};
 
 /// Höchstens so viele Lichter im Abschnitt (die nächsten zur Kamera; weitere fallen weg).
 pub const MAX_LICHTER_VIELE: usize = 4096;
@@ -30,6 +39,184 @@ pub const LICHT_BYTES: usize = 48;
 /// Höchstens so viele Wörter Cluster-Daten (Köpfe + Indizes; = Textur 1024 × 2048 in der Glut).
 pub const MAX_WORTE: usize = 1024 * 2048;
 
+/// Höchstens so viele schattenwerfende Punkt-/Spotlichter je Bild (H-K18, K-160).
+pub const MAX_SCHATTEN_LICHTER: usize = 8;
+/// Kantenlänge einer Schicht der Schatten-Tiefentextur (Sonne bzw. eine Kaskade je Schicht; Atlas-Seiten der Kacheln).
+pub const SCHATTEN_SEITE: u32 = 2048;
+/// Atlas-Seiten für Punkt-/Spot-Kacheln (zusammen 4096² Texel).
+pub const SCHATTEN_SEITEN: u32 = 4;
+/// Höchstens so viele Sonnen-Kaskaden.
+pub const MAX_KASKADEN: usize = 4;
+/// Höchstens so viele Schatten-Ansichten (Kaskaden + Kacheln).
+pub const MAX_ANSICHTEN: usize = MAX_KASKADEN + MAX_SCHATTEN_LICHTER * 6;
+/// Eine Schatten-Ansicht im Abschnitt `SCHATTENLICHTER`: Ansicht·Projektion (64 B), `schicht x y kante` (Texel), `texel 0 0 0`
+/// (Kacheln: Weltmaß eines Texels je Einheit Abstand; Kaskaden: Weltmaß eines Texels).
+pub const SCHATTEN_ANSICHT_BYTES: usize = 96;
+/// Kopf (`an, kaskaden, sonne_weich, ansichten`) + 4 Kaskaden (`normalversatz, bias, 0, 0`) + 8 Plätze (`erste ansicht,
+/// anzahl, weich, 0`) – danach die Ansichten.
+pub const SCHATTENLICHTER_KOPF_BYTES: usize = 16 + MAX_KASKADEN * 16 + MAX_SCHATTEN_LICHTER * 16;
+/// Größe des Uniform-Blocks in der Glut (Abschnitt mit allen Ansichten; kürzere Abschnitte füllt sie mit Nullen auf).
+pub const SCHATTENLICHTER_BYTES: usize = SCHATTENLICHTER_KOPF_BYTES + MAX_ANSICHTEN * SCHATTEN_ANSICHT_BYTES;
+/// Rand (Texel) einer Kachel um den 90°- bzw. Kegel-Bereich: Platz für den Zeltfilter, kein Übersprechen zur Nachbarkachel.
+pub const KACHEL_RAND: f64 = 12.0;
+/// Spots bis zu diesem halben Öffnungswinkel (Grad) werfen über eine Kachel, weitere über einen Würfel.
+pub const SPOT_EINE_KACHEL: f64 = 60.0;
+
+/// Eine Schatten-Ansicht (Sonnen-Kaskade oder Kachel eines Punkt-/Spotlichts).
+#[derive(Clone, Copy, Debug)]
+pub struct SchattenAnsicht {
+    pub vp: M4,
+    pub schicht: u32,
+    pub x: u32,
+    pub y: u32,
+    pub kante: u32,
+    pub texel: f64,
+}
+
+/// Ergebnis von [`schatten_waehlen`]: Platz je Licht (Index wie `lichter`; 0 = kein Schatten, sonst Platz + 1), je Platz
+/// (Licht-Index, erste Kachel, Zahl der Kacheln, Weichheit) und die Kacheln.
+#[derive(Default, Debug)]
+pub struct SchattenWahl {
+    pub platz: Vec<u8>,
+    pub plaetze: Vec<(usize, u32, u32, f64)>,
+    pub kacheln: Vec<SchattenAnsicht>,
+}
+
+/// Perspektive mit gegebenem halbem Tangens (quadratisch, Tiefe 0 … 1 wie WebGPU).
+fn perspektive_tan(t: f64, nah: f64, fern: f64) -> M4 {
+    let mut r = [0.0; 16];
+    r[0] = 1.0 / t;
+    r[5] = 1.0 / t;
+    r[10] = fern / (nah - fern);
+    r[11] = -1.0;
+    r[14] = nah * fern / (nah - fern);
+    r
+}
+
+/// Morton-Index → (x, y) (x in den geraden, y in den ungeraden Bits).
+fn morton(k: u32) -> (u32, u32) {
+    let (mut x, mut y) = (0, 0);
+    for b in 0..16 {
+        x |= ((k >> (2 * b)) & 1) << b;
+        y |= ((k >> (2 * b + 1)) & 1) << b;
+    }
+    (x, y)
+}
+
+/// Würfelseiten in fester Reihenfolge (+x, −x, +y, −y, +z, −z) – der Shader wählt die Seite nach der größten Achse.
+const SEITEN: [[f64; 3]; 6] = [[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, -1.0]];
+
+/// Kantenlänge einer Kachel je Güte (grob, mittel, fein).
+pub fn kachel_kante(guete: u32) -> u32 {
+    128 << guete.clamp(1, 3)
+}
+
+/// Wählt die schattenwerfenden Punkt-/Spotlichter (H-K18) und packt ihre Kacheln. `sk` = Ebenen des Kamera-Frustums,
+/// `basis` = erste Schicht der Atlas-Seiten (hinter den Sonnen-Schichten).
+pub fn schatten_waehlen(lichter: &[LichtB], sk: &[[f64; 4]; 6], auge: [f64; 3], basis: u32) -> SchattenWahl {
+    let mut wahl = SchattenWahl { platz: vec![0; lichter.len()], ..Default::default() };
+    let mut kandidaten: Vec<(u64, u32, usize)> = Vec::new();
+    for (i, l) in lichter.iter().enumerate() {
+        if !wirkt(l) || !l.schatten || l.guete == 0 || !(l.reichweite > 0.0 && l.reichweite.is_finite()) {
+            continue;
+        }
+        if !(l.pos[0].is_finite() && l.pos[1].is_finite() && l.pos[2].is_finite()) {
+            continue;
+        }
+        let r = l.reichweite;
+        let drin = sk.iter().all(|p| {
+            let n = libm::sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
+            p[0] * l.pos[0] + p[1] * l.pos[1] + p[2] * l.pos[2] + p[3] >= -r * n
+        });
+        if !drin {
+            continue;
+        }
+        let d = [l.pos[0] - auge[0], l.pos[1] - auge[1], l.pos[2] - auge[2]];
+        let rand = libm::sqrt(punkt(d, d)) - r;
+        kandidaten.push((ordnungs_bits(if rand > 0.0 { rand } else { 0.0 }), l.teil, i));
+    }
+    kandidaten.sort_unstable_by_key(|x| (x.0, x.1));
+    kandidaten.truncate(MAX_SCHATTEN_LICHTER);
+    // Packen: Güte absteigend (Kante absteigend → lückenlos in Morton-Reihenfolge), dann Auswahlreihenfolge
+    let mut pack: Vec<(u32, usize, usize)> = kandidaten.iter().enumerate().map(|(r, k)| (3 - lichter[k.2].guete.clamp(1, 3), r, k.2)).collect();
+    pack.sort_unstable_by_key(|x| (x.0, x.1));
+    let seite = (SCHATTEN_SEITE as u64) * (SCHATTEN_SEITE as u64);
+    let gesamt = seite * SCHATTEN_SEITEN as u64;
+    let mut belegt: u64 = 0;
+    for &(_, _, i) in &pack {
+        let l = &lichter[i];
+        let kante = kachel_kante(l.guete);
+        let spot = l.kegel > 0.0 && l.kegel <= SPOT_EINE_KACHEL;
+        let anzahl: u32 = if spot { 1 } else { 6 };
+        let flaeche = kante as u64 * kante as u64;
+        if belegt + flaeche * anzahl as u64 > gesamt {
+            continue;
+        }
+        let fern = l.reichweite;
+        let nah = {
+            let n = fern * 0.002;
+            let n = if n > 0.02 { n } else { 0.02 };
+            if n < fern * 0.5 {
+                n
+            } else {
+                fern * 0.5
+            }
+        };
+        // Rand um den Nutzbereich: halber Tangens so vergrößert, dass KACHEL_RAND Texel je Seite übrig bleiben
+        let rand = 1.0 - 2.0 * KACHEL_RAND / kante as f64;
+        let erste = wahl.kacheln.len() as u32;
+        // Auge der Kacheln um ein Winziges (≈ 0,02 % der Reichweite, schief) neben dem Licht: Netze, deren Ecken genau in der
+        // Ebene des Lichts liegen (Boden-Kante unter einer Laterne bei x = 0), hätten sonst Ecken mit w = 0 – SwiftShader
+        // (WebGL2) rastert solche Dreiecke falsch. Die Würfelseite wählt der Shader weiter am Licht (Rand 12 Texel).
+        let auge = [l.pos[0] + fern * 1.73e-4, l.pos[1] + fern * 2.31e-4, l.pos[2] + fern * 1.27e-4];
+        for seite_nr in 0..anzahl as usize {
+            let (richtung, t) = if spot {
+                (v_norm(l.richtung, [0.0, -1.0, 0.0]), libm::tan(l.kegel * crate::welt::GRAD))
+            } else {
+                (SEITEN[seite_nr], libm::tan(45.0 * crate::welt::GRAD))
+            };
+            let t = t / rand;
+            let vp = m4_mal(&perspektive_tan(t, nah, fern), &blick(auge, richtung, [0.0, 1.0, 0.0]));
+            let s = (belegt / seite) as u32;
+            let (mx, my) = morton(((belegt % seite) / flaeche) as u32);
+            wahl.kacheln.push(SchattenAnsicht { vp, schicht: basis + s, x: mx * kante, y: my * kante, kante, texel: 2.0 * t / kante as f64 });
+            belegt += flaeche;
+        }
+        wahl.plaetze.push((i, erste, anzahl, l.weich));
+        wahl.platz[i] = wahl.plaetze.len() as u8;
+    }
+    wahl
+}
+
+/// Schreibt den Abschnitt `SCHATTENLICHTER` (H-K18): Kopf, Kaskaden-Werte, Plätze, Ansichten (erst die Kaskaden, dann die
+/// Kacheln; die erste Kachel eines Platzes zählt ab Ansicht 0). `kaskaden` = (Ansicht, Normalenversatz, Bias) je Kaskade
+/// (leer = Sonne über SZENE wie v1).
+pub fn schatten_abschnitt(aus: &mut Vec<u8>, kaskaden: &[(SchattenAnsicht, f64, f64)], sonne_weich: f64, wahl: &SchattenWahl) {
+    let k = kaskaden.len();
+    let st = abschnitt_beginn(aus, art::SCHATTENLICHTER);
+    put_v4(aus, [1.0, k as f64, sonne_weich, (k + wahl.kacheln.len()) as f64]);
+    for c in 0..MAX_KASKADEN {
+        match kaskaden.get(c) {
+            Some((_, versatz, bias)) => put_v4(aus, [*versatz, *bias, 0.0, 0.0]),
+            None => put_v4(aus, [0.0; 4]),
+        }
+    }
+    for p in 0..MAX_SCHATTEN_LICHTER {
+        match wahl.plaetze.get(p) {
+            Some((_, erste, anzahl, weich)) => put_v4(aus, [(k as u32 + *erste) as f64, *anzahl as f64, *weich, 0.0]),
+            None => put_v4(aus, [0.0; 4]),
+        }
+    }
+    for a in kaskaden.iter().map(|x| &x.0).chain(wahl.kacheln.iter()) {
+        for x in a.vp {
+            put_f32(aus, x);
+        }
+        put_v4(aus, [a.schicht as f64, a.x as f64, a.y as f64, a.kante as f64]);
+        put_v4(aus, [a.texel, 0.0, 0.0, 0.0]);
+    }
+    abschnitt_ende(aus, st);
+}
+
 /// Ein Licht wirkt (Punkt oder Spot, nicht Sonne, Stärke > 0)?
 #[inline]
 fn wirkt(l: &LichtB) -> bool {
@@ -38,11 +225,14 @@ fn wirkt(l: &LichtB) -> bool {
 
 /// Schreibt den Abschnitt `LICHTER`, wenn mehr als `MAX_LICHTER` Lichter wirken oder ein Spot dabei ist; liefert die Zahl der
 /// geschriebenen Abschnitte (0 oder 1). `ansicht` = Ansichtsmatrix der Kamera, `vorn` = ihre Blickrichtung (normiert).
+/// `platz` = Schatten-Platz + 1 je Licht ([`SchattenWahl::platz`]; 0 bzw. leer = keiner): erzwingt den Abschnitt und steht in
+/// Bits 16 … 19 der Zellen-Einträge.
 #[allow(clippy::too_many_arguments)]
-pub fn abschnitt(aus: &mut Vec<u8>, lichter: &[LichtB], ansicht: &M4, sicht: f64, seiten: f64, nah: f64, fern: f64, auge: [f64; 3], vorn: [f64; 3]) -> u32 {
+pub fn abschnitt(aus: &mut Vec<u8>, lichter: &[LichtB], ansicht: &M4, sicht: f64, seiten: f64, nah: f64, fern: f64, auge: [f64; 3], vorn: [f64; 3], platz: &[u8]) -> u32 {
     let anzahl = lichter.iter().filter(|l| wirkt(l)).count();
     let spot = lichter.iter().any(|l| wirkt(l) && l.kegel > 0.0);
-    if anzahl <= MAX_LICHTER && !spot {
+    let schatten = platz.iter().any(|&p| p != 0);
+    if anzahl <= MAX_LICHTER && !spot && !schatten {
         return 0;
     }
     let nx = RASTER_X as usize;
@@ -197,7 +387,8 @@ pub fn abschnitt(aus: &mut Vec<u8>, lichter: &[LichtB], ansicht: &M4, sicht: f64
     for &(z, i) in &paare {
         let z = z as usize;
         if fuell[z] < zahl[z] {
-            daten[(versatz[z] + fuell[z]) as usize] = i;
+            let p = platz.get(sichtbar[i as usize]).copied().unwrap_or(0) as u32;
+            daten[(versatz[z] + fuell[z]) as usize] = i | p << 16;
             fuell[z] += 1;
         }
     }

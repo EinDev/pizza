@@ -390,6 +390,7 @@ Wer eine Stufe abschließt, trägt hier den Commit (bei mehreren den ersten und 
 | **H-K14** Klang | neue Crate `herd/klang` (`no_std` + `libm`: Töne in 5 Wellen mit Gleiten, Rauschen weiß/rosa/braun, Noten, Stille; Hüllkurve, Tief-/Hochpass, Verstärken, Mischen, Anhängen, Wiederholen, nahtlose Schleife → PCM 48 kHz mono i16, FNV-1a-64), `site/js/herd/klang.wasm`; Sprache `Klang`/`Spur` (SPEC §18.8, K-153) im Interpreter (`klang/kern.js`, `klang/tabellen.js`), Compiler (Gruppe `klang`), Laufzeit (`klang.rs`), JS-Host, Host (`klang.rs` + `wiedergabe.rs`: Mischer, `waveOut` per winmm, ALSA per `dlopen`, `--klang-datei`, `PIZZA_KLANG=0`), Browser (`ui/src/klang.js` WebAudio, Stummschalter, Hörer aus dem Bildpaket im Worker); Ereignisse sammeln sich bei offenem Fenster bis zum Bild, `beimEnde` nach den Kniffen (Rückruf-Rahmen aus H-K13); Testdateityp `.klang-erwartet`; Fälle `klang-ton/-spur/-herd/-ananas`, Beispiel `herd/klavier`, Klangkulisse in `herd/neon-napoli`, K-153 | (dieser) | `cargo test -j 2` in `herd/` (Kern 118, Klang 6 inkl. Golden mit 20 Aufrufen, Werkzeug 7 inkl. Pixeltest, Teigling 13); `node herd/test-klang.js` 20 Aufrufe bitgleich nativ = `klang.wasm`; `node herd/test-kern.js` alle Läufe bitgleich; `erwartet.js` ✓ (keine bestehende geändert, Neon-Napoli-`herd-erwartet` unverändert); `npm test` (346 Fälle, 81 Beispiele, 166 Doku), Prüfstand 849/849 + 6/6, `test:wasm` 1662 (neu `tests/wasm/klang.js` 8), `test:differenz` 1287 ohne Abweichung; Host `cargo test` 70 (neu `tests/klang.rs` 3, Mischer 4) + `host/test.js` 81/81 + 7/7; UI-Tests; E2E headless 383 (368 ✓, 4 unter Last abgelaufen und einzeln grün, 10 übersprungen; neu `20-klang` 3 mit `OfflineAudioContext`); stiller Gerätetest Windows (`PIZZA_KLANG_STILL=1`), Linux `cargo check` |
 | **H-K15** Bindungen und Einheiten (W8, nur Glut, unsichtbar) | **Bindungswächter** `herd/glut/src/waechter.rs` (naga 30 als Dev-Abhängigkeit, `wgsl-in` + `glsl-out`): jeder Einstiegspunkt → GLSL ES 3.00 wie wgpu für WebGL2, zählt GLSL-Sampler und Uniform-Blöcke je Stufe (≤ 16/≤ 16/zusammen ≤ 32, ≤ 12) mit Gegenprobe am GLSL-Text, dazu die Pipeline-Layouts wie wgpu-GL (Textur-Einträge über alle Stufen ≤ 16, Sampler ≤ 16, Uniform-Puffer ≤ 12 je Stufe) und dass jeder Einstiegspunkt nur Bindungen seines Layouts in dessen Sichtbarkeit benutzt; Layouts als gerätefreie Funktionen `layout_haupt`/`layout_schatten`/`layout_nachbild` (reiner Umbau); Tabelle „Bindungen und Einheiten“ mit Reservierungen in `herd/README.md` §9. **Befund:** naga legt je benutzter Textur **einen** GLSL-Sampler an (`texelFetch` und `textureLod`/`textureGrad` teilen ihn) – `fs_licht` belegte schon vorher **10/16**, nicht 15/16; der Umbau `eigen_lade` → `textureSampleLevel` hätte nichts gespart und unterbleibt (**Entscheidung**, Shader unverändert). Knapp ist das Haupt-Layout: 11/16 Textur-Einheiten, nach den Reservierungen H-K18/H-K24/H-K28/H-K23b 16/16 (Vertex-Texturen teilen unter wgpu-GL denselben Pool) | (dieser) | Wächter: Layout haupt 11/16 Texturen · 3/16 Sampler · 5/12 Blöcke, `fs_licht` 10/16 (vorher = nachher); `cargo test -j 2` in `herd/`, Referenzbilder byte-gleich, `node herd/baue-web.js`, E2E 05/13/14 |
 | **H-K17** Schwung (3D-Physik) | `Schwung` (32, 3D, braucht `Fuehler`, Takt nach `Gelaende`; Felder laut §13.3, Schwerkraft 0, Lesefelder `amBoden`/`ruht`), `Fuehler`-Formen `kapsel`/`netz` (hinten angehängt), neu `kollision3d.rs` (gedrehte Formen, SAT Kasten–Kasten mit bis zu 4 Punkten, Kapsel/Kugel geschlossen, Hüllen-Baum je Netz-Ressource in `Ressourcen::baeume`, Gelände analytisch = gezeichnetes Netz, `gelaende::hoehe`), Löser mit spekulativen Kontakten, Warmstart nach Ort, 8 Impuls-Iterationen je Kontaktfläche inkl. Flächen-Drehung, 4 Iterationen Positionskorrektur, Quaternion-Spalten, Schlafen in Inseln; Szene `schwung.herd`, Fall `herd-schwung`, Beispiel `kistenturm` (Pizzakarton-Turm auf Gelände, Klick wirft Teigkugeln), Doku in `herd-ausbau`, K-162; kein Bildpaket, keine Glut | (dieser) | `cargo test -j 2` in `herd/` (Kern 128/128 inkl. 10 neue `tests::hk17`: Fallhöhe, Stapel aus 10 Kisten ruht und schläft, Kugel rollt den Hang hinab (5/7 g sin θ, ω r = v), Kapsel stehend/liegend auf Netz, Kante kippt + Drehsperre, Schlafen/Wecken, kinematisch/fest/Auslöser/Kopie, ohne Schwung byte-gleich, Winkel hin und zurück; Skript 4 + 1, Teigling 13, Glut 2 + 6, Werkzeug 7 inkl. Pixeltest); `node herd/test-kern.js` 51 Läufe bitgleich nativ = Wasm (neu `schwung.herd` klein, N = 500 Kisten, K = 2 000 Kugeln); `erwartet.js` 93 ✓ (keine bestehende geändert); `npm test` (347 Fälle, 84 Beispiele, 168 Doku), Prüfstand 854/854 + 6/6, `test:wasm` 1671, `test:differenz` 1293 ohne Abweichung; `herd-fuehler.erwartet` Zeile 5 angepasst (Fehlertext nennt `kapsel`, `netz`); Sichtprüfung `kistenturm` offscreen (WARP) in Ordnung; B12: 500 Kisten Takt 1,70 ms nativ / 2,01 ms Wasm (Ziel ≤ 2 ms nativ), 2 000 Kugeln 3,2 / 3,1 ms (`bench/herd/ERGEBNISSE.md`); Repo-Zuwachs ≈ 0 (keine Assets) |
+| **H-K18** Schatten für Punkt-/Spotlichter, Sonnen-Kaskaden (W9, Kern + Glut; K-160) | `Licht` Nachtragsfelder `schattenGuete` (aus/grob/mittel/fein), `schattenWeich` (0 … 4), `kaskaden` (1 … 4), `schattenWeite`; Kern `lichter.rs` (`schatten_waehlen`: ≤ 8 Lichter nach Abstand zum Lichtrand + ID, Morton-Packen in 4 Atlas-Seiten 2048², Würfel = 6 Kacheln mit Rand, Spot ≤ 60° = 1 Kachel; Abschnitt `SCHATTENLICHTER` (20), Platz in Bits 16 … 19 der LICHTER-Zellen), `paket.rs` (Sonnen-Kaskaden λ = 0,75, Kugel + Texel-Raster, Werfer je Ansicht als Instanz-Kopien, `zug` 4 `ANSICHT`); Glut nativ + Web: Shadow-Map → **ein** Tiefen-Array an Bindung 2 (Haupt-Layout bleibt **11/16**), Uniform 18 (SCHATTENLICHTER), dynamischer Uniform 20 im Schatten-Layout, `punktschatten`/`sonne_neu`/`zelt_frei` in `licht.wgsl`; Bindungs-Planung bis H-K28 (13/16) in `herd/README.md` §9, §13.1/§13.3 berichtigt; Szene `schatten.herd`, Referenzbilder `3d-punktschatten`, `3d-kaskaden`, Beispiel `laternengasse`, Doku `herd-ausbau` | (dieser) | `cargo test -j 2` (Kern inkl. 4 `tests::hk18`, Wächter, Pixeltest: alle bisherigen Referenzbilder auf WARP pixelgleich); `node herd/test-kern.js` (schatten.herd klein, N = 1000/L = 8, B13) bitgleich; **B13:** 76 Draw-Calls (73 Schatten) bei 8 Punktlichtern + 1 000 Körpern (Ziel ≤ 120), Kern-Bild 0,42 ms nativ / 0,53 ms Wasm, WARP 46 ms je Bild (60 fps EXE: vom Nutzer); Repo + 0,85 MB (2 PNG) |
 
 ## 12. Stufenplan H-K (verbindlich)
 
@@ -890,8 +891,10 @@ Regen (gestreckte Teilchen, Pfützenringe) · Web-Ruckler. Welle W8 beginnt nach
 
 1. **Nummern sind Vorschläge**, vergeben in Merge-Reihenfolge (§12.1 Regel 1), maßgeblich ist §11.1. Stand vor W8 (vor dem
    Schreiben erneut prüfen – die laufenden Arbeiten können Nummern belegen): Typnummern ab **32** (31 = `Stimmung`), Feldtyp ab **13**,
-   Bildpaket-`abschnitt` ab **19** (18 = `ZUSATZ3D`), `flach_art` ab **7**, `zug` ab **4**, Flag-Bits ab **8**, Kern-Fehlercodes ab
-   **63**, PizzaFehler ab **P0021**, Glut-Bindungen ab **18** (frei) bzw. **20**, Benchmarks ab **B11**, K-Einträge ab **K-160** (K-155 … K-159 sind für Mausfang und die laufenden Stufen Klang/Regen frei gehalten; beim Umsetzen gilt die nächste freie Nummer)
+   Bildpaket-`abschnitt` ab **21** (19 = `ZUSATZ_TEILCHEN` (Regen), 20 = `SCHATTENLICHTER` (H-K18)), `flach_art` ab **7**, `zug` ab
+   **5** (4 = `ANSICHT`, H-K18), Flag-Bits ab **8**, Kern-Fehlercodes ab **63**, PizzaFehler ab **P0021**, Glut-Bindungen ab **21**
+   (18, 20 = H-K18; Einheiten-Planung in `herd/README.md` §9), Benchmarks ab **B14** (B11 = Regen, B12 = H-K17, B13 = H-K18), K-Einträge ab
+   **K-161** (K-160 = H-K18, K-162 = H-K17; K-156 … K-159 sind für die laufenden Stufen frei gehalten; beim Umsetzen gilt die nächste freie Nummer)
    (K-153 ist für H-K14 reserviert, K-154 belegt).
 2. **Kein Format-Bruch** (**Entscheidung**): `VERSION` bleibt 1, `ECKE_BYTES` 32. Was Netze zusätzlich brauchen (Gelenke und Gewichte
    der Haut), kommt als eigener Ressourcen-Abschnitt und eigener Vertex-Strom neben `NETZ`; Tangenten werden nicht gespeichert, sondern
@@ -969,19 +972,23 @@ Kniffe → Bild. Fühler sehen also die Lage nach Physik, Figur und Animation de
 
 #### H-K15 Bindungen und Textureinheiten (W8, nur Glut, unsichtbar)
 - **Ziel:** Platz schaffen für Schatten-Atlas, Verdeckung, Bildschirmraum-Kopien und Gelenk-Palette; Unity: festes Binding-Layout
-  der SRP. **Heute** belegt der Licht-Shader unter WebGL2 **15 von 16** Textureinheiten (jedes Textur-Sampler-Paar eine): die
-  PD3-Klassen 7 … 11 je **zweimal** (`textureLoad` in `eigen_laden` ohne Sampler und `textureSampleLevel`/`textureSampleGrad` mit
-  Sampler 12) = 10, dazu Schatten (Bindung 2 mit Vergleichs-Sampler 3), Atlas (4), `lichter_t` (15), `zellen_t` (16), `spiegel_t` (19). Bindung 18 ist frei.
+  der SRP. **Berichtigt (H-K18):** Der Plan nahm hier „15 von 16“ für den Licht-Shader an; gemessen (Wächter, naga/wgpu 30) belegt
+  `fs_licht` **10/16** GLSL-Sampler (je benutzter Textur einer, `textureLoad` und Abtastung teilen ihn), und unter wgpu-GL zählt das
+  **Pipeline-Layout**: das Haupt-Layout hat **11/16** Textur-Einträge über alle Stufen (Vertex und Fragment teilen sich die 16 –
+  `MAX_TEXTURE_SLOTS`), die Planung je Stufe steht in `herd/README.md` §9.
 - **Sprachfläche:** keine.
 - **Umbau:** (1) `eigen_laden` liest über `textureSampleLevel(klasse, eigen_s, (t + 0.5) / größe, schicht, stufe)` an der Texelmitte
   mit expliziter Stufe statt `textureLoad` → je Klasse ein Paar (−5 Einheiten); pixelscharfe Bilder bleiben pixelscharf (lineare
   Abtastung genau in der Texelmitte = Texelwert). (2) `lichter_t` (RGBA32F, nicht filterbar) und `zellen_t` (R32Uint, ganzzahlig)
-  bleiben `textureLoad` (je eine Einheit). (3) Feste Tabelle in `herd/README.md` §9 mit Reservierungen: H-K18 Punktschatten-Atlas (1),
-  H-K24 Verdeckung (1), H-K28 Szenenfarbe + Tiefe (2) im Licht-Shader; H-K23b Gelenk-Palette im **Vertex**-Shader (eigener Pool);
-  H-K21 legt die Spiegel-Zellen in `zellen_t` (keine Einheit). Ziel nach Umbau ≤ 10/16, am Ende des Plans ≤ 14/16.
+  bleiben `textureLoad` (je eine Einheit). (3) Feste Tabelle in `herd/README.md` §9 mit der Planung (Stand H-K18): H-K18 **0** (die
+  Schatten-Tiefentextur wird ein Array, Kacheln und Kaskaden liegen in ihren Schichten), H-K24 Verdeckung (1), H-K23b Gelenk-Palette (1,
+  im **selben** 16er-Pool des Haupt- und Schatten-Layouts – kein eigener Vertex-Pool), H-K28 Szenenfarbe + Tiefe in einem **eigenen**
+  Layout `wasser` (0 im Haupt-Layout); H-K21 legt die Spiegel-Zellen in `zellen_t` (keine Einheit). Haupt-Layout heute 11/16, am Ende
+  des Plans 13/16.
   (4) **Bindungswächter** (`cargo test` in `herd/glut`): übersetzt jeden Einstiegspunkt aller Pipelines mit naga nach GLSL ES 3.00 (wie
-  wgpu-GL), zählt Sampler je Stufe (Fragment ≤ 16, Vertex ≤ 16, zusammen ≤ 32) und Uniform-Blöcke (≤ 12 je Stufe, WebGL2-Minimum),
-  druckt die Tabelle und scheitert über der Grenze.
+  wgpu-GL), zählt Sampler je Stufe (Fragment ≤ 16, Vertex ≤ 16, eine Pipeline zusammen ≤ 32) und Uniform-Blöcke (≤ 12 je Stufe,
+  WebGL2-Minimum), dazu je Pipeline-Layout die Textur-Einträge (≤ 16 über alle Stufen, die eigentliche Grenze unter wgpu-GL) und
+  Sampler (≤ 16), druckt die Tabelle und scheitert über der Grenze.
 - **Schichten/Dateien:** `herd/glut/src/*`, `shader/gemeinsam.wgsl`, `licht.wgsl` (und jeder Shader mit `eigen_laden`), `herd/glut-web`
   neu bauen; `herd/README.md` §9. Kein Kern, kein `paket.rs`.
 - **Determinismus:** kein Kern-Anteil. **Tests:** Wächter; **alle bestehenden Referenzbilder unverändert** (Pixeltest K-129, auf WARP
@@ -992,8 +999,9 @@ Kniffe → Bild. Fühler sehen also die Lage nach Physik, Figur und Animation de
 - **Stand (umgesetzt, §11.1):** Bindungswächter und Tabelle wie oben. Die Ausgangszahl „15 von 16“ stimmt für naga/wgpu 30 nicht:
   naga macht aus jeder benutzten Textur **einen** GLSL-Sampler, gleich ob `textureLoad` oder Abtastung – `fs_licht` belegt 10/16, vor
   und nach H-K15. Umbau (1) unterbleibt deshalb (kein Gewinn, nur Risiko für die Bitgleichheit), Shader unverändert. Unter wgpu-GL
-  zählt zusätzlich das **Pipeline-Layout**: jede Textur-Bindung eine Einheit über alle Stufen (≤ 16) – Haupt-Layout 11/16, nach allen
-  Reservierungen 16/16; die Gelenk-Palette (H-K23b) ist dort **kein** eigener Vertex-Pool.
+  zählt zusätzlich das **Pipeline-Layout**: jede Textur-Bindung eine Einheit über alle Stufen (≤ 16) – Haupt-Layout 11/16, nach den
+  damaligen Reservierungen 16/16; die Gelenk-Palette (H-K23b) ist dort **kein** eigener Vertex-Pool. H-K18 hat die Planung auf 13/16
+  am Ende des Plans gesenkt (`herd/README.md` §9).
 
 #### H-K16 `Modell` – 3D-Modelle aus glTF (W8, §9-Ausnahme: neue Ressource)
 - **Ziel:** Unity Model Import: Meshes, Materialien, Texturen, Hierarchie; Instanzen wie Prefabs.
@@ -1082,7 +1090,7 @@ Kniffe → Bild. Fühler sehen also die Lage nach Physik, Figur und Animation de
   Kamera). `schatten` bleibt der Hauptschalter, `Koerper.schatten` bestimmt die Werfer.
 - **Budget** (**Entscheidung**): höchstens **8** schattenwerfende Punkt-/Spotlichter je Bild. Der Kern wählt: wirksam (Kugel bzw. Kegel
   schneidet das Kamera-Frustum), nach Abstand Kamera – Lichtrand, dann Teil-ID; Würfel = 6 Kacheln (90°-Perspektiven, keine Cube-Map →
-  WebGL2), Spot = 1 Kachel; Tiefen-Atlas 4096² (2048² mit halben Kacheln, wenn das Gerät 4096 nicht kann), Kachelvergabe im Kern
+  WebGL2), Spot = 1 Kachel; Tiefen-Atlas 4096² (umgesetzt als 4 Schichten à 2048², siehe Stand), Kachelvergabe im Kern
   (Regal-Packen nach Güte, dann Reihenfolge); was nicht passt, wirft still keinen Schatten. Sonne: Kaskaden als
   `texture_depth_2d_array` (2048² je Schicht; eine Schicht = heutiges Bild), praktische Teilung (λ = 0,75), kugelumschlossen und
   texelweise gerastet gegen Flimmern. Kein Schatten-Cache für ruhende Lichter in dieser Stufe (später).
@@ -1090,14 +1098,26 @@ Kniffe → Bild. Fühler sehen also die Lage nach Physik, Figur und Animation de
   Kaskade Matrix und Teilungstiefe); der Kern schneidet je Kachel die Werfer (Hülle gegen Kachel-Frustum) und schreibt sie als neuen
   `zug` (je Kachel und Netz-Art ein Draw-Call). Schattenwerfende Punkt-/Spotlichter erzwingen den `LICHTER`-Abschnitt auch bei ≤ 8
   Lichtern (der v1-Pfad über SZENE kennt keinen Kachel-Index).
-- **Glut:** Atlas (eine Einheit laut H-K15-Tabelle), Würfelseite nach größter Achse, PCF-Zelt mit dem Vergleichs-Sampler,
-  Normalen-Versatz gegen Akne; `licht.wgsl`, `schatten.wgsl`, `herd/glut/src`, `herd/glut-web`.
+- **Glut:** Atlas **ohne neue Einheit** (ersetzt die Shadow-Map an Bindung 2, Vergleichs-Sampler 3 geteilt), Würfelseite nach größter
+  Achse, PCF-Zelt mit dem Vergleichs-Sampler, Normalen-Versatz gegen Akne; `licht.wgsl`, `schatten.wgsl`, `herd/glut/src`, `herd/glut-web`.
 - **Schichten/Dateien:** Kern `komponenten/licht.rs`, `lichter.rs`, `paket.rs`; Glut wie oben; `herd/README.md` §4/§9.
 - **Determinismus:** Auswahl, Packen, Matrizen im Kern (f64, `libm::tan`); Pixel K-129.
 - **Tests:** `tests::hk18` (Auswahl stabil, Budget, ohne Nutzung byte-gleich), Szene `schatten.herd`, Referenzbilder
-  `3d-punktschatten` (Würfel-Kacheln + Spot) und `3d-kaskaden`; **B12:** 8 Punktlichter mit Schatten + 1 000 Körper ≤ 120 Draw-Calls,
+  `3d-punktschatten` (Würfel-Kacheln + Spot) und `3d-kaskaden`; **B12** (vergeben: **B13**): 8 Punktlichter mit Schatten + 1 000 Körper ≤ 120 Draw-Calls,
   60 fps EXE. **Beispiel:** `laternengasse` (Gasse bei Nacht mit 6 Laternen und 2 Spots, Taster schaltet auf Tag mit Kaskaden).
-- **Abnahme:** A-Glut. **K-Vorschlag:** K-163.
+- **Abnahme:** A-Glut. **K-Vorschlag:** K-163 (geschrieben als **K-160**, nächste freie Nummer).
+- **Stand (umgesetzt, §11.1):** wie oben, mit diesen **Entscheidungen**: (1) **Eine** Schatten-Tiefentextur (`texture_depth_2d_array`,
+  Depth32Float, Schichten 2048²) an Bindung 2 statt Shadow-Map + Atlas: Schicht 0 = Sonne v1 bzw. die k Kaskaden (je eine Schicht), dahinter
+  die Atlas-Seiten (4 × 2048² = 4096² Texel) – 2048 ist die WebGL2-Mindestgröße, der 2048er-Rückfall mit halben Kacheln entfällt; v1 bleibt
+  eine Schicht (16 MB), Haupt-Layout bleibt 11/16. (2) Packen in **Morton-Reihenfolge** statt Regalen (Kanten absteigende Zweierpotenzen →
+  lückenlos); ein Licht, dessen Kacheln nicht alle passen, wirft keinen Schatten. (3) Würfelseiten mit 12 Texeln Rand (halber Tangens
+  vergrößert), Spots bis 60° eine Kachel, darüber ein Würfel; das Auge der Kacheln liegt ≈ 0,02 % der Reichweite schief neben dem Licht (Netz-Ecken genau in der Lichtebene ergäben w = 0, das rastert SwiftShader/WebGL2 falsch – gefunden mit E2E 13). (4) Matrizen und Plätze im Uniform-Block SCHATTENLICHTER (Bindung 18), der
+  Schattendurchgang nimmt die Matrix je Zug über einen dynamischen Uniform-Versatz (Bindung 20, Schatten-Layout); der Platz eines Lichts
+  steht in Bits 16 … 19 seines Zellen-Eintrags in LICHTER (kein neues Licht-Format). (5) `schattenWeich` w: derselbe Castaño-Zeltfilter
+  mit Texel-Schritt w (0 = ein bilinearer Vergleich); Normalenversatz der Kacheln × (1 + w). (6) Kaskaden: Wahl der ersten Kaskade, deren
+  Bild den Punkt mit Filterrand enthält (auch im Spiegeldurchgang richtig); Kugel-Radius auf 1/16 aufgerundet. (7) Werfer je Ansicht als
+  Instanz-Kopien hinter `DURCH`, Zug `ANSICHT | a << 8` (zug 4). Ohne Nutzung: Paket, Hash und alle Referenzbilder byte- bzw. pixelgleich.
+  Messung B13: 76 Draw-Calls (73 Schatten), Kern-Bild 0,42 ms nativ / 0,53 ms Wasm.
 
 #### H-K19a `Klang.laden` – WAV und FLAC (W9, §9-Ausnahme)
 - **Ziel:** Unity AudioClip-Import; baut auf H-K14 (`Klang`, `Spur`, Ereignisse, Wiedergabewege).
@@ -1222,7 +1242,7 @@ Kniffe → Bild. Fühler sehen also die Lage nach Physik, Figur und Animation de
 - **Verfahren** (beide Backends gleich, **Entscheidung**: ein Weg): (1) **Vorlauf** ohne MSAA über FEST: Tiefe + Normale oktaedrisch
   (RGBA8) + Rauheit/Metall – nötig, weil WebGL2 MSAA-Tiefe nicht abtasten kann; (2) **SSAO** in halber Auflösung, 12 Abtastungen in der
   Halbkugel, Drehung aus Ganzzahl-Hash je Pixel (kein Geräte-Zufall), zweimal 1D bilateral weichgezeichnet; wirkt nur auf Umgebungs- und
-  indirektes Licht (`fs_licht` liest sie, eine Einheit laut H-K15); (3) **SSR** nach dem undurchsichtigen Hauptdurchgang: Kopie der
+  indirektes Licht (`fs_licht` liest sie, eine Einheit laut `herd/README.md` §9); (3) **SSR** nach dem undurchsichtigen Hauptdurchgang: Kopie der
   HDR-Farbe mit 5 Mip-Stufen, Vollbild-Durchgang mit Strahlmarsch im Sichtraum (höchstens 48 Schritte + 6 Halbierungen, Hash-Versatz),
   Rauheit wählt die Stufe, Fresnel; Fehltreffer und Bildrand fallen auf die planare Spiegelung (wenn `spiegelung`), sonst auf
   Himmelszelt/Umgebung zurück; additiv vor dem Durchsichtigen, Bloom danach. **WebGL2-Rückfall konkret:** derselbe Weg mit nicht-MSAA
@@ -1275,8 +1295,9 @@ Kniffe → Bild. Fühler sehen also die Lage nach Physik, Figur und Animation de
   (**Entscheidung**, Doku). Bildpaket: Ressourcen-Abschnitt `HAUT` (je Netz und Ecke 4 × u16 Gelenk + 4 × u16 Gewicht, einmal) und je
   Bild Abschnitt `GELENKE` (Palette 3 × vec4 je Gelenk, je gehäuteter Instanz ein Versatz); gehäutete Instanzen in eigenem `zug`,
   instanziert je (Netz, Belag) mit Versatz im Instanzpuffer. ≤ 256 Gelenke je Haut, ≤ 65 536 Gelenke je Bild.
-- **Glut:** zweiter Vertex-Strom nur für Haut-Pipelines, Palette als RGBA32F-Textur im Vertex-Shader (`textureLoad`, Vertex-Pool laut
-  H-K15), Haut auch im Schatten- und Spiegeldurchgang und im Bildraum-Vorlauf.
+- **Glut:** zweiter Vertex-Strom nur für Haut-Pipelines, Palette als RGBA32F-Textur im Vertex-Shader (`textureLoad`; **eine** Einheit im
+  Haupt- und im Schatten-Layout – Vertex-Texturen haben unter wgpu-GL keinen eigenen Pool, `herd/README.md` §9), Haut auch im Schatten- und
+  Spiegeldurchgang und im Bildraum-Vorlauf.
 - **Schichten/Dateien:** Kern `komponenten/koerper.rs`, `puppe.rs`, `paket.rs`, `ressourcen.rs`; Glut `src/*`, `licht.wgsl`,
   `schatten.wgsl`, `herd/glut-web`; `herd/README.md` §4/§9.
 - **Tests:** `tests::hk23b` (Gelenkmatrizen bitgleich, ohne Haut byte-gleich), Szene `haut.herd` (100 gehäutete Figuren; Kern-Bild
@@ -1317,7 +1338,8 @@ Kniffe → Bild. Fühler sehen also die Lage nach Physik, Figur und Animation de
   (Eintauchtiefe an 5 Messpunkten der Hülle, im Schwung-Takt); Abschnitt `WASSER` (je Fläche 64 B) und eigener `zug` nach FEST vor
   DURCH, nur bei Nutzung.
 - **Glut:** Gerstner im Vertex-Shader, Normalen analytisch + Detail-Rauschen, Brechung und Tiefe aus der Szenenfarbe- und Tiefen-Kopie
-  von H-K24 (ohne Bildraum-Effekte macht der Wasser-Zug eine eigene Kopie; zwei Einheiten laut H-K15), Spiegelung planar oder SSR,
+  von H-K24 (ohne Bildraum-Effekte macht der Wasser-Zug eine eigene Kopie; beide in einem **eigenen Layout** `wasser`, nicht im
+  Haupt-Layout – `herd/README.md` §9), Spiegelung planar oder SSR,
   sonst Himmel; Schaum an der Uferlinie (Tiefendifferenz) und auf Wellenkämmen.
 - **Schichten/Dateien:** neu `komponenten/wasser.rs`; `schwung.rs`, `kollision3d.rs`, `paket.rs`; Glut `src/*`, neu `wasser.wgsl`,
   `herd/glut-web`; `herd/README.md` §4/§9.
@@ -1338,7 +1360,7 @@ Nur Vorschlag – geschrieben werden sie in `KLAERUNGEN.md` mit der jeweiligen S
 | K-160 | Herd-Ausbau II: Stufenplan §13 | kein Format-Bruch (Zusatz-Ströme statt VERSION 2), Bindungs-Budget + Wächter, Vorbacker-Determinismus für Modelle/Klänge, Abfragen als berechnete Lesefelder, CC0-Assets mit `quellen.md` | H-K15 |
 | K-161 | Modelle (glTF) | `Modell.laden`, `herd.modell`, `Etikett`/`finde`, glTF-Untermenge, Modellteig, Grenzen, Teigmenge; Nachträge Puppe/Gelenke als Teile (H-K23a), Haut (H-K23b), Karten (H-K26) | H-K16 |
 | K-162 | 3D-Physik `Schwung` | Formen `kapsel`/`netz`, feste Iterationen, Schlafen, Schwerkraft 0; Nachtrag Auftrieb (H-K28) | H-K17 |
-| K-163 | Schatten- und Spiegel-Budget | 8 Punkt-/Spot-Werfer, Atlas, Kaskaden, Auswahlregel; Nachträge `spiegelGuete` (H-K21), Bildraum-Vorlauf (H-K24) | H-K18 |
+| K-163 → **K-160** (geschrieben) | Schatten- und Spiegel-Budget | 8 Punkt-/Spot-Werfer, Atlas, Kaskaden, Auswahlregel, Bindungs-Planung; Nachträge `spiegelGuete` (H-K21), Bildraum-Vorlauf (H-K24) | H-K18 |
 | K-164 | Klänge aus Dateien | WAV/FLAC (H-K19a), Vorbis (H-K19b), kein Umrechnen im Vorbacker, Klangteig, Klangmenge P0021 | H-K19a |
 | K-165 | `Figur` und `Strahl` | Schwerkraft 9.81, Stufe/Hang, Strahl-Lesefelder beim Lesen berechnet, Ziele nur Fühler | H-K20 |
 | K-166 | Raumklang `Schall`, Feldtyp `klang` | Hörer = aktive Kamera/Blick, Klangbild neben dem Bildpaket, gerastete Werte | H-K22 |

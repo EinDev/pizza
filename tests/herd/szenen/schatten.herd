@@ -1,0 +1,116 @@
+# Schatten für Punkt- und Spotlichter, Sonnen-Kaskaden (H-K18, Abschnitt SCHATTENLICHTER): Boden mit N Kisten, zunächst nur
+# Lichter mit Standardwerten (Paket wie v1), dann Sonne mit 3 Kaskaden, Weite und Weichheit, L schattenwerfende Punktlichter
+# mit wechselnder Güte und Weichheit an einem drehenden Träger (mehr als 8 → Budget, Packen nach Güte), zwei Spots (30° als
+# Kachel, 75° als Würfel), Kamera bewegt sich, ein Spot geht aus, Güte wechselt; am Ende ist alles wieder aus (Träger weit
+# weg, Sonne v1 → Paket ohne Abschnitt). Prüft nativ = Wasm über die Paket-Hashes: Auswahl (Frustum, Abstand zum
+# Lichtrand, Teil-ID), Packen, Matrizen (libm::tan), Kaskaden-Teilung, Werfer je Ansicht.
+# Klein: N = 40, L = 12 (Vorgabe); B13: N = 1000, L = 8, NACHT = 1 (keine Sonne, nur Würfel), AUS = 0 (Schatten bleiben an).
+vorgabe N 40
+vorgabe TAKTE 20
+vorgabe L 12
+vorgabe NACHT 0
+vorgabe AUS 1
+welt_neu 1280 720 "Schatten"
+welt_himmel "#8fb6e0" "#dfe8f0"
+welt_umgebung "#a0b0d0" 0.25
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Bewegung" -> T_BEW
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "schatten" -> K_SCH
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_L "kegel" -> L_KEGEL
+feld_nummer T_L "schatten" -> L_SCH
+feld_nummer T_L "schattenGuete" -> L_GUETE
+feld_nummer T_L "schattenWeich" -> L_WEICH
+feld_nummer T_L "kaskaden" -> L_KASK
+feld_nummer T_L "schattenWeite" -> L_WEITE
+feld_nummer T_BEW "drehtempo" -> B_DREH
+form_grund 5 0 0 -> EBENE
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 12 0 -> KUGEL
+teil_lage 1 0 7 20
+teil_schaue 1 0 0 0
+komp_von 2 T_L -> SONNE
+setze_zahl SONNE L_ST (1 - NACHT)
+teil_neu 3 -> boden
+teil_groesse boden 120 1 120
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+komp_haenge k boden
+wiederhole N i
+  teil_neu 3 -> kiste
+  teil_lage kiste ((zufall(i) - 0.5) * 60) (0.5 + zufall(i + 3) * 2) ((zufall(i + 7) - 0.5) * 60)
+  teil_groesse kiste (0.4 + zufall(i + 11)) (0.4 + zufall(i + 13) * 2) (0.4 + zufall(i + 17))
+  komp_neu T_K -> k
+  setze_zahl k K_FORM (WUERFEL + (KUGEL - WUERFEL) * boden(1 / (1 + i % 4)) * (1 - NACHT))
+  setze_zahl k K_SCH (1 - boden(1 / (1 + i % 9)))
+  komp_haenge k kiste
+ende
+# Punktlichter mit Standardwerten (kein Schatten → Paket wie v1)
+wiederhole 6 i
+  teil_neu 3 -> l
+  teil_lage l ((i - 2.5) * 6) 2 -10
+  komp_neu T_L -> li
+  komp_haenge li l
+ende
+takte 2
+
+# Sonne: 3 Kaskaden bis 40 m, weicher
+setze_zahl SONNE L_KASK 3
+setze_zahl SONNE L_WEITE 40
+setze_zahl SONNE L_WEICH 1.5
+takte 2
+# L schattenwerfende Punktlichter an einem drehenden Träger: Güte grob/mittel/fein reihum, Weichheit 0 … 3, eines ohne Schatten
+teil_neu 3 -> traeger
+komp_neu T_BEW -> bw
+setze_zahl bw B_DREH 20
+komp_haenge bw traeger
+wiederhole L i
+  teil_neu 3 -> l
+  teil_lage l ((zufall(i + 21) - 0.5) * 40) (1 + zufall(i + 23) * 3) ((zufall(i + 29) - 0.5) * 40)
+  teil_haenge l traeger
+  komp_neu T_L -> li
+  setze_zahl li L_RW (4 + zufall(i + 31) * 8)
+  setze_zahl li L_GUETE (1 + i % 3)
+  setze_zahl li L_WEICH (i % 4)
+  setze_zahl li L_SCH (1 - boden(1 / (1 + (i - 5) * (i - 5))))
+  komp_haenge li l
+ende
+# Spots: 30° (eine Kachel) und 75° (Würfel)
+teil_neu 3 -> sp1
+teil_lage sp1 -4 8 0
+teil_schaue sp1 -4 0 0.001
+komp_neu T_L -> spot1
+setze_zahl spot1 L_RW 14
+setze_zahl spot1 L_KEGEL 30
+setze_text spot1 L_GUETE "fein"
+komp_haenge spot1 sp1
+teil_neu 3 -> sp2
+teil_lage sp2 6 5 4
+teil_schaue sp2 0 0 -3
+komp_neu T_L -> spot2
+setze_zahl spot2 L_RW 15
+setze_zahl spot2 L_KEGEL 75
+setze_text spot2 L_GUETE "grob"
+komp_haenge spot2 sp2
+takte TAKTE
+# Kamera dreht sich, ein Spot geht aus, Güte wechselt, Sonne mit 4 Kaskaden ohne Weite
+teil_lage 1 14 4 -8
+teil_schaue 1 0 1 2
+setze_zahl spot2 L_ST 0
+setze_text spot1 L_GUETE "grob"
+setze_zahl SONNE L_KASK 4
+setze_zahl SONNE L_WEITE 0
+takte 3
+# alles aus (AUS = 1): Träger weit weg, Spots ohne Güte, Sonne v1 → kein Abschnitt SCHATTENLICHTER mehr; mit AUS = 0 bleiben
+# die Schatten an (B13: das letzte Bild zählt)
+teil_lage traeger 0 (-1000 * AUS) 0
+setze_zahl spot1 L_GUETE (1 - AUS)
+setze_zahl spot2 L_GUETE (1 - AUS)
+setze_zahl SONNE L_KASK (4 - 3 * AUS)
+setze_zahl SONNE L_WEICH (1.5 - 0.5 * AUS)
+takte 2
+paket_voll
+bild

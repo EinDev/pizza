@@ -2295,6 +2295,27 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   `formen.rs` (`dreiecke`), `ressourcen.rs` (Cache-Feld), `mod.rs`/`lib.rs` (Anhängestellen), `kern.wasm`/`schema.json`; Szene
   `schwung.herd`, Fall `herd-schwung`, Beispiel `kistenturm`, SPEC §18.6, Doku `herd-ausbau`, `herd/README.md` §2/§7, B12. Kein Bildpaket, keine
   Glut, kein Interpreter/Laufzeit/Host. Nachtrag Auftrieb (H-K28) folgt. **Status:** fest.
+### K-160 Herd: Schatten für Punkt- und Spotlichter, Sonnen-Kaskaden, Schatten-Budget (H-K18)
+- **Frage:** Wie werfen Punktlichter und Spots Schatten, ohne Cube-Maps (WebGL2), ohne neue Textureinheit im knappen Haupt-Layout
+  (wgpu-GL: 16 je Pipeline-Layout über alle Stufen) und ohne bestehende Pakete, Hashes oder Referenzbilder zu ändern?
+- **Entscheidung:** Opt-in je Licht über Nachtragsfelder `schattenGuete` (aus/grob/mittel/fein = 256/512/1024 Texel je Würfelseite
+  bzw. Kegel), `schattenWeich` (0 … 4, Zeltfilter-Schritt; 1 = v1-Filter, auch Sonne), `kaskaden` (1 … 4, Sonne; 1 = v1) und
+  `schattenWeite` (Sonne; 0 = wie v1). **Budget:** höchstens 8 Werfer je Bild, Auswahl im Kern: `schatten` an, Stärke/Reichweite > 0,
+  Kugel im Sichtkörper, Reihenfolge (Abstand Kamera – Lichtrand, Teil-ID). Punktlicht = 6 Kacheln (Würfelseite nach der größten Achse,
+  keine Cube-Map), Spot ≤ 60° = 1 Kachel. **Eine** Schatten-Tiefentextur (Array aus Schichten 2048²) an der bisherigen Bindung 2:
+  Sonne bzw. Kaskaden in den ersten Schichten, dahinter 4 Atlas-Seiten (= 4096² Texel); Packen im Kern in Morton-Reihenfolge nach (Güte
+  absteigend, Auswahl), was nicht passt, wirft still keinen Schatten. Matrizen und Plätze im Uniform-Block SCHATTENLICHTER (Abschnitt 20,
+  Bindung 18), Platz eines Lichts in Bits 16 … 19 seines LICHTER-Zelleneintrags, Werfer je Ansicht als Instanz-Kopien (`zug` 4 `ANSICHT`).
+  Kaskaden: praktische Teilung λ = 0,75, Kugel um die Scheibe (Radius auf 1/16), Mitte texelweise gerastet. Kein Schatten-Cache für
+  ruhende Lichter (später). Kein Schatten von Punktlichtern im Spiegeldurchgang (Nachtrag mit H-K21).
+- **Bindungs-Planung (berichtigt H-K15):** Haupt-Layout heute 11/16 Texturen, 6/12 Uniform-Blöcke; danach H-K24 +1 (Verdeckung),
+  H-K23b +1 (Gelenk-Palette, gleicher Pool für Vertex und Fragment), H-K28 im eigenen Layout `wasser`, H-K21/H-K26/H-K27 ohne Einheit
+  → 13/16 am Ende des Plans; Konsolidierungen für den Notfall in `herd/README.md` §9.
+- **Determinismus:** Auswahl, Packen, Matrizen in f64 mit `libm` (`tan`, `pow`, `sqrt`, `ceil`, `floor`), Reihenfolgen nach
+  `ordnungs_bits` + ID; nativ = `kern.wasm` (`schatten.herd`). Pixel K-129.
+- **Betroffen:** `herd/kern/src/komponenten/licht.rs`, `lichter.rs`, `paket.rs`, `tests.rs` (`hk18`); Glut `licht.wgsl`, `schatten.wgsl`,
+  `funken.wgsl` (Index-Maske), `herd/glut/src/lib.rs`, `glut-web`; SPEC §18.6, HERD.md §11.1/§13, `herd/README.md` §2/§4/§9, Doku
+  `herd-ausbau`, Referenzbilder `3d-punktschatten`/`3d-kaskaden`, Beispiel `laternengasse`, B13. **Status:** fest.
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
 

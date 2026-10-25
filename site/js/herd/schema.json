@@ -38,7 +38,11 @@
       {"nummer": 4, "name": "reichweite", "typ": "zahl", "standard": 10, "min": 0, "max": null},
       {"nummer": 5, "name": "schatten", "typ": "diavolo", "standard": true, "min": null, "max": null},
       {"nummer": 6, "name": "kegel", "typ": "zahl", "standard": 0, "min": 0, "max": 90, "nachtrag": true},
-      {"nummer": 7, "name": "kegelRand", "typ": "zahl", "standard": 0.25, "min": 0, "max": 1, "nachtrag": true}]},
+      {"nummer": 7, "name": "kegelRand", "typ": "zahl", "standard": 0.25, "min": 0, "max": 1, "nachtrag": true},
+      {"nummer": 8, "name": "schattenGuete", "typ": "wahl", "standard": "aus", "min": null, "max": null, "wahl": ["aus", "grob", "mittel", "fein"], "nachtrag": true},
+      {"nummer": 9, "name": "schattenWeich", "typ": "zahl", "standard": 1, "min": 0, "max": 4, "nachtrag": true},
+      {"nummer": 10, "name": "kaskaden", "typ": "ganz", "standard": 1, "min": 1, "max": 4, "nachtrag": true},
+      {"nummer": 11, "name": "schattenWeite", "typ": "zahl", "standard": 0, "min": 0, "max": null, "nachtrag": true}]},
     {"name": "Kamera", "nummer": 7, "genus": "f", "raum": "3D", "braucht": [], "system": false, "felder": [
       {"nummer": 1, "name": "sicht", "typ": "zahl", "standard": 60, "min": 1, "max": 170},
       {"nummer": 2, "name": "nah", "typ": "zahl", "standard": 0.1, "min": 0.001, "max": null},

@@ -57,6 +57,9 @@ pub mod abschnitt {
     pub const ZUSATZ3D: u32 = 18;
     /// Zusatz je 3D-Teilchen (16 B, gleiche Reihenfolge wie TEILCHEN3D): nur wenn ein Teilchen gestreckt oder beleuchtet ist
     pub const ZUSATZ_TEILCHEN: u32 = 19;
+    /// Schatten für Punkt-/Spotlichter und Sonnen-Kaskaden (H-K18, `crate::lichter::schatten_abschnitt`): nur wenn ein Licht
+    /// `schattenGuete` ≠ aus wirft, die Sonne Kaskaden hat oder ihr `schattenWeich` ≠ 1 ist
+    pub const SCHATTENLICHTER: u32 = 20;
 }
 
 pub mod flag {
@@ -86,6 +89,9 @@ pub mod zug {
     pub const FEST: u32 = 1;
     pub const SCHATTEN: u32 = 2;
     pub const DURCH: u32 = 3;
+    /// Schatten in eine Ansicht des Abschnitts `SCHATTENLICHTER` (H-K18): `art = ANSICHT | ansicht << 8` (Bits 0–7 = Art,
+    /// darüber die Nummer der Ansicht – erst die Kaskaden, dann die Kacheln); Instanzen sind eigene Kopien hinter `DURCH`
+    pub const ANSICHT: u32 = 4;
 }
 
 /// Ein 3D-Körper im Bildbau.
@@ -120,6 +126,12 @@ pub struct LichtB {
     pub richtung: [f64; 3],
     pub kegel: f64,
     pub kegel_rand: f64,
+    /// H-K18: Schatten-Güte (0 aus, 1 grob, 2 mittel, 3 fein; Punkt/Spot), Zeltfilter-Radius in Texeln (1 = v1),
+    /// Kaskaden (Sonne, 1 = v1) und Schattenweite (Sonne, 0 = wie v1)
+    pub guete: u32,
+    pub weich: f64,
+    pub kaskaden: u32,
+    pub weite: f64,
 }
 
 /// Ein 3D-Teilchen im Bildbau (`Funken`): Weltlage, halbe Größe, Farbe, Mischart.
@@ -361,7 +373,7 @@ pub struct Gesendet {
 
 pub(crate) type M4 = [f64; 16];
 
-fn m4_mal(a: &M4, b: &M4) -> M4 {
+pub(crate) fn m4_mal(a: &M4, b: &M4) -> M4 {
     let mut r = [0.0; 16];
     for s in 0..4 {
         for z in 0..4 {
@@ -387,7 +399,7 @@ pub(crate) fn punkt(a: [f64; 3], b: [f64; 3]) -> f64 {
 }
 
 /// Rechtshändige Ansichtsmatrix: Auge, Blickrichtung (normiert), oben.
-fn blick(auge: [f64; 3], f: [f64; 3], oben: [f64; 3]) -> M4 {
+pub(crate) fn blick(auge: [f64; 3], f: [f64; 3], oben: [f64; 3]) -> M4 {
     let mut o = v_norm(oben, [0.0, 1.0, 0.0]);
     if betrag(punkt(f, o)) > 0.999 {
         o = if betrag(f[1]) > 0.5 { [0.0, 0.0, -1.0] } else { [0.0, 1.0, 0.0] };
@@ -651,6 +663,11 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     let mut texel_welt = 0.0;
     let mut tiefe_spanne = 1.0;
     let schatten_an = sonne.map(|s| s.schatten && s.staerke > 0.0).unwrap_or(false);
+    // H-K18: Kaskaden (1 = v1-Verfahren), Schattenweite (0 = wie v1), Weichheit (1 = v1-Zeltfilter)
+    let sonne_k = sonne.map(|s| s.kaskaden.clamp(1, crate::lichter::MAX_KASKADEN as u32)).unwrap_or(1);
+    let sonne_weite = sonne.map(|s| s.weite).unwrap_or(0.0);
+    let sonne_weich = sonne.map(|s| s.weich).unwrap_or(1.0);
+    let mut kaskaden: Vec<Kaskade> = Vec::new();
     let mut licht_box: Option<([f64; 2], [f64; 2])> = None;
     let oben_l = if betrag(l[1]) > 0.99 { [0.0, 0.0, 1.0] } else { [0.0, 1.0, 0.0] };
     let lv = blick([0.0; 3], [-l[0], -l[1], -l[2]], oben_l);
@@ -680,11 +697,15 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
                 }
             }
         }
+        // H-K18: `schattenWeite` > 0 ersetzt die Reichweite (sonst wie v1: Empfänger, SCHATTEN_WEITE, Nebel)
         let mut d = if weiteste < SCHATTEN_WEITE { weiteste } else { SCHATTEN_WEITE };
         if let Some((_, von, bis)) = w.nebel {
             if bis > von && bis < d {
                 d = bis;
             }
+        }
+        if sonne_weite > 0.0 {
+            d = sonne_weite;
         }
         if d > fern {
             d = fern;
@@ -716,11 +737,14 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
                 }
             }
         }
+        if sonne_k >= 2 {
+            kaskaden = sonnen_kaskaden(bau, &lv, sonne_k, nah, d, auge, vorn, rechts, hoch, th, seiten);
+        }
         let x0 = if smin[0] > fmin[0] { smin[0] } else { fmin[0] };
         let x1 = if smax[0] < fmax[0] { smax[0] } else { fmax[0] };
         let y0 = if smin[1] > fmin[1] { smin[1] } else { fmin[1] };
         let y1 = if smax[1] < fmax[1] { smax[1] } else { fmax[1] };
-        if x1 > x0 && y1 > y0 {
+        if sonne_k < 2 && x1 > x0 && y1 > y0 {
             // Würfel: Größe auf Viertel-Zweierpotenzen, Mitte auf Texel einrasten (ruhige Schattenkanten)
             let g = (if x1 - x0 > y1 - y0 { x1 - x0 } else { y1 - y0 }) * 1.04;
             let g = if g > 0.01 { g } else { 0.01 };
@@ -776,6 +800,14 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
             licht_box = Some(([bx0, by0], [bx1, by1]));
         }
     }
+    // H-K18: Sonnen-Kaskaden ersetzen das v1-Verfahren (SZENE trägt dann Kaskade 0, gezeichnet über ANSICHT-Züge)
+    if let Some(k) = kaskaden.first() {
+        licht_vp = k.ansicht.vp;
+        texel_welt = k.ansicht.texel;
+    }
+    let sonne_schatten = schatten || !kaskaden.is_empty();
+    // Punkt-/Spot-Kacheln hinter den Sonnen-Schichten (v1: eine, Kaskaden: je eine)
+    let schatten_wahl = crate::lichter::schatten_waehlen(&bau.lichter, &sk, auge, if schatten { 1 } else { kaskaden.len() as u32 });
 
     // Sortieren: undurchsichtig nach (Netz, Gruppe, Teil), Gruppe 0 = wirft, unsichtbar (nur Schatten),
     // 1 = wirft, sichtbar, 2 = wirft nicht, sichtbar. Durchsichtig: von hinten nach vorn, dann Teil.
@@ -887,10 +919,49 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         }
         zuege.push([zug::DURCH, netz, basis + start, j as u32 - start]);
     }
-    if zuege.iter().any(|z| z[0] != zug::SCHATTEN) || !bau.teilchen3d.is_empty() {
+    // H-K18: Werfer je Schatten-Ansicht (Kaskaden, dann Kacheln) als eigene Instanz-Kopien, je Netz ein Zug
+    let ansichten = kaskaden.len() + schatten_wahl.kacheln.len();
+    if ansichten > 0 {
+        let mut werfer: Vec<(u64, u32)> = Vec::new();
+        for (i, k) in bau.koerper.iter().enumerate() {
+            if k.wirft && k.farbe & 0xFF == 0xFF {
+                werfer.push(((k.netz as u64) << 32 | k.teil as u64, i as u32));
+            }
+        }
+        werfer.sort_unstable_by_key(|x| x.0);
+        let mut n_inst = (bau.fest.len() + bau.durch.len()) as u32;
+        let mut liste: Vec<u32> = Vec::new();
+        for a in 0..ansichten {
+            liste.clear();
+            if a < kaskaden.len() {
+                // Kaskade: vorab bestimmte Werfer (Lichtbox), in Werfer-Reihenfolge
+                let kk = &kaskaden[a];
+                liste.extend(werfer.iter().map(|x| x.1).filter(|i| kk.werfer.binary_search(i).is_ok()));
+            } else {
+                let e = ebenen(&schatten_wahl.kacheln[a - kaskaden.len()].vp);
+                liste.extend(werfer.iter().map(|x| x.1).filter(|&i| {
+                    let k = &bau.koerper[i as usize];
+                    im_sichtkoerper(&e, k.min, k.max)
+                }));
+            }
+            let mut j = 0;
+            while j < liste.len() {
+                let netz = bau.koerper[liste[j] as usize].netz;
+                let start = n_inst;
+                while j < liste.len() && bau.koerper[liste[j] as usize].netz == netz {
+                    schreib3(&mut inst3d, &mut zusatz3d, &bau.koerper[liste[j] as usize]);
+                    j += 1;
+                    n_inst += 1;
+                }
+                zuege.push([zug::ANSICHT | (a as u32) << 8, netz, start, n_inst - start]);
+            }
+        }
+    }
+    let nur_schatten = |z: &[u32; 4]| z[0] == zug::SCHATTEN || z[0] & 0xFF == zug::ANSICHT;
+    if zuege.iter().any(|z| !nur_schatten(z)) || !bau.teilchen3d.is_empty() {
         flags |= flag::DREI_D;
     }
-    if zuege.iter().any(|z| z[0] == zug::SCHATTEN) {
+    if zuege.iter().any(nur_schatten) {
         flags |= flag::SCHATTEN;
     }
 
@@ -903,7 +974,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         put_f32(aus, x);
     }
     put_v4(aus, [auge[0], auge[1], auge[2], 0.0]);
-    put_v4(aus, [l[0], l[1], l[2], if schatten { 1.0 } else { 0.0 }]);
+    put_v4(aus, [l[0], l[1], l[2], if sonne_schatten { 1.0 } else { 0.0 }]);
     match &sonne {
         Some(s) => put_v4(aus, lin4(s.farbe, if s.staerke > 0.0 { s.staerke } else { 0.0 })),
         None => put_v4(aus, [0.0; 4]),
@@ -931,7 +1002,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     put_v4(aus, [hu[0], hu[1], hu[2], 1.0]);
     let hg = farbe::bytes(w.hintergrund);
     put_v4(aus, [hg[0] as f64 / 255.0, hg[1] as f64 / 255.0, hg[2] as f64 / 255.0, 1.0]);
-    let bias = if schatten { texel_welt * 1.5 / tiefe_spanne } else { 0.0 };
+    let bias = if schatten { texel_welt * 1.5 / tiefe_spanne } else { kaskaden.first().map(|k| k.bias).unwrap_or(0.0) };
     put_v4(aus, [1.0 / SCHATTEN_GROESSE as f64, texel_welt, bias, texel_welt]);
     put_v4(aus, [w.breite as f64, w.hoehe as f64, 1.0 / w.breite as f64, 1.0 / w.hoehe as f64]);
     put_v4(aus, [punkte.len() as f64, 0.0, 0.0, 0.0]);
@@ -1015,7 +1086,13 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     }
 
     // ---------------- Viele Lichter (Clustered Forward): nur bei mehr als 8 Punktlichtern oder einem Spot ----------------
-    abschnitte += crate::lichter::abschnitt(aus, &bau.lichter, &ansicht, sicht, seiten, nah, fern, auge, vorn);
+    abschnitte += crate::lichter::abschnitt(aus, &bau.lichter, &ansicht, sicht, seiten, nah, fern, auge, vorn, &schatten_wahl.platz);
+    // ---------------- Schatten-Ansichten (H-K18): nur bei Kacheln, Kaskaden oder weicherer/härterer Sonne ----------------
+    if !schatten_wahl.kacheln.is_empty() || !kaskaden.is_empty() || (schatten && sonne_weich != 1.0) {
+        let k: Vec<(crate::lichter::SchattenAnsicht, f64, f64)> = kaskaden.iter().map(|k| (k.ansicht, k.ansicht.texel, k.bias)).collect();
+        crate::lichter::schatten_abschnitt(aus, &k, sonne_weich, &schatten_wahl);
+        abschnitte += 1;
+    }
     // ---------------- Stimmung (HDR-Abschluss in der Glut): nur wenn eine gilt ----------------
     abschnitte += crate::komponenten::stimmung::abschnitt(w, aus, bildnummer, fern);
 
@@ -1023,6 +1100,115 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     aus[16..20].copy_from_slice(&flags.to_le_bytes());
     aus[20..24].copy_from_slice(&abschnitte.to_le_bytes());
     aus[24..28].copy_from_slice(&len.to_le_bytes());
+}
+
+/// Eine Sonnen-Kaskade (H-K18): Ansicht (Schicht = Kaskade), Tiefen-Bias, Werfer (Indizes in `bau.koerper`, aufsteigend).
+struct Kaskade {
+    ansicht: crate::lichter::SchattenAnsicht,
+    bias: f64,
+    werfer: Vec<u32>,
+}
+
+/// Sonnen-Kaskaden: Sicht von `nah` bis `d` praktisch geteilt (λ = 0,75), je Scheibe eine Kugel um ihre 8 Ecken (Radius auf
+/// 1/16 aufgerundet – drehfest), Mitte im Lichtraum texelweise gerastet (kein Flimmern), Tiefe über Empfänger-Kugel und alle
+/// Werfer in der Lichtbox. Eine Kaskade = eine Schicht 2048² der Schatten-Tiefentextur.
+#[allow(clippy::too_many_arguments)]
+fn sonnen_kaskaden(bau: &Bildbau, lv: &M4, k: u32, nah: f64, d: f64, auge: [f64; 3], vorn: [f64; 3], rechts: [f64; 3], hoch: [f64; 3], th: f64, seiten: f64) -> Vec<Kaskade> {
+    const LAMBDA: f64 = 0.75;
+    // Lichtraum-Hüllen der Werfer (einmal)
+    let mut werfer: Vec<(u32, [f64; 3], [f64; 3])> = Vec::new();
+    for (i, kp) in bau.koerper.iter().enumerate() {
+        if !kp.wirft || kp.farbe & 0xFF != 0xFF {
+            continue;
+        }
+        let mut a = [f64::MAX; 3];
+        let mut b = [f64::MIN; 3];
+        for e in ecken(kp.min, kp.max) {
+            let p = transf(lv, e);
+            for j in 0..3 {
+                if p[j] < a[j] {
+                    a[j] = p[j];
+                }
+                if p[j] > b[j] {
+                    b[j] = p[j];
+                }
+            }
+        }
+        werfer.push((i as u32, a, b));
+    }
+    let mut aus = Vec::new();
+    let grenze = |i: u32| -> f64 {
+        if i == 0 {
+            return nah;
+        }
+        if i == k {
+            return d;
+        }
+        let f = i as f64 / k as f64;
+        LAMBDA * nah * libm::pow(d / nah, f) + (1.0 - LAMBDA) * (nah + (d - nah) * f)
+    };
+    for c in 0..k {
+        let (z0, z1) = (grenze(c), grenze(c + 1));
+        let mut e = [[0.0; 3]; 8];
+        let mut n = 0;
+        for z in [z0, z1] {
+            let (hh, hb) = (th * z, th * z * seiten);
+            for (sx, sy) in [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)] {
+                e[n] = [
+                    auge[0] + vorn[0] * z + rechts[0] * hb * sx + hoch[0] * hh * sy,
+                    auge[1] + vorn[1] * z + rechts[1] * hb * sx + hoch[1] * hh * sy,
+                    auge[2] + vorn[2] * z + rechts[2] * hb * sx + hoch[2] * hh * sy,
+                ];
+                n += 1;
+            }
+        }
+        let mut m = [0.0; 3];
+        for p in &e {
+            for j in 0..3 {
+                m[j] += p[j] * 0.125;
+            }
+        }
+        let mut r: f64 = 0.0;
+        for p in &e {
+            let v = [p[0] - m[0], p[1] - m[1], p[2] - m[2]];
+            let l = libm::sqrt(punkt(v, v));
+            if l > r {
+                r = l;
+            }
+        }
+        let r = libm::ceil(r * 16.0) / 16.0;
+        let r = if r > 0.0625 { r } else { 0.0625 };
+        let cl = transf(lv, m);
+        let texel = 2.0 * r / crate::lichter::SCHATTEN_SEITE as f64;
+        let cx = libm::floor(cl[0] / texel) * texel;
+        let cy = libm::floor(cl[1] / texel) * texel;
+        let (bx0, bx1, by0, by1) = (cx - r, cx + r, cy - r, cy + r);
+        let zmin = cl[2] - r;
+        let mut zmax = cl[2] + r;
+        let mut liste = Vec::new();
+        for (i, a, b) in &werfer {
+            if b[0] < bx0 || a[0] > bx1 || b[1] < by0 || a[1] > by1 || b[2] < zmin {
+                continue;
+            }
+            if b[2] > zmax {
+                zmax = b[2];
+            }
+            liste.push(*i);
+        }
+        let rand = {
+            let x = (zmax - zmin) * 0.01;
+            if x > 0.05 {
+                x
+            } else {
+                0.05
+            }
+        };
+        let (nah_l, fern_l) = (-zmax - rand, -zmin + rand);
+        let vp = m4_mal(&ortho(bx0, bx1, by0, by1, nah_l, fern_l), lv);
+        let ansicht = crate::lichter::SchattenAnsicht { vp, schicht: c, x: 0, y: 0, kante: crate::lichter::SCHATTEN_SEITE, texel };
+        aus.push(Kaskade { ansicht, bias: texel * 1.5 / (fern_l - nah_l), werfer: liste });
+    }
+    aus
 }
 
 /// Abschnitt `TEILCHEN3D`: `u32 leuchtend, u32 deckend`, dann die Teilchen (je `TEILCHEN3D_BYTES`). Teilchen außerhalb des

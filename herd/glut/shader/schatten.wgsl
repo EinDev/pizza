@@ -1,6 +1,11 @@
-// Schatten-Tiefe aus Sicht der Sonne (licht_proj). Textur-Texel mit Deckkraft < ½ werfen keinen Schatten.
+// Schatten-Tiefe aus Sicht der Sonne bzw. einer Schatten-Ansicht (H-K18). Textur-Texel mit Deckkraft < ½ werfen keinen Schatten.
 
 @group(0) @binding(4) var atlas: texture_2d_array<f32>;
+// Ansicht·Projektion dieses Zugs (dynamischer Versatz je Ansicht; Eintrag 0 = licht_proj aus SZENE, v1)
+struct SchattenZug {
+    vp: mat4x4<f32>,
+}
+@group(0) @binding(20) var<uniform> schatten_zug: SchattenZug;
 
 struct EinSchatten {
     @location(0) pos: vec3<f32>,
@@ -24,7 +29,7 @@ fn vs_schatten(e: EinSchatten) -> AusSchatten {
     let p = vec4<f32>(e.pos, 1.0);
     let w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
     var a: AusSchatten;
-    a.pos = szene.licht_proj * vec4<f32>(w, 1.0);
+    a.pos = schatten_zug.vp * vec4<f32>(w, 1.0);
     let box = vec4<f32>(e.uvbox);
     a.uv = e.uv * (box.zw - box.xy);
     a.uvbox = box;

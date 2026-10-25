@@ -108,6 +108,8 @@ solange der Wert bitgleich dem Standard ist – so bekommt eine bestehende Kompo
 Programme ändern; öffentliche Nachtragsfelder stehen vor den verborgenen, Konstanten für verborgene Spalten also mitziehen).
 Erstes Nachtragsfeld einer v1-Komponente: `Koerper.belag` (H-K2, Typ `teil`, Standard karton → Material des `Belag` an diesem
 Teil; `Koerper` hat keine verborgenen Spalten). `Blick.mausX`/`mausY` (H-K12) sind Nachtrags- **und** Lesefelder, berechnet über `lies`.
+`Licht.schattenGuete`, `schattenWeich`, `kaskaden`, `schattenWeite` (H-K18) sind Nachtragsfelder; ihr Bildbeitrag läuft über
+`LichtB` in `kern/src/lichter.rs` (`schatten_waehlen`, Abschnitt SCHATTENLICHTER, §4) und `paket.rs` (Sonnen-Kaskaden).
 
 **Eingabezustand und UI (H-K12, K-151):** `Welt::eingabe` hält Maus (Spielfeld), Knöpfe, Knöpfe des Vortakts (am Ende von `takt`
 übernommen), das oberste Ziel unter der Maus, das gefangene und das losgelassene Ziel und den Griff einer gezogenen Tafel – nicht im
@@ -241,14 +243,15 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 5 | TEXTUR | eigene Textur aus einem Teigling (`bildchen_teigling`, PROJEKTE PD1): `u32 id` (Ressourcen-ID = Textur-ID), `u8 format` (0 = RGBA8, nicht vormultipliziert), `u8 stufen`, `u16 b, u16 h`, dann je Stufe `u32 länge` + Bytes (Stufe 0 = b × h, jede weitere halbiert, abgerundet, mindestens 1, bis 1 × 1; Zeilen von oben). Einmal je Bild (nicht je Verwendung), nur wenn Teiglinge geladen sind |
 | 10 | SZENE | 592 Bytes Uniform-Block (unten), immer vorhanden |
 | 11 | INST3D | n × 72 Bytes 3D-Instanzen |
-| 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH) |
+| 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH; H-K18: Bits 0–7 = 4 ANSICHT, Bits 8 … = Nummer der Schatten-Ansicht) |
 | 13 | INST2D | k × 56 Bytes 2D-Instanzen, **bereits in Zeichenreihenfolge** |
 | 14 | TEILCHEN3D | `u32 leuchtend, u32 deckend`, dann (leuchtend + deckend) × 20 Bytes 3D-Teilchen (`Funken`, unten); nur wenn sichtbare Teilchen da sind |
 | 15 | HIMMELSZELT | 208 Bytes Uniform-Block des geltenden `Himmelszelt` (H-K11b, unten); nur wenn eines an einem wachen Teil hängt (dann ist auch Flag 4 gesetzt) |
 | 18 | ZUSATZ3D | Material-Zusatz je 3D-Instanz (16 B, gleiche Reihenfolge wie INST3D): `u32 relief` (wie `INST3D.textur`, nur eigene Texturen; 0 = keins), `f32 kachel`, `f32 metall`, `u32 merkmale` (Bit 0 pbr, Bit 1 Welt-Abbildung, Bits 8–15 nass · 255); nur wenn eine geschriebene Instanz einen hat (`Belag`-Material) |
 | 19 | ZUSATZ_TEILCHEN | Zusatz je 3D-Teilchen (16 B, gleiche Reihenfolge wie TEILCHEN3D): `f32 strich x, y, z` (halbe Strichachse in Welt, 0 = rund), `u32 merkmale` (Bits 0–7 `licht` · 255); nur wenn ein geschriebenes Teilchen gestreckt oder beleuchtet ist (`Funken` „Regen“) |
 | 17 | STIMMUNG | 80 Bytes Uniform-Block der geltenden `Stimmung` (unten); nur wenn eine an einem wachen Teil hängt |
-| 16 | LICHTER | viele Lichter (Clustered Forward, `kern/src/lichter.rs`, unten); nur bei mehr als 8 wirksamen Punktlichtern (Stärke > 0) oder einem Spot (`Licht.kegel` > 0) |
+| 16 | LICHTER | viele Lichter (Clustered Forward, `kern/src/lichter.rs`, unten); nur bei mehr als 8 wirksamen Punktlichtern (Stärke > 0), einem Spot (`Licht.kegel` > 0) oder einem schattenwerfenden Punkt-/Spotlicht (H-K18) |
+| 20 | SCHATTENLICHTER | Schatten für Punkt-/Spotlichter und Sonnen-Kaskaden (H-K18, unten); nur wenn ein Licht mit `schattenGuete` ≠ aus Schatten wirft, die Sonne `kaskaden` > 1 hat oder ihr `schattenWeich` ≠ 1 ist |
 
 Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
 gelöscht. Atlasrechtecke liegen mit 1 Pixel Abstand.
@@ -274,6 +277,9 @@ Texel mit Deckkraft < ½ werden verworfen (auch im Schatten).
 die sichtbaren (Tiefe schreiben), `SCHATTEN` die werfenden in die Shadow-Map (Tiefe aus `licht_proj`). Danach `DURCH` (Farbe
 mit Deckkraft < 1) von hinten nach vorn (Abstand entlang der Blickrichtung, dann Teil-ID), aufeinanderfolgende gleiche Netze
 zusammengefasst; je Zug erst Rückseiten, dann Vorderseiten, Tiefe testen, nicht schreiben. Frustum-Culling ist erledigt.
+Mit SCHATTENLICHTER folgen hinter `DURCH` **eigene Instanz-Kopien** der Werfer je Schatten-Ansicht (Kaskaden, dann Kacheln; je
+Ansicht nach (Netz, Teil-ID), nur Werfer, deren Hülle die Ansicht schneidet bzw. bei Kaskaden in die Lichtbox fällt) als Züge
+`ANSICHT | a << 8` – je Ansicht und Netz ein Draw-Call; mit Kaskaden entfallen die `SCHATTEN`-Züge der Sonne.
 
 **TEILCHEN3D (20 Bytes je Teilchen):** `f32 x, y, z` (Weltlage) · `f32 r` (halbe Größe, Welt-Einheiten) · `u8 r, g, b, a` (sRGB,
 nicht vormultipliziert). Erst die **leuchtenden** (additiv) in Ausstoßreihenfolge (Komponentenzeile, dann Teilchen), dann die
@@ -303,7 +309,22 @@ anzahl` (versatz = Index in dieser Tabelle, anzahl ≤ 255), danach die Licht-In
 weg, die fernsten zuerst; höchstens 1024 × 2048 Wörter). Zelle eines Punkts p: Kachel `t = ⌊(ndc · ½ + ½) · n⌋` (geklemmt) aus
 `ansicht_proj · p`, Scheibe `s = ⌊ln(max(d, nah)/nah) · tiefe.y⌋` (geklemmt) mit d = (p − Kamera) · vorn. Belegung konservativ: je
 Tiefenscheibe der Quader um die Kugel, an beiden Scheibengrenzen projiziert (x/z ist für festes x monoton in z). Die 8 Lichter in SZENE
-bleiben wie v1 geschrieben; der Shader nimmt mit Abschnitt nur die Zellen-Lichter.
+bleiben wie v1 geschrieben; der Shader nimmt mit Abschnitt nur die Zellen-Lichter. **H-K18:** Ein Licht-Index in der Zellen-Tabelle trägt
+in Bits 16 … 19 die Nummer seines Schatten-Platzes + 1 (0 = ohne Schatten; Indizes < 4096 bleiben in Bits 0 … 15).
+
+**SCHATTENLICHTER (H-K18, `kern/src/lichter.rs`, f32, std140-gleich; Uniform-Block an Bindung 18, die Glut füllt auf 5 200 Bytes
+mit Nullen auf):** `kopf vec4` (1 = an, Kaskaden k (0 = Sonne über SZENE wie v1), `schattenWeich` der Sonne, Zahl der Ansichten) ·
+`kaskaden[4] vec4` (Normalenversatz = Texel in Welt, Tiefen-Bias) · `plaetze[8] vec4` (erste Ansicht, Zahl der Ansichten 1 oder 6,
+`schattenWeich`) · dann je **Ansicht** 96 Bytes: `vp mat4` (Ansicht·Projektion), `rect vec4` (Schicht, x, y, Kante in Texeln),
+`texel vec4` (x = Weltmaß eines Texels; Kacheln: je Einheit Abstand). Erst die k Kaskaden (Schicht i, ganze Schicht 2048²), dann die
+Kacheln der Plätze (Punktlicht: 6 Würfelseiten +x, −x, +y, −y, +z, −z, 90°-Perspektive mit 12 Texeln Rand; Spot bis 60°: eine Kachel,
+halber Öffnungswinkel = `kegel` + Rand; Auge ≈ 0,02 % der Reichweite schief neben dem Licht, damit keine Netz-Ecke w = 0 hat – SwiftShader). **Auswahl:** höchstens 8 Lichter mit `schattenGuete` ≠ aus, `schatten` an, Stärke und
+Reichweite > 0, Kugel im Sichtkörper; Reihenfolge (Abstand Kamera – Lichtrand, Teil-ID). **Packen:** Kante 256/512/1024 (grob, mittel,
+fein), nach (Güte absteigend, Auswahl) in Morton-Reihenfolge in 4 Seiten à 2048² (= 4096² Texel) hinter den Sonnen-Schichten (v1: ab
+Schicht 1, mit Kaskaden ab Schicht k) – lückenlos, weil die Kanten absteigende Zweierpotenzen sind; passt ein Licht nicht ganz, wirft es
+keinen Schatten. **Kaskaden:** Sicht von `nah` bis zur Schattenweite (`schattenWeite` > 0, sonst wie v1) praktisch geteilt
+(λ = 0,75), je Scheibe Kugel um die 8 Ecken (Radius auf 1/16 aufgerundet), Mitte im Lichtraum auf Texel gerastet, Tiefe über die
+Empfänger-Kugel und die Werfer in der Lichtbox; SZENE trägt dann Kaskade 0.
 
 **STIMMUNG (80 Bytes, std140-gleich, f32):** `a vec4` (belichtung, bloom, bloomSchwelle, bloomWeite) · `nebel vec4` (nebelDichte,
 nebelHoehe, nebelAbfall, `fern` der Kamera) · `farbe vec4` (nebelFarbe linear, saettigung) · `b vec4` (vignette, koernung, Zeit = Bild/60 s,
@@ -333,7 +354,7 @@ Glyphen-/Teilchenreihenfolge) → ein instanzierter Draw-Call (6 Ecken × k), ü
 „source over“ in sRGB. Spielfeld-Culling ist erledigt.
 
 **Zeichenfolge der Glut:** Ziel mit `hintergrund` füllen (Spielfeld seitentreu einpassen, Ränder ebenfalls Hintergrund) →
-falls HIMMELSZELT: Himmelszelt, sonst falls Flag 4: Himmelsverlauf → `SCHATTEN`-Züge in die Shadow-Map → `FEST` → `DURCH` → TEILCHEN3D (leuchtend, deckend) → INST2D. Der Himmel ist ein Verlauf
+falls HIMMELSZELT: Himmelszelt, sonst falls Flag 4: Himmelsverlauf → `SCHATTEN`- und `ANSICHT`-Züge in die Schatten-Tiefentextur (je Schicht ein Durchgang, je Zug Rechteck der Ansicht) → `FEST` → `DURCH` → TEILCHEN3D (leuchtend, deckend) → INST2D. Der Himmel ist ein Verlauf
 nach der **Blickrichtung** (Horizont `himmel_unten`, Zenit `himmel_oben`, darunter `himmel_unten`), damit ein Boden im Nebel
 (Nebelfarbe = `himmel_unten`) nahtlos in den Himmel übergeht. Das Himmelszelt (H-K11b) ist ebenfalls ein Dreieck über das ganze
 Spielfeld ohne Tiefe, nur mit eigenem Fragment-Shader (§9).
@@ -375,7 +396,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `vorlage.herd`: `Vorlage` 2D/3D mit Kopie-Wellen, Vieleck-Kind, Umhängen, `ohne`, mit N = 40/1 000; `fliesen.herd`: `Fliesen` als CHUNKS × CHUNKS Raster mit
   wanderndem Blick, Wucht-Körpern auf festen Kacheln, gedrehtem/verschobenem/HUD-Raster, klein 2 × 2 × 48² und voll 4 × 4 × 256² =
-  1024 × 1024 Kacheln; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `material.herd`: Belag-Material mit Teigling-Mustern 6/7, Umstellen, Lösen, Durchsichtiges, N = 24/1000; `regen.herd`: Funken als Regen (Volumen um ein wanderndes Teil, Striche, Licht, Aufschlag mit Spritzern, Rate × `Stimmung.regen` mit Wechsel; im Raum des Teils gedreht und deckend), N = 400/20 000; `stimmung.herd`: Stimmung lose/angehängt/zweite/Vorlage/entfernt, `strahlen` an Körper und Belag, N = 20/2000; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024; `schwung.herd`: `Schwung` mit Kisten-Türmen auf einem Tisch, Kugeln/Kapseln in einer Gelände-Mulde (Fühler `netz`), Rampe aus eigenem Netz, gedrehter fester Kasten, kinematische Drehscheibe, Drehsperre, Auslöser, Maske, Kind unter gedrehter Gruppe, Stoß/Lage/Entfernen/Kopie mitten im Lauf, klein und voll mit N = 500 Kisten bzw. K = 2 000 Kugeln). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  1024 × 1024 Kacheln; `schatten.herd` (H-K18): Schatten-Auswahl, Packen, Kaskaden, Werfer je Ansicht, klein und mit N = 1 000/L = 8 (B13); `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `material.herd`: Belag-Material mit Teigling-Mustern 6/7, Umstellen, Lösen, Durchsichtiges, N = 24/1000; `regen.herd`: Funken als Regen (Volumen um ein wanderndes Teil, Striche, Licht, Aufschlag mit Spritzern, Rate × `Stimmung.regen` mit Wechsel; im Raum des Teils gedreht und deckend), N = 400/20 000; `stimmung.herd`: Stimmung lose/angehängt/zweite/Vorlage/entfernt, `strahlen` an Körper und Belag, N = 20/2000; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024; `schwung.herd`: `Schwung` mit Kisten-Türmen auf einem Tisch, Kugeln/Kapseln in einer Gelände-Mulde (Fühler `netz`), Rampe aus eigenem Netz, gedrehter fester Kasten, kinematische Drehscheibe, Drehsperre, Auslöser, Maske, Kind unter gedrehter Gruppe, Stoß/Lage/Entfernen/Kopie mitten im Lauf, klein und voll mit N = 500 Kisten bzw. K = 2 000 Kugeln). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `ui.herd`: `Taster`, `Leiste`, `Regler`, ziehbare `Tafel` als HUD unter einem gedrehten, gezoomten `Blick`, Maus per `eingabe` je Takt, `Blick.mausX`/`mausY`, klein und mit N = 2 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
@@ -458,8 +479,10 @@ glut.groesse(neue_breite, neue_hoehe);        // bei WindowEvent::Resized
   `textur_speicher()` (PD3: eigene Texturen – Bilder, Nutzlast, angelegter Grafikspeicher), `warte()` (für Messungen),
   `adapter_info()`, `msaa()`, `setze_instancing(b)`. Neue Glut für eine laufende Welt (Fenster neu) → vorher `kern.paket_voll()`.
 - **Ressourcen:** SCHRIFT → R8-Textur; ATLAS_SEITE → Schicht eines RGBA8-Textur-Arrays 2048² (wächst durch Neuanlage + Kopie);
-  ATLAS_STUECK → `write_texture` in die Schicht; NETZ → Ecken-/Indexpuffer je ID. Shadow-Map (Depth32Float 2048²) erst beim ersten
-  Schattenbild. Instanzpuffer wachsen nur (Zweierpotenzen), Pipelines einmal je Zielformat (Cache).
+  ATLAS_STUECK → `write_texture` in die Schicht; NETZ → Ecken-/Indexpuffer je ID. **Schatten-Tiefentextur** (Depth32Float,
+  Textur-Array aus Schichten 2048², H-K18) erst beim ersten Schattenbild, wächst nur: Schicht 0 = Sonne (v1) bzw. Kaskade 0 … k − 1,
+  dahinter die Atlas-Seiten der Punkt-/Spot-Kacheln (höchstens 4 = 4096² Texel; auf GL mindestens 2 Schichten wie der Atlas) –
+  16 MB je Schicht, v1 also wie bisher eine Schicht. Instanzpuffer wachsen nur (Zweierpotenzen), Pipelines einmal je Zielformat (Cache).
 - **Eigene Texturen (TEXTUR, PROJEKTE PD3):** fünf **Größenklassen** 128, 256, 512, 1024, 2048 (kleinste Zweierpotenz ≥ max(b, h),
   mindestens 128), je Klasse ein `Rgba8Unorm`-Textur-Array mit voller Mip-Kette; ein Bild = eine Schicht, Stufe i des Teiglings an
   (0, 0) der Mip-Ebene i (keine Neuberechnung – die Mipmaps des Vorbackers, K-147). Beim Hochladen **vormultipliziert** (bilineare
@@ -472,7 +495,9 @@ glut.groesse(neue_breite, neue_hoehe);        // bei WindowEvent::Resized
   mit beliebig vielen Bildern. Ohne geladene Teiglinge laufen Hochladen und Shader wie vorher (Atlas-Pfad unverändert).
   Grafikspeicher je Klasse `kante² · 4 · 4/3` je Schicht: ein Bild mit Zweierpotenz-Kante belegt genau seine Teigling-Stufen, sonst
   bis knapp das Vierfache (1025² → Klasse 2048); `textur_speicher()` meldet Bilder, Nutzlast und angelegten Speicher.
-- **Durchgänge:** Schatten (nur Tiefe, `licht_proj`, Steigungs-Bias) → Haupt (MSAA 4×, Viewport = eingepasstes Spielfeld): Himmel,
+- **Durchgänge:** Schatten (nur Tiefe, Steigungs-Bias; je benutzter Schicht ein Durchgang, je Zug Viewport = Rechteck der Ansicht und
+  Ansicht·Projektion über einen dynamischen Uniform-Versatz an Bindung 20 – Eintrag 0 = `licht_proj`, 1 + a = Ansicht a aus
+  SCHATTENLICHTER) → Haupt (MSAA 4×, Viewport = eingepasstes Spielfeld): Himmel,
   `FEST` (instanziert je Netz), `DURCH` (Rückseiten, dann Vorderseiten, mischen), 3D-Teilchen (`TEILCHEN3D`, je Mischart ein
   instanzierter Draw-Call, Tiefe testen, nicht schreiben; leuchtend One/One, deckend „source over“), 2D (**ein** instanzierter
   Draw-Call, 6 Ecken aus `vertex_index`). Das Ziel speichert sRGB-kodierte Werte (Format ohne sRGB-Umwandlung); 3D rechnet linear.
@@ -506,7 +531,13 @@ vor jedem `discard` berechnet werden; Welt-Abbildung nach der größten Normalen
 Karis-Mittel und weichem Knie, `fs_ab` 13 Abtastungen, `fs_auf` Zelt 3 × 3 × `bloomWeite` additiv, `fs_abschluss` Belichtung + Bloom/Σ Gewichte,
 ACES (Hill), Sättigung, Vignette, Korn, sRGB + Dither; HDR-Ziel Rgba16Float mit MSAA, falls der Adapter es kann – sonst Rgba8Unorm bzw.
 ohne MSAA; die 3D-Shader prüfen `hdr_an()` (Bindung 17) und geben dann linear aus, mit Höhennebel)
-· `schatten` (nur Tiefe, Textur-Texel < ½ Deckkraft werfen keinen Schatten) · `himmel`
+· `schatten` (nur Tiefe, Matrix aus Bindung 20, Textur-Texel < ½ Deckkraft werfen keinen Schatten) · Schatten in `licht` (H-K18): Sonne
+ohne Abschnitt SCHATTENLICHTER unverändert (`zeltfilter`, Schicht 0); sonst `sonne_neu` (Kaskaden: die erste, deren Bild den Punkt
+samt Filterrand enthält, am Rand der letzten weich ausgeblendet; bzw. v1-Matrix mit anderer Weichheit); Punkt-/Spotlichter in beiden
+Zellen-Schleifen nur, wenn Bits 16 … 19 des Zellen-Eintrags einen Platz nennen (`punktschatten`: Würfelseite nach der größten
+Achse von Licht → Punkt, keine Cube-Map; Normalen- und Lichtversatz = Weltmaß eines Texels an dieser Stelle × (1 + Weichheit));
+`zelt_frei`: derselbe Castaño-Zeltfilter mit Texel-Schritt `w` (0 = eine bilineare Vergleichs-Abtastung), jede Abtastung auf
+das Kachel-Rechteck geklemmt; im Spiegeldurchgang keine Punkt-/Spotschatten (nur die 8 Lichter aus SZENE) · `himmel`
 (Verlauf nach Blickrichtung aus der Inversen von `ansicht_proj`; H-K11b `fs_zelt` für das Himmelszelt: Uniform-Block HIMMELSZELT an
 Bindung 13 (fest 208 B, immer gebunden), Würfelseite und Seitenkoordinate ohne Verzweigung aus der Richtung – **keine Cube-Map**;
 Bild-Seiten aus dem Atlas per `textureLoad` (bilinear von Hand, vormultipliziert) oder aus der eigenen Textur (Bit 17, Glut
@@ -545,7 +576,7 @@ WebGL2 zählen zwei Dinge, beide prüft der Wächter:
 |---|---|---|---|---|---|
 | 0 | Uniform SZENE | VS + FS | alle (Schatten-Layout ebenso) | Block | H2 |
 | 1 | Uniform `Ansicht` | VS + FS | `vs_flach` | Block | H2 |
-| 2 + 3 | `texture_depth_2d` + Vergleichs-Sampler | FS | `fs_licht` (`textureSampleCompare`) | 1 | H2 |
+| 2 + 3 | Schatten-Tiefentextur `texture_depth_2d_array` (Sonne/Kaskaden + Atlas-Seiten der Punkt-/Spot-Kacheln) + Vergleichs-Sampler | FS | `fs_licht` (`textureSampleCompareLevel`) | 1 | H2, H-K18 (Array statt 2D: keine neue Einheit) |
 | 4 | Atlas `texture_2d_array` (nicht filterbar) | FS | `fs_flach`, `fs_zelt`, `fs_licht`, `fs_schatten` (`textureLoad`) | 1 | H2 |
 | 5 + 6 | Schrift R8 + Sampler linear | FS | `fs_flach` | 1 | H2 |
 | 7 … 11 + 12 | eigene Texturen (PD3-Klassen 128 … 2048) + Sampler `eigen_s` | FS | `fs_flach`, `fs_zelt`, `fs_licht` (`textureLoad` und `…Level`/`…Grad`), `fs_schatten` (`textureLoad`, Layout ohne Sampler) | 5 | PD3, Material |
@@ -554,49 +585,60 @@ WebGL2 zählen zwei Dinge, beide prüft der Wächter:
 | 15 | `lichter_t` RGBA32F | VS + FS | `fs_licht`, `vs_funke` (`textureLoad`) | 1 | viele Lichter, Regen (VS) |
 | 16 | `zellen_t` R32Uint | VS + FS | `fs_licht`, `vs_funke` (`textureLoad`) | 1 | viele Lichter, Regen (VS) |
 | 17 | Uniform STIMMUNG | VS + FS | 3D-Fragment-Shader | Block | Stimmung |
-| 18 | – frei – | | | | |
+| 18 | Uniform SCHATTENLICHTER (5 200 B: Kopf, Kaskaden, Plätze, 52 Ansichten) | VS + FS | `fs_licht` | Block | H-K18 |
 | 19 (+ 12) | Spiegelbild `texture_2d` | FS | `fs_licht` (`textureSampleLevel` mit `eigen_s`) | 1 | Spiegelung |
-| *20* | *Punktschatten-Atlas* | *FS* | *`fs_licht`* | *1* | *reserviert H-K18* |
-| *21* | *Verdeckung* | *FS* | *`fs_licht`* | *1* | *reserviert H-K24* |
-| *22, 23* | *Szenenfarbe + Tiefe (Bildschirmraum-Kopien)* | *FS* | *`fs_licht`* | *2* | *reserviert H-K28* |
-| *24* | *Gelenk-Palette* | *VS* | *`vs_licht`, `vs_schatten`* | *1* | *reserviert H-K23b* |
+| 20 | Uniform Ansicht·Projektion je Schatten-Zug (**Schatten-Layout**, dynamischer Versatz, 64 B je 256-B-Eintrag) | VS | `vs_schatten` | Block | H-K18 |
+| *21* | *Verdeckung (SSAO, halbe Auflösung)* | *FS* | *`fs_licht`* | *1* | *geplant H-K24* |
+| *22* | *Gelenk-Palette RGBA32F (Haupt- **und** Schatten-Layout)* | *VS* | *`vs_licht`, `vs_schatten`* | *1* | *geplant H-K23b* |
+| *–* | *Szenenfarbe + Tiefe (Bildschirmraum-Kopien)* | *FS* | *`fs_wasser` im **eigenen** Layout `wasser`* | *0 im Haupt-Layout* | *geplant H-K28* |
 | – | Spiegel-Zellen | | in `zellen_t` (16) | 0 | H-K21 |
 | – | Normal-, Stoff-, Leucht-Karten | | über die PD3-Klassen 7 … 11 | 0 | H-K26 |
+| – | Wind (Uniform-Block), Streu-Instanzen (Instanzpuffer) | | | 0 (Block) | H-K27 |
 
-Nachbild-Layout (eigen): 0 Quelle + 1 Sampler, 2 Uniform STIMMUNG, 3 Bloom-Stufe 0 (+ 1). Die Bindungsnummern 20 … 24 sind
+Nachbild-Layout (eigen): 0 Quelle + 1 Sampler, 2 Uniform STIMMUNG, 3 Bloom-Stufe 0 (+ 1). Die Bindungsnummern 21 ff. sind
 Vorschläge (vergeben in Merge-Reihenfolge, HERD.md §13.1 Regel 1); maßgeblich sind die Einheiten.
 
-**Stand H-K15 (gemessen, Wächter):**
+**Stand H-K18 (gemessen, Wächter; H-K15 → H-K18):**
 
-| Layout | Texturen | Sampler | Uniform-Puffer VS/FS | nach allen Reservierungen |
+| Layout | Texturen | Sampler | Uniform-Puffer VS/FS | nach dem Plan (§13) |
 |---|---|---|---|---|
-| haupt | **11/16** | 3/16 | 5/12 · 5/12 | 16/16 (Texturen; H-K23b liegt im selben Pool) |
-| schatten | 6/16 | 0/16 | 1/12 · 1/12 | 7/16 (+ Gelenk-Palette) |
+| haupt | **11/16** (H-K15: 11) | 3/16 | 6/12 · 6/12 (H-K15: 5 · 5) | 13/16 Texturen (+ H-K24, + H-K23b), ≤ 9/12 Blöcke (+ BILDRAUM, WIND) |
+| schatten | 6/16 | 0/16 | 2/12 · 1/12 (H-K15: 1 · 1) | 7/16 (+ Gelenk-Palette) |
 | nachbild | 2/16 | 1/16 | 0/12 · 1/12 | – |
 
 | Einstiegspunkt | Einheiten | Blöcke | Einstiegspunkt | Einheiten | Blöcke |
 |---|---|---|---|---|---|
 | `vs_flach` | 0 | 2 | `fs_flach` | 7 | 1 |
 | `vs_himmel` | 0 | 1 | `fs_himmel` / `fs_zelt` | 0 / 6 | 2 / 3 |
-| `vs_licht` | 0 | 1 | `fs_licht` | **10/16** (Ende des Plans: 14/16) | 3 |
+| `vs_licht` | 0 | 1 | `fs_licht` | **10/16** | 4 |
 | `vs_schatten` | 0 | 1 | `fs_schatten` | 6 | 0 |
 | `vs_funke` | 2 | 4 | `fs_leuchtend` / `fs_deckend` | 0 / 0 | 1 / 2 |
 | `vs_voll` | 0 | 0 | `fs_vorfilter` / `fs_ab` / `fs_auf` / `fs_abschluss` | 1 / 1 / 1 / 2 | 1 / 0 / 1 / 1 |
 
+**Budget-Planung der übrigen Glut-Stufen** (HERD.md §13.3; maßgeblich ist das Haupt-Layout, 16 Einheiten über **alle** Stufen –
+Vertex-Texturen haben unter wgpu-GL keinen eigenen Pool): H-K18 hat **keine** Einheit gekostet (die Schatten-Tiefentextur ist ein
+Array statt 2D, Kacheln und Kaskaden liegen in ihren Schichten, die Matrizen in Uniform-Blöcken). Danach: **H-K21** 0 (Spiegel-Zellen in
+`zellen_t`) · **H-K24** +1 (Verdeckung; der SSR-Strahlmarsch und der Vorlauf laufen in eigenen Layouts wie das Nachbild, `fs_licht`
+liest nur das Verdeckungsbild) → 12 · **H-K26** 0 (PD3-Klassen) · **H-K23b** +1 (Gelenk-Palette, im Haupt- **und** Schatten-Layout) → 13 ·
+**H-K27** 0 (Uniform-Block WIND, Instanzpuffer) · **H-K28** 0 im Haupt-Layout: der Wasser-Zug bekommt ein **eigenes Layout** `wasser`
+(SZENE, STIMMUNG, Lichter, Schatten, Spiegelbild, Szenenfarbe, Tiefe ≈ 9/16) statt Szenenfarbe und Tiefe ins Haupt-Layout zu legen. Ende
+des Plans: Haupt-Layout **13/16** Texturen, 9/12 Uniform-Blöcke; 3 Einheiten Reserve. **Konsolidierung, falls doch eng:** (1) Schrift
+(5) als R-Kanal einer Atlas-Schicht (−1), (2) `lichter_t` + `zellen_t` als eine RGBA32Uint-Textur mit `bitcast` (−1), (3) Verdeckung in
+den Alpha-Kanal des Spiegelbilds (19) (−1), (4) PD3-Klassen 128 und 256 zusammenlegen (−1, Speicher für kleine Bilder ×4).
+
 Die Annahme aus dem Plan (HERD.md §13.3 H-K15), `fs_licht` belege 15/16, weil `textureLoad` und Abtastung derselben PD3-Klasse je
 eine Einheit kosteten, trifft für naga/wgpu 30 nicht zu: es waren schon vorher 10. Der geplante Umbau von `eigen_lade` auf
 `textureSampleLevel` an der Texelmitte hätte keine Einheit gespart und unterbleibt (Shader unverändert, alle Bilder bitgleich).
-Die knappe Größe ist das **Haupt-Layout**: nach H-K18, H-K24, H-K28 und H-K23b sind alle 16 Einheiten belegt – wer danach eine
-Textur braucht, muss vorher eine Bindung einsparen (z. B. Schrift in den Atlas, Spiegelbild und Szenenfarbe zusammenlegen oder
-die Gelenk-Palette in `lichter_t` legen).
+Die knappe Größe ist das **Haupt-Layout** (H-K15 rechnete mit 16/16 nach allen Reservierungen); die Planung oben (H-K18) kommt mit
+13/16 aus.
 
 **Sonnenschatten (H2a repariert):** Ursache der „schwachen Flecken“ war ein veralteter Uniform-Block im Shader (560 statt 592 Bytes,
 ohne `hintergrund`/`feld`): Der Shader las den Tiefen-Bias aus der Hintergrundfarbe (≈ 0,9) und die PCF-Schrittweite aus 1,0 – fast
 alles galt als beleuchtet. Jetzt: Block feldgleich mit `paket.rs`, PCF als **Zeltfilter 5 × 5 Texel aus 9 bilinearen Vergleichen**
 (Castaño 2013, glatte Kanten ohne Treppen), Normalenversatz 0,5 … 2 Texel je nach Lichteinfall, Tiefen-Bias aus dem Kern
 (1,5 Texel) plus Steigungs-Bias im Schattendurchgang. Ergebnis: deutlich sichtbare, weiche Schatten ohne Akne und ohne sichtbares
-Ablösen; bei sehr flacher Sonne in Nahsicht bleibt eine leichte Welligkeit (eine 2048er-Map für die ganze Sicht; Kaskaden =
-spätere Kern-Erweiterung).
+Ablösen; bei sehr flacher Sonne in Nahsicht bleibt eine leichte Welligkeit (eine 2048er-Map für die ganze Sicht) – dafür gibt es seit
+H-K18 `Licht.kaskaden` (2 … 4 Schichten 2048², praktische Teilung) und `schattenWeite`.
 
 ## 10. Werkzeug `herd-bild`, Referenzbilder, Messungen
 
@@ -629,7 +671,10 @@ farbige Lichter knapp über dem Boden, Spot; ohne Stimmung),
 `3d-lichter` (viele Lichter: nächtliche Gasse, 256 farbige Punktlichter knapp über nassem Boden, 4 Spots mit weichem Rand),
 `3d-himmelszelt` (H-K11b: Abenddämmerung prozedural mit tiefer Sonnenscheibe und Sternen, Seite rechts aus einem Teigling 512²
 mit Bergketten vor durchsichtigem Himmel, Seite oben aus einem Atlas-Bildchen 24² mit halb durchsichtigen Wolken, Würfelkanten
-sichtbar).
+sichtbar),
+`3d-punktschatten` (H-K18: nächtlicher Hof mit Säulen, Kisten und Kugeln; drei Punktlichter mit Würfelschatten fein/mittel/grob,
+zwei Spots als Kacheln, Schatten auf klassischem und pbr-Boden), `3d-kaskaden` (H-K18: lange Allee, flache Sonne mit 4 Kaskaden bis
+80 m, dünne Zaunlatten vorn scharf, Säulen bis weit hinten).
 **Pixeltest** in `cargo test`
 (`herd-werkzeug`): rendert jedes Skript auf dem Software-Adapter und vergleicht mit Toleranz K-129 (mittlere Abweichung ≤ 1,5 %,
 ≥ 98 % der Pixel innerhalb 10/255); ohne Software-Adapter wird er mit Hinweis übersprungen. Dazu: Instancing ändert das Bild nicht

@@ -24,7 +24,7 @@ use std::sync::Arc;
 pub use herd_kern;
 pub use wgpu;
 
-use herd_kern::lichter::{LICHTER_KOPF_BYTES, LICHT_BYTES};
+use herd_kern::lichter::{LICHTER_KOPF_BYTES, LICHT_BYTES, MAX_ANSICHTEN, SCHATTENLICHTER_BYTES, SCHATTENLICHTER_KOPF_BYTES, SCHATTEN_ANSICHT_BYTES};
 use herd_kern::paket::{abschnitt, flach_art, flag, zug, Leser, ECKE_BYTES, HIMMELSZELT_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES, ZUSATZ3D_BYTES, ZUSATZ_TEILCHEN_BYTES};
 use wgpu::util::DeviceExt as _;
 
@@ -331,7 +331,17 @@ pub struct Glut {
     bg_spiegel: Option<wgpu::BindGroup>,
     spiegel: Option<SpiegelZiel>,
     platzhalter: wgpu::TextureView,
+    /// Schatten-Tiefentextur (H-K18): Array aus Schichten 2048² – Schicht 0 = Sonne bzw. Kaskaden, dahinter die Atlas-Seiten
+    /// der Punkt-/Spot-Kacheln; Array-Ansicht zum Abtasten (Bindung 2), je Schicht eine Ansicht als Tiefenziel
     schatten_map: wgpu::TextureView,
+    schatten_schichten: Vec<wgpu::TextureView>,
+    /// Abschnitt SCHATTENLICHTER als Uniform-Block (Bindung 18, SCHATTENLICHTER_BYTES; ohne Abschnitt Nullen → v1)
+    schattenlichter: wgpu::Buffer,
+    schattenlichter_an: bool,
+    /// Ansicht·Projektion je Schatten-Zug (Bindung 20 im Schatten-Layout, dynamischer Versatz): Eintrag 0 = licht_proj,
+    /// 1 + a = Ansicht a des Abschnitts SCHATTENLICHTER
+    schatten_zug: wgpu::Buffer,
+    zug_schritt: u64,
     atlas: (wgpu::Texture, wgpu::TextureView, u32),
     /// GL/WebGL2: ein Textur-Array mit nur einer Schicht wird dort zu TEXTURE_2D (wgpu-hal) und passt dann nicht zur
     /// D2Array-Ansicht → Atlas immer mit mindestens 2 Schichten anlegen (sonst 1)
@@ -478,7 +488,8 @@ fn layout_haupt() -> Vec<wgpu::BindGroupLayoutEntry> {
     vec![
         ubo_eintrag(0),
         ubo_eintrag(1),
-        textur_eintrag(2, St::FRAGMENT, T::Depth, D::D2),
+        // Schatten-Tiefentextur (Sonne, Kaskaden und Atlas-Seiten der Punkt-/Spot-Kacheln, H-K18): eine Einheit
+        textur_eintrag(2, St::FRAGMENT, T::Depth, D::D2Array),
         sampler_eintrag(3, S::Comparison),
         atlas_eintrag(),
         textur_eintrag(5, St::FRAGMENT, T::Float { filterable: true }, D::D2),
@@ -498,14 +509,23 @@ fn layout_haupt() -> Vec<wgpu::BindGroupLayoutEntry> {
         textur_eintrag(16, St::VERTEX_FRAGMENT, T::Uint, D::D2),
         // Stimmung (HDR-Ausgabe, Höhennebel)
         ubo_eintrag(17),
+        // Schatten für Punkt-/Spotlichter und Kaskaden (H-K18): Uniform-Block, keine Textureinheit
+        ubo_eintrag(18),
         // Spiegelbild (Stimmung.spiegelung)
         textur_eintrag(19, St::FRAGMENT, T::Float { filterable: true }, D::D2),
     ]
 }
 
-/// Schatten-Layout: SZENE, Atlas und eigene Texturen (Deckkraft, nur `textureLoad`)
+/// Schatten-Layout: SZENE, Atlas und eigene Texturen (Deckkraft, nur `textureLoad`), Ansicht·Projektion je Zug (20,
+/// dynamischer Versatz, H-K18)
 fn layout_schatten() -> Vec<wgpu::BindGroupLayoutEntry> {
-    vec![ubo_eintrag(0), atlas_eintrag(), eigen_eintrag(7), eigen_eintrag(8), eigen_eintrag(9), eigen_eintrag(10), eigen_eintrag(11)]
+    let zug = wgpu::BindGroupLayoutEntry {
+        binding: 20,
+        visibility: wgpu::ShaderStages::VERTEX,
+        ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: true, min_binding_size: wgpu::BufferSize::new(64) },
+        count: None,
+    };
+    vec![ubo_eintrag(0), atlas_eintrag(), eigen_eintrag(7), eigen_eintrag(8), eigen_eintrag(9), eigen_eintrag(10), eigen_eintrag(11), zug]
 }
 
 /// Nachbild: 0 Quelle, 1 Sampler, 2 Stimmung, 3 Bloom-Stufe 0
@@ -792,8 +812,11 @@ impl Glut {
         let lichter_kopf = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd lichter"), size: LICHTER_KOPF_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let lichter_t = Glut::daten_textur(dev, "herd lichter", wgpu::TextureFormat::Rgba32Float, 3 * LICHTER_JE_ZEILE, 1);
         let zellen_t = Glut::daten_textur(dev, "herd zellen", wgpu::TextureFormat::R32Uint, ZELLEN_BREITE, 1);
-        let schatten_map = Glut::tiefen_textur(dev, "herd shadow-map", 1, 1, 1);
         let atlas_min = if adapter.get_info().backend == wgpu::Backend::Gl { 2 } else { 1 };
+        let (schatten_map, schatten_schichten) = Glut::schatten_textur(dev, 1, atlas_min);
+        let schattenlichter = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd schattenlichter"), size: SCHATTENLICHTER_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
+        let zug_schritt = (dev.limits().min_uniform_buffer_offset_alignment as u64).max(64);
+        let schatten_zug = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd schatten zug"), size: zug_schritt * (1 + MAX_ANSICHTEN as u64), usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let atlas = Glut::atlas_textur(dev, 1, atlas_min);
         let schrift = Glut::schrift_textur(dev, 1, 1);
         let eigen = EigeneTexturen { klassen: (0..KLASSEN).map(|k| Glut::klasse_textur(dev, k, atlas_min, false)).collect(), karte: Default::default(), nutz: 0 };
@@ -842,6 +865,11 @@ impl Glut {
             spiegel: None,
             platzhalter,
             schatten_map,
+            schatten_schichten,
+            schattenlichter,
+            schattenlichter_an: false,
+            schatten_zug,
+            zug_schritt,
             atlas: (atlas.0, atlas.1, 0),
             atlas_min,
             schrift: (schrift.0, schrift.1, 1, 1),
@@ -888,6 +916,25 @@ impl Glut {
             view_formats: &[],
         })
         .create_view(&Default::default())
+    }
+
+    /// Schatten-Tiefentextur (H-K18): `schichten` Schichten `kante²`, Array-Ansicht zum Abtasten, je Schicht ein Tiefenziel.
+    fn schatten_textur(dev: &wgpu::Device, kante: u32, schichten: u32) -> (wgpu::TextureView, Vec<wgpu::TextureView>) {
+        let t = dev.create_texture(&wgpu::TextureDescriptor {
+            label: Some("herd shadow-map"),
+            size: wgpu::Extent3d { width: kante, height: kante, depth_or_array_layers: schichten },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: TIEFE,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let feld = t.create_view(&wgpu::TextureViewDescriptor { dimension: Some(wgpu::TextureViewDimension::D2Array), ..Default::default() });
+        let einzeln = (0..schichten)
+            .map(|s| t.create_view(&wgpu::TextureViewDescriptor { dimension: Some(wgpu::TextureViewDimension::D2), base_array_layer: s, array_layer_count: Some(1), ..Default::default() }))
+            .collect();
+        (feld, einzeln)
     }
 
     /// Datentextur (nur `textureLoad`, keine Mip-Stufen) – viele Lichter.
@@ -1520,10 +1567,14 @@ impl Glut {
         }
     }
 
-    fn bindegruppen(&mut self, schatten_noetig: bool) {
-        // Shadow-Map erst anlegen, wenn ein Bild Schatten hat (16 MB bei 2048²) – auch wenn frühere Bilder keine hatten
-        if schatten_noetig && self.schatten_map.texture().width() != SCHATTEN_GROESSE {
-            self.schatten_map = Glut::tiefen_textur(&self.device, "herd shadow-map", SCHATTEN_GROESSE, SCHATTEN_GROESSE, 1);
+    fn bindegruppen(&mut self, schichten: u32) {
+        // Shadow-Map erst anlegen, wenn ein Bild Schatten hat (16 MB je Schicht 2048²) – auch wenn frühere Bilder keine hatten;
+        // wächst nur (Kaskaden, Atlas-Seiten der Punkt-/Spot-Kacheln, H-K18)
+        let t = self.schatten_map.texture();
+        if schichten > 0 && (t.width() != SCHATTEN_GROESSE || t.depth_or_array_layers() < schichten) {
+            let alt = if t.width() == SCHATTEN_GROESSE { t.depth_or_array_layers() } else { 0 };
+            let n = schichten.max(alt).max(self.atlas_min);
+            (self.schatten_map, self.schatten_schichten) = Glut::schatten_textur(&self.device, SCHATTEN_GROESSE, n);
             self.bg_haupt = None;
         }
         if self.bg_haupt.is_none() {
@@ -1539,6 +1590,7 @@ impl Glut {
                 entries: &[
                     wgpu::BindGroupEntry { binding: 0, resource: self.szene.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(&self.atlas.1) },
+                    wgpu::BindGroupEntry { binding: 20, resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding { buffer: &self.schatten_zug, offset: 0, size: wgpu::BufferSize::new(64) }) },
                     wgpu::BindGroupEntry { binding: 7, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[0].ansicht) },
                     wgpu::BindGroupEntry { binding: 8, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[1].ansicht) },
                     wgpu::BindGroupEntry { binding: 9, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[2].ansicht) },
@@ -1574,6 +1626,7 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 15, resource: wgpu::BindingResource::TextureView(&self.lichter_t.1) },
                     wgpu::BindGroupEntry { binding: 16, resource: wgpu::BindingResource::TextureView(&self.zellen_t.1) },
                     wgpu::BindGroupEntry { binding: 17, resource: self.stimmung.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 18, resource: self.schattenlichter.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 19, resource: wgpu::BindingResource::TextureView(spiegelbild) },
                 ],
             })
@@ -1621,6 +1674,7 @@ impl Glut {
         let mut stimmung: Option<&[u8]> = None;
         let mut zusatz: Option<&[u8]> = None;
         let mut teilchen_zus: Option<&[u8]> = None;
+        let mut schatten_d: Option<&[u8]> = None;
         let mut n_leuchtend = 0u32;
         self.zuege.clear();
         let mut szene_da = false;
@@ -1660,6 +1714,12 @@ impl Glut {
                 }
                 abschnitt::ZUSATZ3D => zusatz = Some(d),
                 abschnitt::ZUSATZ_TEILCHEN => teilchen_zus = Some(d),
+                abschnitt::SCHATTENLICHTER => {
+                    if d.len() < SCHATTENLICHTER_KOPF_BYTES || d.len() > SCHATTENLICHTER_BYTES || (d.len() - SCHATTENLICHTER_KOPF_BYTES) % SCHATTEN_ANSICHT_BYTES != 0 {
+                        return Err(Fehler::Paket(format!("SCHATTENLICHTER hat {} Bytes", d.len())));
+                    }
+                    schatten_d = Some(d);
+                }
                 abschnitt::STIMMUNG => {
                     if d.len() != STIMMUNG_BYTES {
                         return Err(Fehler::Paket(format!("STIMMUNG hat {} Bytes", d.len())));
@@ -1702,6 +1762,34 @@ impl Glut {
                 0.0
             }
         };
+        // Schatten für Punkt-/Spotlichter und Kaskaden (H-K18): Block hochladen bzw. ohne Abschnitt auf 0 (v1)
+        match schatten_d {
+            Some(d) => {
+                let mut b = d.to_vec();
+                b.resize(SCHATTENLICHTER_BYTES, 0);
+                self.queue.write_buffer(&self.schattenlichter, 0, &b);
+                self.schattenlichter_an = true;
+                stat.hochgeladen += d.len() as u64;
+            }
+            None => {
+                if self.schattenlichter_an {
+                    self.queue.write_buffer(&self.schattenlichter, 0, &[0u8; SCHATTENLICHTER_BYTES]);
+                    self.schattenlichter_an = false;
+                }
+            }
+        }
+        // Schatten-Ansichten: (Schicht, Rechteck x y kante) je Ansicht des Abschnitts
+        let ansichten: Vec<(u32, [f32; 3])> = schatten_d
+            .map(|d| {
+                let f = |i: usize| f32::from_le_bytes([d[i], d[i + 1], d[i + 2], d[i + 3]]);
+                (0..(d.len() - SCHATTENLICHTER_KOPF_BYTES) / SCHATTEN_ANSICHT_BYTES)
+                    .map(|a| {
+                        let o = SCHATTENLICHTER_KOPF_BYTES + a * SCHATTEN_ANSICHT_BYTES + 64;
+                        (f(o) as u32, [f(o + 4), f(o + 8), f(o + 12)])
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         let n2 = (inst2d.len() / INST2D_BYTES) as u32;
         let n3 = (inst3d.len() / INST3D_BYTES) as u32;
         let (neu2d, neu3d) = self.umschreiben(inst2d, inst3d);
@@ -1758,8 +1846,41 @@ impl Glut {
         let ab: Vec<u8> = ansicht.iter().flat_map(|f| f.to_le_bytes()).collect();
         self.queue.write_buffer(&self.ansicht, 0, &ab);
 
-        let schatten = flags & flag::SCHATTEN != 0;
-        self.bindegruppen(schatten);
+        // Schatten-Züge: (Zug, Schicht, Ansicht + 1 bzw. 0 = licht_proj); Schichten der Tiefentextur
+        let schatten_zuege: Vec<(usize, u32, u32)> = if flags & flag::SCHATTEN != 0 {
+            self.zuege
+                .iter()
+                .enumerate()
+                .filter_map(|(i, z)| {
+                    if z[0] == zug::SCHATTEN {
+                        Some((i, 0, 0))
+                    } else if z[0] & 0xFF == zug::ANSICHT {
+                        let a = (z[0] >> 8) as usize;
+                        ansichten.get(a).map(|v| (i, v.0, a as u32 + 1))
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let schichten = schatten_zuege.iter().map(|z| z.1 + 1).max().unwrap_or(0);
+        let schatten = schichten > 0;
+        self.bindegruppen(schichten);
+        if schatten {
+            // Ansicht·Projektion je Zug: Eintrag 0 = licht_proj (SZENE @64), 1 + a = Ansicht a
+            let schritt = self.zug_schritt as usize;
+            let mut m = vec![0u8; schritt * (1 + ansichten.len())];
+            m[..64].copy_from_slice(&szene_d[64..128]);
+            if let Some(d) = schatten_d {
+                for a in 0..ansichten.len() {
+                    let o = SCHATTENLICHTER_KOPF_BYTES + a * SCHATTEN_ANSICHT_BYTES;
+                    m[(1 + a) * schritt..(1 + a) * schritt + 64].copy_from_slice(&d[o..o + 64]);
+                }
+            }
+            self.queue.write_buffer(&self.schatten_zug, 0, &m);
+        }
 
         // Ziel-Ansicht
         let mut fenster_textur = None;
@@ -1788,7 +1909,7 @@ impl Glut {
         let spiegel_h = stimmung.filter(|d| f32::from_le_bytes([d[64], d[65], d[66], d[67]]) > 0.0).map(|d| f32::from_le_bytes([d[68], d[69], d[70], d[71]]));
         if let Some(hh) = spiegel_h {
             self.spiegel_bereit();
-            self.bindegruppen(schatten);
+            self.bindegruppen(schichten);
             let mut s = szene_d.to_vec();
             let f = |s: &[u8], i: usize| f32::from_le_bytes([s[i], s[i + 1], s[i + 2], s[i + 3]]);
             for r in 0..4 {
@@ -1808,25 +1929,35 @@ impl Glut {
         let instancing = self.opt.instancing;
         let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("herd bild") });
 
-        // ---- Schattendurchgang ----
-        if schatten {
+        // ---- Schattendurchgang: je benutzter Schicht ein Durchgang, je Zug Rechteck und Ansicht·Projektion (H-K18) ----
+        for schicht in 0..schichten {
+            if !schatten_zuege.iter().any(|z| z.1 == schicht) {
+                continue;
+            }
             let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("herd schatten"),
                 color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.schatten_map,
+                    view: &self.schatten_schichten[schicht as usize],
                     depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }),
                     stencil_ops: None,
                 }),
                 ..Default::default()
             });
             p.set_pipeline(&self.schatten_pipeline);
-            p.set_bind_group(0, self.bg_schatten.as_ref(), &[]);
-            for z in self.zuege.iter().filter(|z| z[0] == zug::SCHATTEN) {
+            let g = SCHATTEN_GROESSE as f32;
+            for &(i, _, a) in schatten_zuege.iter().filter(|z| z.1 == schicht) {
+                let z = self.zuege[i];
                 let Some(Some(n)) = self.netze.get(z[1] as usize) else { continue };
                 if z[2] + z[3] > n3 {
                     continue;
                 }
+                let r = if a == 0 { [0.0, 0.0, g] } else { ansichten[a as usize - 1].1 };
+                if !(r[2] >= 1.0 && r[0] >= 0.0 && r[1] >= 0.0 && r[0] + r[2] <= g && r[1] + r[2] <= g) {
+                    continue;
+                }
+                p.set_viewport(r[0], r[1], r[2], r[2], 0.0, 1.0);
+                p.set_bind_group(0, self.bg_schatten.as_ref(), &[(a as u64 * self.zug_schritt) as u32]);
                 p.set_vertex_buffer(0, n.ecken.slice(..));
                 p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
                 let anzahl = Glut::zeichne_netz(&mut p, &self.inst3d.puffer, None, n.anzahl, z[2], z[3], instancing);

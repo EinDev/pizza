@@ -1,0 +1,107 @@
+// Laternengasse – eine Altstadtgasse bei Nacht. Sechs Laternen und zwei Wandstrahler werfen Schatten: Fässer, Kisten,
+// Bänke und Poller zeichnen dunkle Fächer aufs Pflaster. Der Taster oben links (oder die Leertaste) schaltet auf Tag:
+// Die Laternen gehen aus, die Sonne steht über den Dächern und wirft Schatten bis ans Ende der Gasse.
+//
+// So arbeitet die Engine für dich: Ein Licht wirft Schatten, sobald du `schattenGuete` setzt ("grob", "mittel", "fein").
+// Für ein Punktlicht rendert die Engine sechs Bilder um das Licht herum (eine Würfelseite je Richtung), für einen Spot eines –
+// alle als Kacheln in einem Schatten-Atlas. Höchstens 8 Lichter werfen je Bild Schatten; die Engine wählt die, die im Bild
+// wirken, nach Nähe zur Kamera. `schattenWeich` macht die Kanten weich. Die Sonne teilt die Sicht mit `kaskaden` in Stufen:
+// vorn feine Schatten, hinten grobe – bis `schattenWeite` Meter.
+
+Herd herd = neu Herd("Laternengasse", breite: 960, hoehe: 540);
+Licht sonne = herd.sonne().licht();
+herd.sonne().setzeLage(-0.45, 1, -0.55);
+sonne.setzeFarbe("#ffe6c4").setzeKaskaden(3).setzeSchattenWeite(60).setzeSchattenWeich(1.5);
+
+// Pflaster und zwei Häuserzeilen mit Türen
+herd.koerper(Form.ebene(), 0, 0, -14, farbe: "#5a5560", glanz: 0.5).setzeGroesse(16, 1, 80);
+Blech<margherita> PUTZ = ["#9a7a62", "#7f6e80", "#a8865c", "#77806e"];
+für (salami i = 0; i < 9; i++) {
+    für (salami s = -1; s <= 1; s += 2) {
+        funghi hoehe = 7 + (i * 3 + s + 5) % 4;
+        herd.koerper(Form.wuerfel(), s * 6.5, hoehe / 2, 12 - i * 6, farbe: PUTZ.stück((i + s + 4) % 4 + 1), glanz: 0.1).setzeGroesse(3, hoehe, 5.8);
+        herd.koerper(Form.wuerfel(), s * 4.99, 1.2, 12 - i * 6, farbe: "#2b1d16", glanz: 0.3).setzeGroesse(0.05, 2.4, 1.3);
+    }
+}
+
+// Straßenmöbel: Fässer, Kisten, Bänke, Poller – sie werfen die Schatten
+für (salami i = 0; i < 8; i++) {
+    funghi s = i % 2 == 0 ? -1 : 1;
+    funghi z = 9 - i * 6.3;
+    herd.koerper(Form.zylinder(teile: 20), s * 3.6, 0.5, z + 1.4, farbe: "#7a4a2a", glanz: 0.3).setzeGroesse(0.7, 1, 0.7);
+    herd.koerper(Form.wuerfel(), s * 3.3, 0.35, z - 1.2, farbe: "#b07a48", glanz: 0.2).setzeGroesse(0.7, 0.7, 0.7);
+    herd.koerper(Form.wuerfel(), -s * 3.9, 0.45, z, farbe: "#4a3424").setzeGroesse(0.5, 0.08, 1.8);
+    herd.koerper(Form.wuerfel(), -s * 3.9, 0.22, z - 0.8, farbe: "#2a2420").setzeGroesse(0.4, 0.44, 0.08);
+    herd.koerper(Form.wuerfel(), -s * 3.9, 0.22, z + 0.8, farbe: "#2a2420").setzeGroesse(0.4, 0.44, 0.08);
+    herd.koerper(Form.zylinder(teile: 12), s * 1.8, 0.4, z - 3, farbe: "#3a3a40").setzeGroesse(0.18, 0.8, 0.18);
+}
+
+// Sechs Laternen in der Mitte der Gasse: Mast, Lampe (wirft selbst keinen Schatten) und ein Punktlicht mit Schatten
+Blech<Licht> laternen = [];
+Blech<Koerper> lampen = [];
+für (salami i = 0; i < 6; i++) {
+    funghi x = i % 2 == 0 ? -1.2 : 1.2;
+    funghi z = 10 - i * 7.5;
+    herd.koerper(Form.zylinder(teile: 12), x, 1.3, z, farbe: "#1e1e22", glanz: 0.4).setzeGroesse(0.1, 2.6, 0.1);
+    Teil lampe = herd.koerper(Form.kugel(teile: 14), x, 2.95, z, farbe: "#ffe0a0", leuchten: 1);
+    lampe.setzeGroesse(0.32);
+    lampe.koerper().setzeSchatten(nein);
+    lampen.hinzu(lampe.koerper());
+    Licht l = herd.licht(x, 2.95, z, farbe: "#ffcf8a", reichweite: 11).licht();
+    l.setzeStaerke(2.6).setzeSchattenGuete(i < 2 ? "fein" : "mittel").setzeSchattenWeich(1.5);
+    laternen.hinzu(l);
+}
+
+// Zwei Wandstrahler, schräg aufs Pflaster
+Blech<Licht> strahler = [];
+für (salami j = 0; j < 2; j++) {
+    funghi s = j == 0 ? -1 : 1;
+    funghi z = 2 - j * 16;
+    herd.koerper(Form.wuerfel(), s * 4.85, 4.2, z, farbe: "#30343a").setzeGroesse(0.3, 0.2, 0.4);
+    Teil sp = herd.licht(s * 4.6, 4.1, z, farbe: "#bcd8ff", reichweite: 14);
+    sp.schaueAuf(-s * 0.5, 0, z - 3);
+    Licht l = sp.licht();
+    l.setzeKegel(34).setzeKegelRand(0.4).setzeStaerke(6).setzeSchattenGuete("fein").setzeSchattenWeich(1);
+    strahler.hinzu(l);
+}
+
+// HUD: Taster „Tag“/„Nacht“
+Taster umschalten = herd.gruppe(70, 30).mit(neu Taster(inhalt: "Tag", breite: 110, hoehe: 34, farbe: "mozzarella"));
+
+diavolo tag = nein;
+Rezept stelle = () -> {
+    falls (tag) {
+        herd.himmel("#6fa0d8", "#e6eef6");
+        herd.nebel("#e6eef6", 40, 90);
+        herd.umgebung("#b8c8e8", staerke: 0.3);
+        sonne.setzeStaerke(1.1);
+        für (salami i = 1; i <= laternen.länge(); i++) {
+            laternen.stück(i).setzeStaerke(0);
+            lampen.stück(i).setzeLeuchten(0);
+        }
+        für (salami j = 1; j <= strahler.länge(); j++) { strahler.stück(j).setzeStaerke(0); }
+        umschalten.setzeInhalt("Nacht");
+    } sonst {
+        herd.himmel("#05060c", "#1a1430");
+        herd.nebel("#1a1430", 18, 60);
+        herd.umgebung("#6070b0", staerke: 0.07);
+        sonne.setzeStaerke(0);
+        für (salami i = 1; i <= laternen.länge(); i++) {
+            laternen.stück(i).setzeStaerke(2.6);
+            lampen.stück(i).setzeLeuchten(1);
+        }
+        für (salami j = 1; j <= strahler.länge(); j++) { strahler.stück(j).setzeStaerke(6); }
+        umschalten.setzeInhalt("Tag");
+    }
+};
+stelle();
+
+herd.backe(() -> {
+    funghi t = herd.zeit();
+    herd.kamera().setzeLage(Mathe.sin(t * 0.3) * 0.8, 1.8, 14 - t * 0.7).schaueAuf(0, 1.2, -10 - t * 0.7);
+    falls (umschalten.geklickt() || herd.gedrueckt("Leertaste")) {
+        tag = !tag;
+        stelle();
+    }
+});
+Bote.sage("Laternengasse: 6 Laternen und 2 Strahler mit Schatten.");

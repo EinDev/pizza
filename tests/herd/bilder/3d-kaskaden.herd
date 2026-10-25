@@ -1,0 +1,80 @@
+#! bild 2 groesse 1280x720
+# Referenzbild „Sonnen-Kaskaden“ (H-K18): eine lange Allee am Nachmittag – Boden 200 m, zwei Reihen Säulen und Kisten bis
+# 90 m in die Tiefe, ein Zaun aus dünnen Latten vorn, flache Sonne von links; Sonne mit 4 Kaskaden bis 80 m
+# (`schattenWeite`), Weichheit 1,5. Prüft: scharfe Schatten vorn (dünne Latten) und Schatten bis weit hinten,
+# Kaskadenwechsel ohne sichtbare Kanten, weicher Auslauf am Ende der letzten Kaskade.
+welt_neu 1280 720 "Kaskaden"
+welt_himmel "#7fa8d8" "#e8eef4"
+welt_umgebung "#b0c0e0" 0.32
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "kaskaden" -> L_KASK
+feld_nummer T_L "schattenWeite" -> L_WEITE
+feld_nummer T_L "schattenWeich" -> L_WEICH
+form_grund 1 0 0 -> WUERFEL
+form_grund 3 16 0 -> ZYLINDER
+form_grund 5 0 0 -> EBENE
+
+teil_lage 1 0 2.2 6
+teil_schaue 1 0 1.2 -20
+# Sonne flach von links hinten
+teil_lage 2 -1 0.55 -0.35
+komp_von 2 T_L -> SONNE
+setze_text SONNE L_F "#fff0d8"
+setze_zahl SONNE L_ST 1.1
+setze_zahl SONNE L_KASK 4
+setze_zahl SONNE L_WEITE 80
+setze_zahl SONNE L_WEICH 1.5
+
+teil_neu 3 -> boden
+teil_lage boden 0 0 -90
+teil_groesse boden 60 1 200
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_text k K_F "#b8b09a"
+komp_haenge k boden
+
+# zwei Reihen Säulen bis 90 m, dazwischen Kisten
+wiederhole 2 s
+  wiederhole 16 i
+    teil_neu 3 -> p
+    teil_lage p ((s * 2 - 1) * 4.5) 2 (-2 - i * 6)
+    teil_groesse p 0.6 4 0.6
+    komp_neu T_K -> k
+    setze_zahl k K_FORM ZYLINDER
+    setze_text k K_F "#e0d8c8"
+    komp_haenge k p
+    teil_neu 3 -> kiste
+    teil_lage kiste ((s * 2 - 1) * (1.6 + (i % 3) * 0.5)) 0.45 (-5 - i * 6)
+    teil_groesse kiste 0.9 0.9 0.9
+    komp_neu T_K -> k
+    setze_zahl k K_FORM WUERFEL
+    setze_text k K_F "#a86a48"
+    setze_zahl k K_GLANZ 0.2
+    komp_haenge k kiste
+  ende
+ende
+
+# Zaun vorn rechts aus dünnen Latten quer zur Sonne (feine Streifen in der ersten Kaskade)
+wiederhole 14 i
+  teil_neu 3 -> latte
+  teil_lage latte 2.2 0.5 (1.8 - i * 0.22)
+  teil_groesse latte 0.06 1 0.06
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  setze_text k K_F "#6a5a48"
+  komp_haenge k latte
+ende
+teil_neu 3 -> riegel
+teil_lage riegel 2.2 0.85 0.37
+teil_groesse riegel 0.06 0.06 3.2
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#6a5a48"
+komp_haenge k riegel
+takte 2

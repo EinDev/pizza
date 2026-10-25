@@ -73,6 +73,9 @@ const LAEUFE = [
   ['schwung.herd', {}],
   ['schwung.herd', { N: 500, K: 0, TAKTE: 60 }],
   ['schwung.herd', { N: 0, K: 2000, TAKTE: 30 }],
+  ['schatten.herd', {}],
+  ['schatten.herd', { N: 1000, L: 8, TAKTE: 10 }],
+  ['schatten.herd', { N: 1000, L: 8, NACHT: 1, AUS: 0, TAKTE: 10 }],
 ];
 
 const args = process.argv.slice(2);
