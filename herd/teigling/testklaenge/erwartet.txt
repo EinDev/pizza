@@ -26,8 +26,8 @@ akkord-stereo.flac 44100 2 16 11025 1 63648b2997de8b8fbd540e69013bfb59dee15ad448
 klick-24.flac 48000 1 24 4800 1 1f87c2660cfbed07e4634552290fd2bd457a2f952f51975c09e5699fb9eed3d1 f267909c1bcb90a385e32a8b5604ef419cbc320380d8b337c5659891142f27b7
 ffmpeg-stereo-24.flac 44100 2 24 2205 1 ead7678a4909cc5cc5a5300aa9b1a8715b68b1c4e2b9c025e571826b2f2fa9fd 4a4856b7e2952b73988371a81f600318ee9ac02019f9f770d849f655b18cb79c
 ffmpeg-mono-16.flac 22050 1 16 2205 1 ea7f5b331ac324971eaa9acdfffd54de3c15579eb84807cd389d2c1ccb569d5b a365150265a24d359cbbc7b2b605cc9beb6ab0cda17286e31df1e16ccb2cb26a
-fehler-kaputt.wav fehler 1 ist kein lesbarer Klang (WAV oder FLAC).
-fehler-crc.flac fehler 1 ist kein lesbarer Klang (WAV oder FLAC).
+fehler-kaputt.wav fehler 1 ist kein lesbarer Klang (WAV, FLAC oder OGG).
+fehler-crc.flac fehler 1 ist kein lesbarer Klang (WAV, FLAC oder OGG).
 fehler-zu-lang.flac fehler 2 ist zu lang (10:01) – höchstens 10 Minuten.
 fehler-zu-lang.wav fehler 2 ist zu lang (10:01) – höchstens 10 Minuten.
 fehler-kanaele.wav fehler 4 hat 6 Kanäle – höchstens 2 (Mono oder Stereo).
@@ -35,12 +35,29 @@ fehler-rate.wav fehler 5 hat 192 000 Hz – erlaubt sind 8 000 bis 96 000 Hz.
 fehler-format.wav fehler 6 ist ein WAV in einem Format, das der Herd nicht kann (nur PCM mit 8, 16, 24 oder 32 Bit und Float mit 32 Bit).
 fehler-format-float64.wav fehler 6 ist ein WAV in einem Format, das der Herd nicht kann (nur PCM mit 8, 16, 24 oder 32 Bit und Float mit 32 Bit).
 fehler-format-extensible.wav fehler 6 ist ein WAV in einem Format, das der Herd nicht kann (nur PCM mit 8, 16, 24 oder 32 Bit und Float mit 32 Bit).
-fehler-null.wav fehler 1 ist kein lesbarer Klang (WAV oder FLAC).
-fehler-kein-klang.ogg fehler 1 ist kein lesbarer Klang (WAV oder FLAC).
+fehler-null.wav fehler 1 ist kein lesbarer Klang (WAV, FLAC oder OGG).
+fehler-kein-klang.ogg fehler 1 ist kein lesbarer Klang (WAV, FLAC oder OGG).
 fehler-format.flac fehler 6 ist ein FLAC in einem Format, das der Herd nicht kann (nur 4 bis 24 Bit).
 fehler-kanaele.flac fehler 4 hat 6 Kanäle – höchstens 2 (Mono oder Stereo).
 fehler-rate.flac fehler 5 hat 4 000 Hz – erlaubt sind 8 000 bis 96 000 Hz.
-fehler-rahmen-rate.flac fehler 1 ist kein lesbarer Klang (WAV oder FLAC).
+fehler-rahmen-rate.flac fehler 1 ist kein lesbarer Klang (WAV, FLAC oder OGG).
 fehler-zu-gross.flac fehler 3 ist vorgebacken zu groß (197,8 MB) – höchstens 64 MB.
 fehler-zu-gross-unbekannt.flac fehler 3 ist vorgebacken zu groß (64,3 MB) – höchstens 64 MB.
 fehler-zu-lang-unbekannt.flac fehler 2 ist zu lang (10:07) – höchstens 10 Minuten.
+vorbis-ffmpeg-44100.ogg 44100 2 32 13248 6 fdaa4a2305d04d9d277b94292c1d25cd02c285b01b48fe7bcbf67c799471990f 1b1019796cc332cf31a5ab940d7f139bea041c8284ad8f408c3a2c2728459ca5
+vorbis-hoch-96000.ogg 96000 2 32 24000 6 e6ca329c5ccf64f9e4273be65122b4952e5dfa802033ba1758ce922becccc5c6 5aef75f41e96cd56e87cd8657915abc520066ad4b74425c0f72b5132230ddf05
+vorbis-klick-48000.ogg 48000 2 32 19200 6 03f715df9a4dd3df0415b352a30e3106e0ab998e5623aea802c7db9ca0c18758 c04af951383151c58119ff36e4cc3d6789e758bf9718ebe5e227fadbff57b391
+vorbis-mono-22050.ogg 22050 1 32 8820 6 1034e7e7bc3fa0c3cdb3698fc7c462c8545076fdd68578abfc36025b6ec4fa52 4e026c9f73d7aa745a5e37ce234afd4a0eea8a846c8fd29ef150e5118e644f22
+vorbis-rauschen-8000.ogg 8000 1 32 4000 6 3abefe04f1bc9ee2e10998d8311befa442b7b50a57002a24d25fa0bc20d32a8d 0a41b24b1a9bce12ec2a39816a9ce11175a71d944171db5cfd29394afdd1df33
+vorbis-stereo-44100.ogg 44100 2 32 17640 6 f74b7693a6441ec4d01bac06e10765ad866005f4e8185b2aa60a4aa4c71ccf2c 148908c02350ca5d5194911c2a00b2a160242df8dbd41ba1554efb62f23dde7c
+vorbis-stille-16000.ogg 16000 1 32 4800 6 d6c373e6dc0efeee4fccd11437676bb2938d55ce5f9e9ec977732ad4b82afe51 2d11daea5a53e5d36daf214868b80a183e59866aa8790d408e8bca92ba77dee6
+fehler-opus.ogg fehler 6 ist ein OGG in einem Format, das der Herd nicht kann (nur Vorbis I mit Floor 1, kein Opus).
+fehler-kanaele.ogg fehler 4 hat 3 Kanäle – höchstens 2 (Mono oder Stereo).
+fehler-ogg-crc.ogg fehler 1 ist kein lesbarer Klang (WAV, FLAC oder OGG).
+fehler-ogg-rate.ogg fehler 5 hat 4 000 Hz – erlaubt sind 8 000 bis 96 000 Hz.
+fehler-ogg-version.ogg fehler 6 ist ein OGG in einem Format, das der Herd nicht kann (nur Vorbis I mit Floor 1, kein Opus).
+vorbis-zwei-stroeme.ogg 22050 1 32 8820 6 1034e7e7bc3fa0c3cdb3698fc7c462c8545076fdd68578abfc36025b6ec4fa52 4e026c9f73d7aa745a5e37ce234afd4a0eea8a846c8fd29ef150e5118e644f22
+vorbis-seiten.ogg 44100 2 32 17640 6 f74b7693a6441ec4d01bac06e10765ad866005f4e8185b2aa60a4aa4c71ccf2c 148908c02350ca5d5194911c2a00b2a160242df8dbd41ba1554efb62f23dde7c
+vorbis-abgeschnitten.ogg 44100 2 32 11968 6 dd2e3d9bcf34593ef418593f0e43fe22f5b87fe31e9ccc9c0558486d88a3131f 27f055c4d77a7c246c05571f7ae7e8216d0c09c2186de1f6fea09ee9c147750c
+fehler-ogg-zu-lang.ogg fehler 2 ist zu lang (10:01) – höchstens 10 Minuten.
+fehler-ogg-zu-gross.ogg fehler 3 ist vorgebacken zu groß (64,1 MB) – höchstens 64 MB.

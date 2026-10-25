@@ -46,7 +46,7 @@ export async function bereiteDateienVor(files, { ordner = "", belegt = new Set()
     try { bytes = new Uint8Array(await f.arrayBuffer()); } catch (e) { meldungen.push("„" + f.name + "“ konnte nicht gelesen werden."); continue; }
     if (/\.zip$/i.test(f.name) || istZip(bytes)) { zip.push(f); continue; }
     const art = dateiArt(f.name);
-    if (!art) { meldungen.push("„" + f.name + "“: diese Dateiart kennt der Ofen nicht (erlaubt: .pizza, .png, .jpg, .glb, .gltf, .bin, .wav, .flac, .txt, .json, .csv, .md)."); continue; }
+    if (!art) { meldungen.push("„" + f.name + "“: diese Dateiart kennt der Ofen nicht (erlaubt: .pizza, .png, .jpg, .glb, .gltf, .bin, .wav, .flac, .ogg, .txt, .json, .csv, .md)."); continue; }
     const punkt = f.name.lastIndexOf(".");
     const endung = f.name.slice(punkt + 1).toLowerCase();
     const name = segmentAusName(f.name.slice(0, punkt), "datei") + "." + endung;
@@ -372,7 +372,7 @@ export function erstelleDateibaum({ wurzel, umschalter, projekte, tabs, frage, t
     if (!dateiEingabe) {
       dateiEingabe = document.createElement("input");
       dateiEingabe.type = "file";
-      dateiEingabe.accept = ".pizza,.png,.jpg,.jpeg,.glb,.gltf,.bin,.wav,.flac,.txt,.json,.csv,.md,.zip";
+      dateiEingabe.accept = ".pizza,.png,.jpg,.jpeg,.glb,.gltf,.bin,.wav,.flac,.ogg,.txt,.json,.csv,.md,.zip";
       dateiEingabe.multiple = true;
       dateiEingabe.hidden = true;
       dateiEingabe.dataset.testid = "baum-datei-eingabe";

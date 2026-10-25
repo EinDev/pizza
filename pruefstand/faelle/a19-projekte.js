@@ -783,7 +783,7 @@ probier { Klang.laden("k/ton.wav").huelle(); } verbrannt (LaufzeitAnanas x) { Bo
 `,
     "k/zu-lang.flac": TKL("fehler-zu-lang.flac"), "k/kaputt.wav": TKL("fehler-kaputt.wav"), "k/ton.wav": TKL("ton-mono.wav"),
   }), { out: ["Klang.laden() braucht einen Text für 'pfad', nicht 5.", "Die Datei \"k/fehlt.flac\" liegt nicht in der Kiste.",
-    "k/zu-lang.flac ist zu lang (10:01) – höchstens 10 Minuten.", "k/kaputt.wav ist kein lesbarer Klang (WAV oder FLAC).",
+    "k/zu-lang.flac ist zu lang (10:01) – höchstens 10 Minuten.", "k/kaputt.wav ist kein lesbarer Klang (WAV, FLAC oder OGG).",
     "huelle() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama."] }),
 
   { p: TK, name: "K-163 §18.8: Klänge brauchen den Vorbacker (HOST vor dem Start), Programme ohne Klangdatei nicht", api: (lang) => {

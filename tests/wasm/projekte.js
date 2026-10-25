@@ -219,8 +219,8 @@ function pruefe(pruefeFall) {
     if (Buffer.compare(Buffer.from(k1.pkarton), Buffer.from(kv.pkarton)) !== 0) throw new Error('passender Cache ändert das Modul');
   });
   // ---------------------------------------------------------------- Klang.laden (H-K19a, SPEC §18.8, K-163)
-  pruefeFall('Klang.laden: WAV/FLAC als Klangteig im Datensegment (Kiste-Art 4), Interpreter = Wasm (Ereignisse, PCM-Hashes, Fehlertexte)', () => {
-    for (const n of ['klang-laden', 'klang-laden-ananas']) {
+  pruefeFall('Klang.laden: WAV/FLAC/OGG als Klangteig im Datensegment (Kiste-Art 4), Interpreter = Wasm (Ereignisse, PCM-Hashes, Fehlertexte)', () => {
+    for (const n of ['klang-laden', 'klang-laden-ananas', 'klang-ogg']) {
       const r = beide(ordnerFall(n));
       const lies = (d) => { const p = path.join(ROOT, 'tests', 'faelle', n, 'pruefung', d); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n').split('\n').filter(Boolean) : []; };
       if (r.exitCode !== 0 || j(aus(r)) !== j(lies('erwartet'))) throw new Error(n + ': ' + j(ohne(r)).slice(0, 1500));

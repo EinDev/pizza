@@ -13,8 +13,10 @@ path = "src/lib.rs"
 testbilder = []
 
 [dependencies]
-# Einzige Abhängigkeit (PROJEKTE.md §5.3): Inflate für PNG, no_std, Version wie in Cargo.lock gesperrt.
+# Abhängigkeiten (PROJEKTE.md §5.3): Inflate für PNG, no_std, Version wie in Cargo.lock gesperrt …
 miniz_oxide = { version = "=0.8.9", default-features = false, features = ["with-alloc"] }
+# … und libm nur für die Vorbis-Tabellen (Fenster, MDCT-Drehfaktoren; H-K19b), reines Rust wie im Kern
+libm = "0.2.16"
 
 [[bin]]
 name = "herd-teigling"

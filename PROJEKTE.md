@@ -108,7 +108,8 @@ Titel von Theke/Herd – die stehen im Code (`neu Herd("…", breite: …)`), so
   Der Dienst prüft **unabhängig** noch einmal (eigene Kopie der Regel, durch gemeinsame Testfälle abgesichert).
 - Erlaubte Dateiarten v1: `.pizza`, `.png`, `.jpg`/`.jpeg`, `.txt`, `.json`, `.csv`, `.md` (Beschreibung/Notizen; nur Anzeige); seit H-K16 Modelle
   `.glb`/`.gltf` und ihre Puffer `.bin` (Binärdateien wie Bilder – auch `.gltf`, obwohl JSON: keine Zeilenend-Normalisierung, damit SHA-256
-  und Modellteig überall gleich sind; `.gitattributes` führt sie als binary); seit H-K19a Klänge `.wav`/`.flac` (Binärdateien, §5.11).
+  und Modellteig überall gleich sind; `.gitattributes` führt sie als binary); seit H-K19a Klänge `.wav`/`.flac`, seit H-K19b `.ogg` (Binärdateien,
+  §5.11).
   Andere Endungen →
   im Playground nicht anlegbar, beim ZIP-Import übersprungen (mit Meldung), CLI ignoriert sie mit Warnung auf stderr.
 - **Textdateien an der Projektgrenze** (CLI-Lader, ZIP-Import, Datei hinzufügen, Teilen-Download, Durchreiche): Inhalt muss gültiges
@@ -642,7 +643,8 @@ margherita level = Kiste.text("daten/level-1.txt");
 
 ### 5.3 Der Vorbacker und das Format „Teigling“ (E13)
 
-**Vorbacker** = Rust-Crate `herd/teigling` (`no_std` + `alloc`, einzige Abhängigkeit `miniz_oxide` für Inflate, ebenfalls `no_std`),
+**Vorbacker** = Rust-Crate `herd/teigling` (`no_std` + `alloc`, Abhängigkeit `miniz_oxide` für Inflate, ebenfalls `no_std`; seit H-K19b
+`libm` nur für die Vorbis-Tabellen, §5.11),
 übersetzt nach `site/js/herd/teigling.wasm` (Browser-Worker, Node-CLI, Interpreter, Harnische). Eine Funktion:
 `vorbacken(quellbytes) → teigling` (bei Fehlern ein Fehler-Teigling), dazu `sha256(bytes)` (für die Cache-Prüfung §5.4 – synchrones
 SHA-256 gibt es im Browser sonst nicht). Derselbe Code überall ⇒ **bitgleich per Konstruktion**; zusätzlich rechnet der Vorbacker **nur
@@ -785,16 +787,19 @@ Verbindlich ist HERD.md §13.3 (H-K16) mit K-161; hier nur, was die Projekte bet
   Bilddatei im Projekt zählen einmal; der Kern legt sie ebenso nur einmal als Textur an. Mit Modellen heißt der Text von P0020
   „Die Bilder und Modelle sind zusammen zu groß …“.
 
-### 5.11 Klänge (WAV und FLAC, H-K19a)
+### 5.11 Klänge (WAV und FLAC, H-K19a; OGG Vorbis, H-K19b)
 
-Verbindlich ist HERD.md §13.3 (H-K19a) mit K-163 und SPEC §18.8; hier nur, was die Projekte betrifft.
+Verbindlich ist HERD.md §13.3 (H-K19a, H-K19b) mit K-163 und SPEC §18.8; hier nur, was die Projekte betrifft.
 
-- **Dateien:** `.wav` und `.flac` als **Binärdateien** (Signatur `RIFF`…`WAVE` bzw. `fLaC` beim Hinzufügen, im Teilen-Dienst und in der
+- **Dateien:** `.wav`, `.flac` und `.ogg` als **Binärdateien** (Signatur `RIFF`…`WAVE`, `fLaC` bzw. `OggS` beim Hinzufügen, im Teilen-Dienst und in der
   Durchreiche; `.gitattributes` binary). Grenzen des Laders wie für jede Datei (§1.3: je Datei 2 MiB, gesamt 8 MiB); der Vorbacker
-  begrenzt die Quelle zusätzlich auf 16 MiB und die Dauer auf 10 Minuten. MIME `audio/wav`, `audio/flac` (nginx, E2E-Server).
+  begrenzt die Quelle zusätzlich auf 16 MiB und die Dauer auf 10 Minuten. MIME `audio/wav`, `audio/flac`, `audio/ogg` (nginx, E2E-Server).
 - **Vorbacker:** `teigling.wasm` kann seit H-K19a auch Klänge: `klang_vorbacken(quelle)` liefert den **Klangteig** (Format `TEIGKLNG`
   v1, `herd/teigling/src/klang.rs`: Kopf 64 B mit Rate, Kanälen, Frames, SHA-256 der Quelle; PCM i16 LE verschachtelt; Fehler-Klangteig
   mit fertigem Text). Eigener WAV-/FLAC-Dekoder, nur Ganzzahlen (Float-WAV mit fester Rundung), harte Grenzen vor jedem Anlegen.
+  Seit H-K19b eigener **Vorbis-I-Dekoder** (`ogg.rs`, `vorbis.rs`, `mdct.rs`; Flag-Bit 2 im Kopf, als Float 32 Bit gerundet): f32 nur
+  mit + − × in fester Reihenfolge, Fenster- und MDCT-Tabellen aus `libm`, bitgleich nativ = `teigling.wasm`; Codebücher, Floors und
+  Residues mit harten Grenzen, Dauer laufend geprüft (Ogg kennt die Länge erst am Ende).
   Cache-Schlüssel `<sha>/klang/1` (IndexedDB-Speicher `teiglinge`).
 - **Anlässe** wie §5.4: Playground (Hinzufügen; Vorschau im Dateibaum „Klang (FLAC) · Quelle 12 KB · 0,25 s · 44 100 Hz · stereo ·
   vorgebacken 43 KB“ mit **Abspielknopf** – Ton erst nach dem Klick, in automatisierten Browsern stumm offline gerendert), Lauf

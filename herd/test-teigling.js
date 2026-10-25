@@ -125,7 +125,7 @@ assert.strictEqual(PizzaVorbacker.teigmenge({ w: teige['wuerfel.glb'] }), teige[
 assert.strictEqual(PizzaVorbacker.teigmengeFehler(67108865, true), 'Die Bilder und Modelle sind zusammen zu groß für den Ofen (64,1 MB vorgebacken, höchstens 64 MB).');
 assert.strictEqual(PizzaVorbacker.modellCacheSchluessel('ab'), 'ab/modell/1');
 
-// ---------- Klänge (H-K19a): goldene Klangteige (cargo test -p herd-teigling prüft golden-klaenge.txt und erwartet.txt nativ) ----------
+// ---------- Klänge (H-K19a, OGG Vorbis H-K19b): goldene Klangteige (cargo test -p herd-teigling prüft golden-klaenge.txt und erwartet.txt nativ) ----------
 const TK = path.join(HIER, 'teigling', 'testklaenge');
 const goldenK = fs.readFileSync(path.join(HIER, 'teigling', 'golden-klaenge.txt'), 'utf8').split(/\r?\n/).map((z) => z.trim()).filter((z) => z && !z.startsWith('#'));
 const erwK = {};
@@ -148,12 +148,12 @@ for (const z of goldenK) {
     if (!k.fehler || k.fehler.code !== +m[1] || k.fehler.text !== m[2]) melde(name + ': Fehler ' + JSON.stringify(k.fehler) + ' statt ' + e);
   } else {
     const f = e.split(' ');
-    const ist = [k.rate, k.kanaele, k.bits, k.frames, (k.flac ? 1 : 0) | (k.float ? 2 : 0), sha(teig.subarray(64))].join(' ');
+    const ist = [k.rate, k.kanaele, k.bits, k.frames, (k.flac ? 1 : 0) | (k.float ? 2 : 0) | (k.vorbis ? 4 : 0), sha(teig.subarray(64))].join(' ');
     if (k.fehler || ist !== f.slice(0, 6).join(' ')) melde(name + ': Klangkopf/PCM ' + ist + ' statt ' + f.slice(0, 6).join(' '));
     if (k.pcmBytes !== teig.length - 64 || k.dauer !== k.frames / k.rate) melde(name + ': pcmBytes/dauer');
     if (vb.klangBesorge(teig, quelle) !== teig) melde(name + ': klangBesorge verwirft einen passenden Teig');
   }
-  if (PizzaVorbacker.istKlangPfad('klaenge/' + name) !== /\.(wav|flac)$/.test(name)) melde(name + ': istKlangPfad');
+  if (PizzaVorbacker.istKlangPfad('klaenge/' + name) !== /\.(wav|flac|ogg)$/.test(name)) melde(name + ': istKlangPfad');
   klaenge[name] = teig; klangQuellen[name] = quelle;
 }
 const t5 = Date.now();
@@ -187,7 +187,14 @@ assert.strictEqual(PizzaVorbacker.klangmengeFehler(67108865), 'Die Klänge sind 
 assert.strictEqual(PizzaVorbacker.klangmengeFehler(73610000), 'Die Klänge sind zusammen zu groß für den Ofen (70,2 MB vorgebacken, höchstens 64 MB).');
 assert.strictEqual(PizzaVorbacker.MAX_KLANGMENGE, 67108864);
 assert.strictEqual(PizzaVorbacker.klangCacheSchluessel('ab'), 'ab/klang/1');
-assert.deepStrictEqual(['a.wav', 'b/c.flac', 'd.WAV', 'e.ogg', 'f.wav.txt'].map(PizzaVorbacker.istKlangPfad), [true, true, false, false, false]);
+assert.deepStrictEqual(['a.wav', 'b/c.flac', 'd.WAV', 'e.ogg', 'f.wav.txt'].map(PizzaVorbacker.istKlangPfad), [true, true, false, true, false]);
+// OGG Vorbis (H-K19b): Flag-Bit 2 nur zusammen mit Float und 32 Bit; Fehler-Teige mit Text
+const kv = PizzaVorbacker.klangKopf(klaenge['vorbis-stereo-44100.ogg']);
+assert.deepStrictEqual([kv.rate, kv.kanaele, kv.bits, kv.frames, kv.flac, kv.float, kv.vorbis], [44100, 2, 32, 17640, false, true, true]);
+{ const v = klaenge['vorbis-stereo-44100.ogg'].slice(); v[12] = 4; assert.strictEqual(PizzaVorbacker.klangKopf(v), null, 'Vorbis ohne Float'); v[12] = 7; assert.strictEqual(PizzaVorbacker.klangKopf(v), null, 'Vorbis und FLAC'); }
+assert.strictEqual(PizzaVorbacker.klangKopf(klaenge['ton-mono.wav']).vorbis, false);
+assert.deepStrictEqual(PizzaVorbacker.klangKopf(klaenge['fehler-opus.ogg']).fehler, { code: 6, text: 'ist ein OGG in einem Format, das der Herd nicht kann (nur Vorbis I mit Floor 1, kein Opus).' });
+assert.strictEqual(sha(klaenge['vorbis-zwei-stroeme.ogg'].subarray(64)), sha(klaenge['vorbis-mono-22050.ogg'].subarray(64)), 'zweiter Strom wird übergangen');
 
 if (fehler) { console.log(fehler + ' Abweichung(en)'); process.exit(1); }
 console.log('Vorbacker nativ = teigling.wasm = golden.txt: ' + nativ.length + ' Fälle bitgleich (wasm ' + (t1 - t0) + ' ms), Hülle geprüft');

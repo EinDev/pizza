@@ -8,6 +8,12 @@
  * Koeffizienten/Genauigkeit/Schub, RICE und RICE2, Escape-Partitionen, verschwendete Bits, alle Stereo-Arten, feste und
  * variable Blockgröße, alle Blockgrößen- und Raten-Codes).
  *
+ * OGG Vorbis (H-K19b): die Grunddateien vorbis-*.ogg, fehler-opus.ogg und fehler-kanaele.ogg sind einmal mit ffmpeg kodiert
+ * und eingecheckt (Befehle in testklaenge/quellen.md); ihr erwartetes PCM ist das des eigenen Dekoders (Liste VORBIS, mit
+ * libvorbis gegengeprüft: ≤ 1 LSB, testklaenge/libvorbis/). Daraus leitet dieses Skript Seiten-genau weitere Dateien ab
+ * (CRC falsch, Rate/Version geändert, zwei Ströme verschränkt, abgeschnitten, > 10 Minuten bzw. > 64 MB aus stillen
+ * Ein-Byte-Paketen) – Ogg-CRC neu berechnet.
+ *
  * Bytegleich reproduzierbar: Signale nur aus + − × ÷ und Math.round/floor (kein Math.sin), MD5 über node:crypto.
  * Aufruf: node scripts/klaenge-test.js [--pruefe]        (--pruefe: nur vergleichen, Exit 1 bei Abweichung)
  *         node scripts/klaenge-test.js --ffmpeg-quellen <ordner>   WAV-Quellen der mit ffmpeg kodierten Testdateien (ffmpeg-*.flac,
@@ -90,7 +96,7 @@ function erwarte(name, rate, kanaele, bits, roh, flac, float) {
 const tausender = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 const megabyte = (b) => { const z = Math.ceil(b * 10 / 1048576); return Math.floor(z / 10) + ',' + (z % 10); };
 const TEXT = {
-  kein: [1, 'ist kein lesbarer Klang (WAV oder FLAC).'],
+  kein: [1, 'ist kein lesbarer Klang (WAV, FLAC oder OGG).'],
   lang: (frames, rate) => { const s = Math.ceil(frames / rate); return [2, 'ist zu lang (' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ') – höchstens 10 Minuten.']; },
   quelle: (b) => [3, 'ist zu groß (' + megabyte(b) + ' MB) – höchstens 16 MB.'],
   teig: (b) => [3, 'ist vorgebacken zu groß (' + megabyte(b) + ' MB) – höchstens 64 MB.'],
@@ -98,6 +104,7 @@ const TEXT = {
   rate: (r) => [5, 'hat ' + tausender(r) + ' Hz – erlaubt sind 8 000 bis 96 000 Hz.'],
   wav: [6, 'ist ein WAV in einem Format, das der Herd nicht kann (nur PCM mit 8, 16, 24 oder 32 Bit und Float mit 32 Bit).'],
   flac: [6, 'ist ein FLAC in einem Format, das der Herd nicht kann (nur 4 bis 24 Bit).'],
+  ogg: [6, 'ist ein OGG in einem Format, das der Herd nicht kann (nur Vorbis I mit Floor 1, kein Opus).'],
 };
 function fehler(name, bytes, [code, text]) { dateien[name] = bytes; erwartet.push(name + ' fehler ' + code + ' ' + text); }
 
@@ -492,6 +499,99 @@ for (const f of FFMPEG) {
   erwarte(f.name, f.rate, f.kanaele, f.bits, verschachtle(ks), true, false);
 }
 
+// ---------------------------------------------------------------- OGG Vorbis (H-K19b): mit ffmpeg kodiert, eingecheckt
+// name rate kanaele bits frames flags sha256(PCM i16) sha256(f32-Bits) – Werte des eigenen Dekoders (nativ = teigling.wasm)
+const VORBIS = {
+  'vorbis-ffmpeg-44100.ogg': '44100 2 32 13248 6 fdaa4a2305d04d9d277b94292c1d25cd02c285b01b48fe7bcbf67c799471990f 1b1019796cc332cf31a5ab940d7f139bea041c8284ad8f408c3a2c2728459ca5',
+  'vorbis-hoch-96000.ogg': '96000 2 32 24000 6 e6ca329c5ccf64f9e4273be65122b4952e5dfa802033ba1758ce922becccc5c6 5aef75f41e96cd56e87cd8657915abc520066ad4b74425c0f72b5132230ddf05',
+  'vorbis-klick-48000.ogg': '48000 2 32 19200 6 03f715df9a4dd3df0415b352a30e3106e0ab998e5623aea802c7db9ca0c18758 c04af951383151c58119ff36e4cc3d6789e758bf9718ebe5e227fadbff57b391',
+  'vorbis-mono-22050.ogg': '22050 1 32 8820 6 1034e7e7bc3fa0c3cdb3698fc7c462c8545076fdd68578abfc36025b6ec4fa52 4e026c9f73d7aa745a5e37ce234afd4a0eea8a846c8fd29ef150e5118e644f22',
+  'vorbis-rauschen-8000.ogg': '8000 1 32 4000 6 3abefe04f1bc9ee2e10998d8311befa442b7b50a57002a24d25fa0bc20d32a8d 0a41b24b1a9bce12ec2a39816a9ce11175a71d944171db5cfd29394afdd1df33',
+  'vorbis-stereo-44100.ogg': '44100 2 32 17640 6 f74b7693a6441ec4d01bac06e10765ad866005f4e8185b2aa60a4aa4c71ccf2c 148908c02350ca5d5194911c2a00b2a160242df8dbd41ba1554efb62f23dde7c',
+  'vorbis-stille-16000.ogg': '16000 1 32 4800 6 d6c373e6dc0efeee4fccd11437676bb2938d55ce5f9e9ec977732ad4b82afe51 2d11daea5a53e5d36daf214868b80a183e59866aa8790d408e8bca92ba77dee6',
+};
+const VORBIS_ABGESCHNITTEN = '44100 2 32 11968 6 dd2e3d9bcf34593ef418593f0e43fe22f5b87fe31e9ccc9c0558486d88a3131f 27f055c4d77a7c246c05571f7ae7e8216d0c09c2186de1f6fea09ee9c147750c';   // vorbis-abgeschnitten.ogg (abgeleitet, unten)
+// --libvorbis <ordner>: aus <name>.f32 (ffmpeg -c:a libvorbis -i <name>.ogg -f f32le) je <name>.wav als i16 nach der
+// Herd-Regel (floatI16, auf die Frames des eigenen Dekoders gekürzt) – ffmpeg packt sie verlustfrei zu testklaenge/libvorbis/
+const lvI = process.argv.indexOf('--libvorbis');
+if (lvI >= 0) {
+  const ord = process.argv[lvI + 1];
+  for (const [name, z] of Object.entries(VORBIS)) {
+    const [rate, kanaele, , frames] = z.split(' ').map(Number);
+    const f = fs.readFileSync(path.join(ord, name.replace('.ogg', '.f32')));
+    const n = Math.min(f.length / 4, frames * kanaele), werte = new Array(n);
+    for (let i = 0; i < n; i++) werte[i] = floatI16(f.readFloatLE(i * 4));
+    fs.writeFileSync(path.join(ord, name.replace('.ogg', '.wav')), wav({ kanaele, rate, bits: 16, werte }));
+  }
+}
+const OGG_FEHLER = { 'fehler-opus.ogg': TEXT.ogg, 'fehler-kanaele.ogg': TEXT.kanaele(3) };
+const oggGrund = {}, oggZeilen = [];   // OGG-Zeilen kommen ans Ende von erwartet.txt
+const oggFehler = (name, bytes, [code, text]) => { dateien[name] = bytes; oggZeilen.push(name + ' fehler ' + code + ' ' + text); };
+for (const name of Object.keys(VORBIS).concat(Object.keys(OGG_FEHLER))) {
+  const p = path.join(ZIEL, name);
+  if (!fs.existsSync(p)) { console.log('fehlt (mit ffmpeg erzeugen, testklaenge/quellen.md): ' + name); continue; }
+  oggGrund[name] = fs.readFileSync(p);
+  if (VORBIS[name]) oggZeilen.push(name + ' ' + VORBIS[name]); else oggZeilen.push(name + ' fehler ' + OGG_FEHLER[name][0] + ' ' + OGG_FEHLER[name][1]);
+}
+// Ogg-Seiten (RFC 3533): CRC-32 Polynom 0x04C11DB7, Start 0, ohne Spiegelung, über die Seite mit genulltem CRC-Feld
+const OGG_CRC = (() => { const t = new Uint32Array(256); for (let i = 0; i < 256; i++) { let c = (i << 24) >>> 0; for (let k = 0; k < 8; k++) c = (c & 0x80000000 ? (c << 1) ^ 0x04c11db7 : c << 1) >>> 0; t[i] = c; } return t; })();
+const oggCrc = (b) => { let c = 0; for (const x of b) c = ((c << 8) ^ OGG_CRC[((c >>> 24) ^ x) & 255]) >>> 0; return c; };
+function oggSeiten(b) {
+  const s = [];
+  for (let p = 0; p + 27 <= b.length && b.toString('latin1', p, p + 4) === 'OggS';) {
+    const n = b[p + 26]; let l = 0;
+    for (let i = 0; i < n; i++) l += b[p + 27 + i];
+    s.push(Buffer.from(b.subarray(p, p + 27 + n + l))); p += 27 + n + l;
+  }
+  return s;
+}
+const oggDaten = (s) => s.subarray(27 + s[26]);
+function oggCrcNeu(s) { s.writeUInt32LE(0, 22); s.writeUInt32LE(oggCrc(s), 22); return s; }
+/** Neue Seite aus ganzen Paketen (je < 255 × 255 Bytes). */
+function oggSeite(typ, granule, serial, seq, pakete) {
+  const lacing = [];
+  for (const p of pakete) { let l = p.length; while (l >= 255) { lacing.push(255); l -= 255; } lacing.push(l); }
+  const k = Buffer.alloc(27 + lacing.length);
+  k.write('OggS', 0, 'latin1'); k[5] = typ; k.writeBigInt64LE(BigInt(granule), 6); k.writeUInt32LE(serial, 14); k.writeUInt32LE(seq, 18); k[26] = lacing.length;
+  Buffer.from(lacing).copy(k, 27);
+  return oggCrcNeu(Buffer.concat([k, ...pakete]));
+}
+/** Audioseiten neu packen: je Seite höchstens `segs` Lacing-Werte, Pakete laufen über Seitengrenzen (Fortsetzungs-Flag),
+ *  Granule −1 außer auf der letzten Seite (EOS, Granule der Grunddatei). */
+function oggNeuGepackt(grund, segs) {
+  const seiten = oggSeiten(grund), kopf = seiten.filter((s) => s.readBigInt64LE(6) === 0n), audio = seiten.slice(kopf.length);
+  const lacing = [], daten = [];
+  for (const s of audio) { for (let i = 0; i < s[26]; i++) lacing.push(s[27 + i]); daten.push(oggDaten(s)); }
+  const alle = Buffer.concat(daten), ende = audio[audio.length - 1].readBigInt64LE(6), serial = kopf[0].readUInt32LE(14);
+  const aus = kopf.slice();
+  let seq = kopf.length, pos = 0, fortsetzung = false;
+  for (let i = 0; i < lacing.length; i += segs) {
+    const l = lacing.slice(i, i + segs), n = l.reduce((a, b) => a + b, 0), letzte = i + segs >= lacing.length;
+    const k = Buffer.alloc(27 + l.length);
+    k.write('OggS', 0, 'latin1'); k[5] = (fortsetzung ? 1 : 0) | (letzte ? 4 : 0); k.writeBigInt64LE(letzte ? ende : -1n, 6);
+    k.writeUInt32LE(serial, 14); k.writeUInt32LE(seq++, 18); k[26] = l.length; Buffer.from(l).copy(k, 27);
+    aus.push(oggCrcNeu(Buffer.concat([k, alle.subarray(pos, pos + n)])));
+    pos += n; fortsetzung = l[l.length - 1] === 255;
+  }
+  return Buffer.concat(aus);
+}
+/** Kopfseiten (Granule 0) einer Grunddatei + stille Ein-Byte-Pakete (Typ 0, Modus 1 = langer Block, Fenster-Bits 1, Floors
+ *  ungenutzt). Im Kennungskopf: langer Block 8192 (je Paket 4096 Frames), Rate und Kanäle nach Wunsch – das Setup bleibt
+ *  gültig, weil stille Pakete weder Floor noch Residue lesen. */
+function oggStill(grund, zielFrames, rate, kanaele) {
+  const seiten = oggSeiten(grund), kopf = seiten.filter((s) => s.readBigInt64LE(6) === 0n);
+  const k = oggDaten(kopf[0]);
+  k[28] = (13 << 4) | (k[28] & 15); k[11] = kanaele; k.writeUInt32LE(rate, 12); oggCrcNeu(kopf[0]);
+  const proPaket = 4096, serial = kopf[0].readUInt32LE(14);
+  const pakete = Math.ceil(zielFrames / proPaket) + 1;
+  const aus = kopf.slice(); let seq = kopf.length, gesendet = 0;
+  while (gesendet < pakete) {
+    const n = Math.min(255, pakete - gesendet); gesendet += n;
+    aus.push(oggSeite(gesendet === pakete ? 4 : 0, (gesendet - 1) * proPaket, serial, seq++, new Array(n).fill(Buffer.from([0x0E]))));
+  }
+  return { bytes: Buffer.concat(aus), frames: (pakete - 1) * proPaket };
+}
+
 // ================================================================ Fehlerdateien
 {
   const w = wav({ kanaele: 1, rate: 8000, bits: 16, werte: [1, 2, 3] });
@@ -540,6 +640,35 @@ fehler('fehler-kein-klang.ogg', Buffer.concat([Buffer.from('OggS'), Buffer.alloc
   fehler('fehler-zu-gross-unbekannt.flac', viele({ rate: 96000, kanaele: 2, bits: 16, gesamt: 0, ohneMd5: true }, 257, 100), TEXT.teig(64 + 257 * 65535 * 4));
   fehler('fehler-zu-lang-unbekannt.flac', viele({ rate: 8000, kanaele: 1, bits: 16, gesamt: 0, ohneMd5: true }, 74, -3), TEXT.lang(74 * 65535, 8000));
 }
+
+// ---------------------------------------------------------------- OGG: abgeleitete Dateien (Seiten-genau, CRC neu)
+if (['vorbis-mono-22050.ogg', 'vorbis-rauschen-8000.ogg', 'vorbis-stereo-44100.ogg', 'vorbis-hoch-96000.ogg'].every((n) => oggGrund[n])) {
+  const mono = oggGrund['vorbis-mono-22050.ogg'];
+  { const s = oggSeiten(mono), l = s[s.length - 1]; l[l.length - 3] ^= 0x20; oggFehler('fehler-ogg-crc.ogg', Buffer.concat(s), TEXT.kein); }
+  { const s = oggSeiten(mono); oggDaten(s[0]).writeUInt32LE(4000, 12); oggCrcNeu(s[0]); oggFehler('fehler-ogg-rate.ogg', Buffer.concat(s), TEXT.rate(4000)); }
+  { const s = oggSeiten(mono); oggDaten(s[0]).writeUInt32LE(1, 7); oggCrcNeu(s[0]); oggFehler('fehler-ogg-version.ogg', Buffer.concat(s), TEXT.ogg); }
+  // zweiter Strom (andere Seriennummer) verschränkt: wird übergangen → PCM wie vorbis-mono-22050.ogg
+  {
+    const a = oggSeiten(mono), b = oggSeiten(oggGrund['vorbis-rauschen-8000.ogg']).map((s) => { s.writeUInt32LE(0x48455244, 14); return oggCrcNeu(s); });
+    const aus = [a[0], b[0]];
+    for (let i = 1; i < Math.max(a.length, b.length); i++) { if (a[i]) aus.push(a[i]); if (b[i]) aus.push(b[i]); }
+    dateien['vorbis-zwei-stroeme.ogg'] = Buffer.concat(aus);
+    oggZeilen.push('vorbis-zwei-stroeme.ogg ' + VORBIS['vorbis-mono-22050.ogg']);
+  }
+  // neu gepackt (Pakete über Seitengrenzen) → PCM wie die Grunddatei; abgeschnitten mitten in einer Seite: der Strom endet
+  // mit der letzten ganzen Seite (wie libogg), ohne EOS wird das Ende nicht gekürzt
+  const gepackt = oggNeuGepackt(oggGrund['vorbis-stereo-44100.ogg'], 7);
+  dateien['vorbis-seiten.ogg'] = gepackt;
+  oggZeilen.push('vorbis-seiten.ogg ' + VORBIS['vorbis-stereo-44100.ogg']);
+  dateien['vorbis-abgeschnitten.ogg'] = Buffer.from(gepackt.subarray(0, gepackt.length - 900));
+  oggZeilen.push('vorbis-abgeschnitten.ogg ' + VORBIS_ABGESCHNITTEN);
+  // stille Ein-Byte-Pakete: über 10 Minuten (8 kHz mono) bzw. über 64 MB PCM (96 kHz stereo, knapp 3 Minuten)
+  const z = oggStill(oggGrund['vorbis-mono-22050.ogg'], 600 * 8000 + 1, 8000, 1);
+  oggFehler('fehler-ogg-zu-lang.ogg', z.bytes, TEXT.lang(z.frames, 8000));
+  const g = oggStill(oggGrund['vorbis-stereo-44100.ogg'], 16777216 + 1, 96000, 2);
+  oggFehler('fehler-ogg-zu-gross.ogg', g.bytes, TEXT.teig(64 + g.frames * 4));
+}
+erwartet.push(...oggZeilen);
 
 // ---------------------------------------------------------------- schreiben / prüfen
 const kopfzeilen = ['# Erwartete Klangteige (scripts/klaenge-test.js): name rate kanaele bits frames flags sha256(PCM i16) sha256(Rohwerte i32)',

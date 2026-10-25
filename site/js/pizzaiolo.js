@@ -65,7 +65,7 @@
   // ------------------------------------------------------------ Projekte (SPEC §2, PROJEKTE.md §2.8, §5.6; PA2)
   const BILD_ENDUNG = /\.(png|jpe?g)$/;
   const MODELL_ENDUNG = /\.(glb|gltf)$/;   // H-K16
-  const KLANG_ENDUNG = /\.(wav|flac)$/;   // H-K19a
+  const KLANG_ENDUNG = /\.(wav|flac|ogg)$/;   // H-K19a
   const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
   const ART_TEXT = 0, ART_BILD = 1, ART_SONST = 2, ART_MODELL = 3, ART_KLANG = 4;   // laufzeit/src/kiste.rs
   const enk = new TextEncoder();

@@ -57,7 +57,7 @@ fn testklaenge_wie_erwartet() {
         assert_eq!(hex(&crate::sha256(&rb)), f[6], "{}: Rohwerte", name);
         gut += 1;
     }
-    assert!(gut >= 26 && schlecht >= 18, "{} Klänge, {} Fehlerdateien", gut, schlecht);
+    assert!(gut >= 36 && schlecht >= 25, "{} Klänge, {} Fehlerdateien", gut, schlecht);
 }
 
 fn code(q: &[u8]) -> (u16, String) {
@@ -95,9 +95,10 @@ fn fehlertexte() {
     assert_eq!(t(KFehler::TeigZuGross(73_610_000)), (3, String::from("ist vorgebacken zu groß (70,2 MB) – höchstens 64 MB.")));
     assert_eq!(t(KFehler::Kanaele(6)), (4, String::from("hat 6 Kanäle – höchstens 2 (Mono oder Stereo).")));
     assert_eq!(t(KFehler::Rate(192_000)), (5, String::from("hat 192 000 Hz – erlaubt sind 8 000 bis 96 000 Hz.")));
-    assert_eq!(t(KFehler::KeinKlang), (1, String::from("ist kein lesbarer Klang (WAV oder FLAC).")));
+    assert_eq!(t(KFehler::KeinKlang), (1, String::from("ist kein lesbarer Klang (WAV, FLAC oder OGG).")));
     assert_eq!(t(KFehler::WavFormat).0, 6);
     assert_eq!(t(KFehler::FlacFormat).0, 6);
+    assert_eq!(t(KFehler::OggFormat), (6, String::from("ist ein OGG in einem Format, das der Herd nicht kann (nur Vorbis I mit Floor 1, kein Opus).")));
 }
 
 #[test]
@@ -220,7 +221,7 @@ fn kopf_pruefung() {
     // Fehler-Klangteig
     let e = klang::vorbacken(b"kein Klang");
     let ke = kopf(&e).unwrap();
-    assert_eq!(ke.fehler, Some((1, String::from("ist kein lesbarer Klang (WAV oder FLAC)."))));
+    assert_eq!(ke.fehler, Some((1, String::from("ist kein lesbarer Klang (WAV, FLAC oder OGG)."))));
     assert_eq!((ke.art, ke.rate, ke.frames), (255, 0, 0));
     assert!(klang::pcm(&e).is_none());
     for (i, x) in [(64usize, 7u8), (64, 0), (66, 1), (12, 1), (50, 1), (63, 1)] {
@@ -310,7 +311,7 @@ fn verdorbene_klaenge_brechen_nie_ab() {
         z
     };
     let (mut n, mut gueltig) = (0, 0);
-    let namen: Vec<String> = erwartet().into_iter().map(|(n, _)| n).filter(|n| !n.contains("unbekannt")).collect();
+    let namen: Vec<String> = erwartet().into_iter().map(|(n, _)| n).filter(|n| !n.contains("unbekannt") && !n.contains("fehler-ogg-zu")).collect();
     for name in &namen {
         let q = datei(name);
         let felder = laengenfelder(&q);

@@ -177,7 +177,7 @@ pub(crate) fn kopf(q: &[u8]) -> Result<(Info, usize), KFehler> {
                 return Err(KFehler::FlacFormat);
             }
             let frames = if gesamt == 0 { None } else { Some(gesamt) };
-            info = Some(Info { rate, kanaele, bits, flac: true, float: false, frames, frames_laut_kopf: frames });
+            info = Some(Info { rate, kanaele, bits, flac: true, float: false, vorbis: false, frames, frames_laut_kopf: frames });
         }
         p += 4 + laenge;
         if letzter {

@@ -870,7 +870,7 @@ klasse Teig {
             ["**Kreis**", "Bestellt eine Datei (über Umwege) sich selbst oder die Hauptdatei: `P0014`. Was alle brauchen, gehört in eine eigene Nebendatei."],
             ["**Ein Namensraum**", "Jeder Name gibt es im ganzen Projekt nur einmal – `Teig` in zwei Dateien ist `P0016`."]
           ] },
-          { art: "text", md: "**Pfade** bestehen nur aus `a–z`, `0–9`, `-`, `_`, `.` und `/` – also `rezepte/belaege.pizza`, nicht `Rezepte/Beläge.pizza`. Erlaubt sind `.pizza`, Bilder (`.png`, `.jpg`), 3D-Modelle (`.glb`, `.gltf` mit `.bin`), Klänge (`.wav`, `.flac`) und Texte (`.txt`, `.json`, `.csv`, `.md`); höchstens 100 Dateien und 8 MB (`P0020`)." },
+          { art: "text", md: "**Pfade** bestehen nur aus `a–z`, `0–9`, `-`, `_`, `.` und `/` – also `rezepte/belaege.pizza`, nicht `Rezepte/Beläge.pizza`. Erlaubt sind `.pizza`, Bilder (`.png`, `.jpg`), 3D-Modelle (`.glb`, `.gltf` mit `.bin`), Klänge (`.wav`, `.flac`, `.ogg`) und Texte (`.txt`, `.json`, `.csv`, `.md`); höchstens 100 Dateien und 8 MB (`P0020`)." },
           { art: "text", md: "Fehler zeigen jetzt auch die Datei: `Ungefangene Ananas – RechenAnanas: … (rezepte/ofen.pizza, Zeile 2)`. Ein Klick auf die Meldung in der Konsole öffnet die Datei an der richtigen Stelle." }
         ] },
         { art: "details", titel: "Sichtbarkeit: direkt bestellt und Geheimrezept", inhalt: [

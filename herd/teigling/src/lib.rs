@@ -1,6 +1,6 @@
 //! Vorbacker (PROJEKTE.md §5.3, K-147): PNG oder JPEG → **Teigling** (RGBA8 nicht vormultipliziert + Mipmaps bis 1 × 1).
 //!
-//! `no_std` + `alloc`, einzige Abhängigkeit `miniz_oxide` (Inflate). Gerechnet wird **nur mit Ganzzahlen** – derselbe Code
+//! `no_std` + `alloc`, Abhängigkeiten `miniz_oxide` (Inflate) und `libm` (nur Vorbis-Tabellen beim Anlegen). Gerechnet wird **nur mit Ganzzahlen** – derselbe Code
 //! läuft nativ und als `site/js/herd/teigling.wasm` und liefert dieselben Bytes (Tests: `cargo test -p herd-teigling`,
 //! `node herd/test-teigling.js`).
 //!
@@ -8,7 +8,8 @@
 //! [`modell::vorbacken`] (Quellpaket → Modellteig, Format in `modell.rs`) und [`modell::braucht_text`] (welche Dateien ein
 //! `.gltf` braucht). Für Modelle gilt HERD.md §13.1 Regel 5: f32 kopiert, nur + − × ÷, Farben über eine feste Tabelle.
 //! Klänge (WAV/FLAC, H-K19a): [`klang::vorbacken`] (Quelldatei → Klangteig, PCM i16 ohne Umrechnen der Rate, Format und
-//! Rundungsregeln in `klang.rs`; Leser in `wav.rs` und `flac.rs`).
+//! Rundungsregeln in `klang.rs`; Leser in `wav.rs` und `flac.rs`). OGG Vorbis (H-K19b): `ogg.rs` (Seiten, CRC, Pakete),
+//! `vorbis.rs` (Vorbis I) und `mdct.rs` – f32 nur mit + − ×, Tabellen aus `libm`, bitgleich nativ = Wasm.
 //! Format „Teigling“ v1 (Little Endian):
 //!
 //! ```text
@@ -33,11 +34,14 @@ pub mod gltf;
 pub mod jpeg;
 pub mod json;
 pub mod klang;
+mod mdct;
 pub mod mip;
 pub mod modell;
+pub mod ogg;
 pub mod png;
 pub mod sha256;
 mod srgb;
+pub mod vorbis;
 pub mod wav;
 #[cfg(any(test, feature = "testbilder"))]
 pub mod testbild;
@@ -48,6 +52,8 @@ mod klang_tests;
 mod modell_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod vorbis_tests;
 
 use alloc::vec::Vec;
 

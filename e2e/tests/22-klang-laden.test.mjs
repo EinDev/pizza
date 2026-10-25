@@ -1,4 +1,4 @@
-// Klänge aus Dateien im Playground (H-K19a, HERD.md §13.3, K-163): .wav/.flac per Drag & Drop in den Dateibaum (Signatur geprüft,
+// Klänge aus Dateien im Playground (H-K19a/b, HERD.md §13.3, K-163): .wav/.flac/.ogg per Drag & Drop in den Dateibaum (Signatur geprüft,
 // sofort vorgebacken), Vorschau mit Dauer/Rate/Kanälen aus dem Klangteig und Abspielknopf (in automatisierten Browsern nur
 // stumm offline gerendert – nie hörbar), kaputte Dateien abgelehnt; danach lädt das Programm die Klänge in beiden Motoren und die
 // Seite bekommt die PCM mit Rate und Kanälen (OfflineAudioContext, stumm).
@@ -20,7 +20,7 @@ function lasseFallen(page, selektor, dateien) {
   }, selektor, dateien);
 }
 
-e2e("Klänge: .wav/.flac in den Dateibaum, Vorschau mit Rate/Kanälen und Abspielknopf, kaputte abgelehnt, Klang.laden im Lauf", async ({ page, oeffne }) => {
+e2e("Klänge: .wav/.flac/.ogg in den Dateibaum, Vorschau mit Rate/Kanälen und Abspielknopf, kaputte abgelehnt, Klang.laden im Lauf", async ({ page, oeffne }) => {
   await oeffne();
   await page.click('[data-testid="dateibaum-umschalten"]');
   await page.waitForSelector(`${PJ.baum}:not([hidden])`);
@@ -38,12 +38,19 @@ e2e("Klänge: .wav/.flac in den Dateibaum, Vorschau mit Rate/Kanälen und Abspie
   await page.waitForSelector('[data-testid="baum-datei"][data-pfad="ton.wav"]');
   await page.waitForSelector('[data-testid="bildvorschau"][data-pfad="ton.wav"][data-vorgebacken="ja"]');
   assert.match(await page.$eval('[data-testid="bildvorschau-info"]', (e) => e.textContent), /^Klang \(WAV\) · .* · 22 050 Hz · mono · vorgebacken/);
+  // OGG Vorbis (H-K19b): Signatur „OggS“, eigener Vorbis-Dekoder im Vorbacker
+  await lasseFallen(page, '[data-testid="dateibaum-liste"]', [{ name: "glocke.ogg", bytes: datei("vorbis-mono-22050.ogg"), typ: "audio/ogg" }]);
+  await page.waitForSelector('[data-testid="baum-datei"][data-pfad="glocke.ogg"]');
+  await page.waitForSelector('[data-testid="bildvorschau"][data-pfad="glocke.ogg"][data-vorgebacken="ja"]');
+  assert.match(await page.$eval('[data-testid="bildvorschau-info"]', (e) => e.textContent), /^Klang \(OGG\) · Quelle [\d,]+ (B|KB) · 0,4 s · 22 050 Hz · mono · vorgebacken/);
+  await lasseFallen(page, '[data-testid="dateibaum-liste"]', [{ name: "opus.ogg", bytes: datei("fehler-opus.ogg") }]);
+  await page.waitForFunction(() => /opus\.ogg ist ein OGG in einem Format, das der Herd nicht kann/.test(document.getElementById("toast").textContent));
   await lasseFallen(page, '[data-testid="dateibaum-liste"]', [{ name: "kanaele.wav", bytes: datei("fehler-kanaele.wav") }]);
   await page.waitForFunction(() => /kanaele\.wav hat 6 Kanäle – höchstens 2/.test(document.getElementById("toast").textContent));
   await lasseFallen(page, '[data-testid="dateibaum-liste"]', [{ name: "falsch.flac", bytes: datei("ton-mono.wav") }]);
-  await page.waitForFunction(() => /falsch\.flac ist kein lesbarer Klang \(WAV oder FLAC\)/.test(document.getElementById("toast").textContent));
+  await page.waitForFunction(() => /falsch\.flac ist kein lesbarer Klang \(WAV, FLAC oder OGG\)/.test(document.getElementById("toast").textContent));
   const baum = await baumDateien(page);
-  assert.ok(!baum.includes("kanaele.wav") && !baum.includes("falsch.flac"));
+  assert.ok(!baum.includes("kanaele.wav") && !baum.includes("falsch.flac") && !baum.includes("opus.ogg"));
   // Lauf: beide Klänge in beiden Motoren; die Seite bekommt die PCM mit Rate und Kanälen
   await page.click('[data-testid="baum-datei"][data-pfad="willkommen.pizza"]');
   await warteAufTab(page, "willkommen.pizza");
@@ -52,6 +59,7 @@ e2e("Klänge: .wav/.flac in den Dateibaum, Vorschau mit Rate/Kanälen und Abspie
     'Klang t = Klang.laden("ton.wav");',
     'a.spiele(lautstaerke: 0.5);',
     't.spiele(panorama: 0.5);',
+    'Klang.laden("glocke.ogg").spiele();',
     'Bote.sage((a + " " + a.dauer() + " " + (t == Klang.laden("ton.wav"))));',
   ].join("\n"));
   for (const motor of ["auto", "interpreter"]) {
@@ -61,7 +69,7 @@ e2e("Klänge: .wav/.flac in den Dateibaum, Vorschau mit Rate/Kanälen und Abspie
     await page.waitForFunction(() => (window.__ereignisse || []).some((e) => e.typ === "ende"), { timeout: 20_000 });
     assert.equal(await konsolenAusgabe(page), "Klang(1) 0.25 ja\n", "Motor " + motor);
     const pcm = await page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "klang-pcm").map((e) => [e.rate, e.kanaele]));
-    assert.deepEqual(pcm, [[44100, 2], [22050, 1]], "Motor " + motor);
+    assert.deepEqual(pcm, [[44100, 2], [22050, 1], [22050, 1]], "Motor " + motor);
   }
   // Wiedergabe der Seite: Stereo-PCM mit eigener Rate in einen OfflineAudioContext (stumm) – links laut, rechts laut
   const pegel = await page.evaluate(async () => {

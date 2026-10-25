@@ -1,0 +1,11 @@
+// Klang.laden mit OGG Vorbis (H-K19b, K-163): Mono 22 050 Hz und Stereo 44 100 Hz aus der Kiste – vorgebacken wie WAV und
+// FLAC zum Klangteig (Rate bleibt, PCM-Hash im Ereignis, gleicher Pfad = derselbe Klang); ein Opus im OGG meldet den Text aus
+// seinem Fehler-Klangteig, danach geht es weiter.
+Klang a = Klang.laden("klaenge/vorbis-mono-22050.ogg");
+Klang b = Klang.laden("klaenge/vorbis-stereo-44100.ogg");
+Bote.sage((a + " " + (a == Klang.laden("klaenge/vorbis-mono-22050.ogg")) + " " + (a == b)));
+Bote.sage((a.dauer().runden(4) + " s, " + b.dauer().runden(4) + " s"));
+a.spiele();
+b.spiele(lautstaerke: 0.5, panorama: 0.25);
+probier { Klang.laden("klaenge/fehler-opus.ogg"); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
+Bote.sage((b.dauer() > a.dauer()));

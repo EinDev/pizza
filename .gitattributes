@@ -10,9 +10,10 @@
 *.gltf      binary
 *.pkarton   binary
 *.bin       binary
-# Klänge (H-K19a): Testklänge und Projektdateien, SHA-256 der Quelle ist der Cache-Schlüssel
+# Klänge (H-K19a, OGG H-K19b): Testklänge und Projektdateien, SHA-256 der Quelle ist der Cache-Schlüssel
 *.wav       binary
 *.flac      binary
+*.ogg       binary
 *.exe       binary
 *.ico       binary
 *.zip       binary

@@ -1,6 +1,7 @@
-//! Format „Klangteig“ v1 (H-K19a, HERD.md §13.3): eine vorgebackene Klangdatei (WAV oder FLAC) als PCM i16 – **ohne
-//! Umrechnen der Rate** (die Wiedergabe aus H-K14 rechnet auf die Geräterate um). Dekodiert wird von Hand und nur mit
-//! Ganzzahlen (Float-WAV: eine f32-Multiplikation, sonst Vergleiche), nativ und in `teigling.wasm` bitgleich.
+//! Format „Klangteig“ v1 (H-K19a/b, HERD.md §13.3): eine vorgebackene Klangdatei (WAV, FLAC oder OGG Vorbis) als PCM i16 –
+//! **ohne Umrechnen der Rate** (die Wiedergabe aus H-K14 rechnet auf die Geräterate um). Dekodiert wird von Hand: WAV/FLAC
+//! nur mit Ganzzahlen (Float-WAV: eine f32-Multiplikation, sonst Vergleiche), Vorbis in f32 nur mit Grundrechenarten
+//! (`ogg.rs`, `vorbis.rs`, `mdct.rs`); nativ und in `teigling.wasm` bitgleich.
 //!
 //! ```text
 //! Kopf (64 B, Little Endian)
@@ -8,7 +9,7 @@
 //!  8  2  Version = 1
 //! 10  1  Art: 0 = Klang · 255 = Fehler
 //! 11  1  0
-//! 12  4  Flags: Bit 0 Quelle FLAC (sonst WAV), Bit 1 Quelle Float
+//! 12  4  Flags: Bit 0 Quelle FLAC, Bit 1 Quelle Float, Bit 2 Quelle OGG Vorbis (immer mit Bit 1); sonst WAV
 //! 16 32  SHA-256 der Quelldatei
 //! 48  4  Rate (Hz)       52  2  Kanäle (1|2)      54  2  Bits je Abtastwert der Quelle
 //! 56  4  Frames (Abtastwerte je Kanal)            60  4  0
@@ -17,16 +18,17 @@
 //!   Laufzeiten setzen "<pfad> " davor). Zählt nicht zur Klangmenge.
 //! ```
 //! Ein gültiger Klangteig hat Rate 8 000 … 96 000, 1 oder 2 Kanäle, Frames 1 … 600 × Rate, PCM ≤ 64 MiB, Bits 8/16/24/32
-//! (WAV; Float nur 32) bzw. 4 … 24 (FLAC, nie Float). Cache-Schlüssel `<sha256>/klang/1`.
+//! (WAV; Float nur 32) bzw. 4 … 24 (FLAC, nie Float) bzw. 32 (Vorbis, als Float). Cache-Schlüssel `<sha256>/klang/1`.
 //!
 //! **Fehlercodes** (Texte nur in [`fehler_text`]): 1 kein lesbarer Klang (auch beschädigt, CRC falsch, 0 Frames, Rate 0) ·
-//! 2 zu lang · 3 Quelle oder Klangteig zu groß · 4 zu viele Kanäle · 5 Rate außerhalb · 6 WAV-/FLAC-Format, das der Herd nicht
-//! kann.
+//! 2 zu lang · 3 Quelle oder Klangteig zu groß · 4 zu viele Kanäle · 5 Rate außerhalb · 6 WAV-/FLAC-/OGG-Format, das der Herd
+//! nicht kann (OGG: kein Vorbis I, Floor 0, Codebücher über den Grenzen aus `vorbis.rs`).
 //!
 //! **Grenzen** (vor dem Anlegen von Speicher geprüft): Quelle ≤ 16 MiB; Dauer ≤ 10 min (Frames ≤ 600 × Rate) – beim WAV nach
 //! der Größe im `data`-Kopf (0 und 0xFFFFFFFF heißen „unbekannt, bis Dateiende“), beim FLAC nach `total_samples` aus
 //! STREAMINFO (0 = unbekannt → laufende Prüfung: über 10 Minuten bricht das Dekodieren ab, der Text nennt die bis dahin
-//! dekodierte Dauer); PCM ≤ 64 MiB ebenso (bei unbekannter Länge wird darüber nur noch gezählt, bis zum Ende oder bis
+//! dekodierte Dauer); beim OGG genauso (Länge stets unbekannt; der Text nennt die größere von dekodierter Dauer und
+//! letzter Granulposition); PCM ≤ 64 MiB ebenso (bei unbekannter Länge wird darüber nur noch gezählt, bis zum Ende oder bis
 //! 10 Minuten). Ein
 //! `data`-Abschnitt, der länger ist als die Datei, wird auf ganze Frames der vorhandenen Bytes gekürzt. FLAC-Blöcke ≤ 65 535,
 //! Speicher je Rahmen ≤ Blockgröße × Kanäle.
@@ -36,7 +38,7 @@
 //! - b < 16 (FLAC 4 … 15): `s << (16 − b)`; b = 16: unverändert;
 //! - b > 16: `(s + (1 << (b − 17))) >> (b − 16)` (arithmetisch, in i64; halbe Stufen aufwärts), dann auf −32 768 … 32 767
 //!   begrenzt;
-//! - Float 32: NaN → 0, auf [−1, 1] begrenzt, `y = x · 32767.0` als **f32**-Multiplikation, dann halbe Stufen vom Nullpunkt
+//! - Float 32 (auch jeder Vorbis-Abtastwert): NaN → 0, auf [−1, 1] begrenzt, `y = x · 32767.0` als **f32**-Multiplikation, dann halbe Stufen vom Nullpunkt
 //!   weg gerundet: `t = y as i32` (abschneiden), `r = y − t as f32` (exakt), `t + 1` bei r ≥ 0,5, `t − 1` bei r ≤ −0,5 – nur
 //!   + − × und Vergleiche, kein FMA, kein libm; Ergebnis liegt in −32 767 … 32 767.
 
@@ -45,7 +47,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::modell::{megabyte, tausender};
-use crate::{flac, wav};
+use crate::{flac, ogg, wav};
 
 pub const MAGIE: [u8; 8] = *b"TEIGKLNG";
 /// Formatversion (Teil des Cache-Schlüssels `klang/1`).
@@ -55,6 +57,7 @@ pub const ART_KLANG: u8 = 0;
 pub const ART_FEHLER: u8 = 255;
 pub const FLAG_FLAC: u32 = 1;
 pub const FLAG_FLOAT: u32 = 2;
+pub const FLAG_VORBIS: u32 = 4;
 /// Größte Quelldatei (16 MiB).
 pub const MAX_QUELLE: usize = 16_777_216;
 /// Längste Dauer in Sekunden (Frames ≤ 600 × Rate).
@@ -88,12 +91,14 @@ pub enum KFehler {
     WavFormat,
     /// FLAC mit Bittiefe außerhalb 4 … 24 (Code 6).
     FlacFormat,
+    /// OGG ohne Vorbis I (Opus, FLAC, …), Floor 0 oder über den Codebuch-Grenzen (Code 6).
+    OggFormat,
 }
 
 /// Code und fertiger Text (ohne Pfad) eines Fehlers – die einzige Stelle, an der diese Texte entstehen (13.1 Regel 5).
 pub fn fehler_text(f: &KFehler) -> (u16, String) {
     match *f {
-        KFehler::KeinKlang => (1, String::from("ist kein lesbarer Klang (WAV oder FLAC).")),
+        KFehler::KeinKlang => (1, String::from("ist kein lesbarer Klang (WAV, FLAC oder OGG).")),
         KFehler::ZuLang { frames, rate } => {
             let s = frames.div_ceil(rate.max(1) as u64);
             (2, format!("ist zu lang ({}:{:02}) – höchstens 10 Minuten.", s / 60, s % 60))
@@ -107,6 +112,9 @@ pub fn fehler_text(f: &KFehler) -> (u16, String) {
             String::from("ist ein WAV in einem Format, das der Herd nicht kann (nur PCM mit 8, 16, 24 oder 32 Bit und Float mit 32 Bit)."),
         ),
         KFehler::FlacFormat => (6, String::from("ist ein FLAC in einem Format, das der Herd nicht kann (nur 4 bis 24 Bit).")),
+        KFehler::OggFormat => {
+            (6, String::from("ist ein OGG in einem Format, das der Herd nicht kann (nur Vorbis I mit Floor 1, kein Opus)."))
+        }
     }
 }
 
@@ -118,7 +126,8 @@ pub struct Info {
     pub bits: u32,
     pub flac: bool,
     pub float: bool,
-    /// Frames, die dekodiert werden (WAV: genau; FLAC: aus STREAMINFO, `None` = unbekannt).
+    pub vorbis: bool,
+    /// Frames, die dekodiert werden (WAV: genau; FLAC: aus STREAMINFO, `None` = unbekannt; OGG: immer unbekannt).
     pub frames: Option<u64>,
     /// Frames laut Kopf für die Dauerprüfung (WAV: Größe im `data`-Kopf; sonst wie `frames`).
     pub frames_laut_kopf: Option<u64>,
@@ -250,6 +259,7 @@ pub fn fehler_teig(f: &KFehler, sha: &[u8; 32]) -> Vec<u8> {
 enum Quelle {
     Wav(wav::Daten),
     Flac(usize),
+    Ogg,
 }
 
 /// Kopf lesen und alle Grenzen prüfen, die vor dem Dekodieren feststehen.
@@ -263,6 +273,8 @@ fn pruefe(q: &[u8]) -> Result<(Info, Quelle), KFehler> {
     } else if flac::ist_flac(q) {
         let (i, start) = flac::kopf(q)?;
         (i, Quelle::Flac(start))
+    } else if ogg::ist_ogg(q) {
+        (ogg::kopf(q)?, Quelle::Ogg)
     } else {
         return Err(KFehler::KeinKlang);
     };
@@ -296,6 +308,7 @@ fn dekodiere_in<S: Senke>(q: &[u8], info: &Info, quelle: &Quelle, s: &mut S) -> 
     match quelle {
         Quelle::Wav(d) => wav::dekodiere(q, info, d, s),
         Quelle::Flac(start) => flac::dekodiere(q, info, *start, s),
+        Quelle::Ogg => ogg::dekodiere(q, info, s),
     }
 }
 
@@ -315,6 +328,9 @@ fn backe(q: &[u8], sha: &[u8; 32]) -> Result<Vec<u8>, KFehler> {
     }
     if info.float {
         flags |= FLAG_FLOAT;
+    }
+    if info.vorbis {
+        flags |= FLAG_VORBIS;
     }
     kopf_bytes(&mut aus, ART_KLANG, flags, sha);
     let mut s = TeigSenke { aus, wandel: Wandel::aus(&info), kanaele: k, werte: 0, ueber: false, max_werte };
@@ -338,7 +354,7 @@ fn backe(q: &[u8], sha: &[u8; 32]) -> Result<Vec<u8>, KFehler> {
     Ok(aus)
 }
 
-/// Quelldatei (WAV oder FLAC) → Klangteig; bei Fehlern ein Fehler-Klangteig – nie ein Abbruch.
+/// Quelldatei (WAV, FLAC oder OGG Vorbis) → Klangteig; bei Fehlern ein Fehler-Klangteig – nie ein Abbruch.
 pub fn vorbacken(quelle: &[u8]) -> Vec<u8> {
     let sha = crate::sha256(quelle);
     match backe(quelle, &sha) {
@@ -384,6 +400,9 @@ impl Kopf {
     pub fn float(&self) -> bool {
         self.flags & FLAG_FLOAT != 0
     }
+    pub fn vorbis(&self) -> bool {
+        self.flags & FLAG_VORBIS != 0
+    }
     pub fn pcm_bytes(&self) -> u64 {
         self.frames as u64 * self.kanaele as u64 * 2
     }
@@ -413,10 +432,12 @@ pub fn kopf(t: &[u8]) -> Option<Kopf> {
         }
         ART_KLANG => {
             let (rate, kanaele, bits, frames) = (u32_at(48), u16_at(52), u16_at(54), u32_at(56));
-            if flags & !(FLAG_FLAC | FLAG_FLOAT) != 0 || u32_at(60) != 0 {
+            if flags & !(FLAG_FLAC | FLAG_FLOAT | FLAG_VORBIS) != 0 || u32_at(60) != 0 {
                 return None;
             }
-            let bits_ok = if flags & FLAG_FLAC != 0 {
+            let bits_ok = if flags & FLAG_VORBIS != 0 {
+                flags & (FLAG_FLAC | FLAG_FLOAT) == FLAG_FLOAT && bits == 32
+            } else if flags & FLAG_FLAC != 0 {
                 flags & FLAG_FLOAT == 0 && (4..=24).contains(&bits)
             } else if flags & FLAG_FLOAT != 0 {
                 bits == 32

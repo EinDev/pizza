@@ -187,6 +187,8 @@ test("Inhaltsregeln je Endung (PNG-/JPEG-Signatur, UTF-8, keine \\r\\n, .pizza â
   assert.match(pruefeInhalt("k/a.wav", Buffer.from("RIFF\x24\0\0\0AVI ", "latin1"), K), /kein WAV-Klang/);
   assert.equal(pruefeInhalt("k/a.flac", Buffer.from("fLaC\0\0\0\x22", "latin1"), K), null);
   assert.match(pruefeInhalt("k/a.flac", png, K), /kein FLAC-Klang/);
+  assert.equal(pruefeInhalt("k/a.ogg", Buffer.from("OggS\0\x02", "latin1"), K), null);   // H-K19b
+  assert.match(pruefeInhalt("k/a.ogg", Buffer.from("fLaC", "latin1"), K), /kein OGG-Klang/);
   assert.match(pruefeInhalt("k/a.mp3", Buffer.from("ID3"), K), /nicht erlaubte Dateiart/);
 });
 

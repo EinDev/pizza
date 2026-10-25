@@ -18,8 +18,8 @@ const BILD_ENDUNGEN = new Set(["png", "jpg", "jpeg"]);
 // Modelle (H-K16): glTF als Binärdatei (auch .gltf – JSON, aber gehasht wie gespeichert) und Puffer .bin für externe Daten
 const MODELL_ENDUNGEN = new Set(["glb", "gltf"]);
 const DATEN_ENDUNGEN = new Set(["bin"]);
-// Klänge (H-K19a): WAV und FLAC als Binärdatei, vorgebacken zum Klangteig
-const KLANG_ENDUNGEN = new Set(["wav", "flac"]);
+// Klänge (H-K19a/b): WAV, FLAC und OGG Vorbis als Binärdatei, vorgebacken zum Klangteig
+const KLANG_ENDUNGEN = new Set(["wav", "flac", "ogg"]);
 const SEGMENT = /^[a-z0-9_-][a-z0-9_.-]*$/;
 
 /** Der Lader des Interpreters (PA1), falls vorhanden. */
@@ -88,7 +88,7 @@ export function pruefePfad(pfad) {
     if (grund) f = `"${pfad}" ist kein gültiger Dateipfad (nur a–z, 0–9, -, _, . und /)` + (/kein gültiger Dateipfad/.test(grund) ? "." : ": " + String(grund).replace(/\.$/, "") + ".");
   } else f = pruefePfadLokal(pfad);
   if (f) return String(f).replace(/^PizzaFehler P0015: /, "");
-  if (!dateiArt(pfad)) return `„${String(pfad).split("/").pop()}“: diese Dateiart kennt der Ofen nicht (erlaubt: .pizza, .png, .jpg, .glb, .gltf, .bin, .wav, .flac, .txt, .json, .csv, .md).`;
+  if (!dateiArt(pfad)) return `„${String(pfad).split("/").pop()}“: diese Dateiart kennt der Ofen nicht (erlaubt: .pizza, .png, .jpg, .glb, .gltf, .bin, .wav, .flac, .ogg, .txt, .json, .csv, .md).`;
   return null;
 }
 

@@ -1473,9 +1473,9 @@
         },
         {
           art: "details",
-          titel: "Klänge aus Dateien: Klang.laden (WAV und FLAC)",
+          titel: "Klänge aus Dateien: Klang.laden (WAV, FLAC und OGG)",
           inhalt: [
-            { art: "text", md: "Aufgenommene Geräusche – Regen, Schritte, eine Ladenglocke – legst du als **`.wav`** oder **`.flac`** ins Projekt (mono oder stereo, 8 000 … 96 000 Hz, höchstens 10 Minuten) und lädst sie mit **`Klang.laden(\"klaenge/regen.flac\")`** – auch ohne Herd. Vor dem Start bäckt der Vorbacker jede Klangdatei zu einem **Klangteig** (16 Bit, die Abtastrate bleibt; umgerechnet wird erst beim Abspielen). Im Dateibaum zeigt die Vorschau Dauer, Rate und Kanäle und hat einen Abspielknopf." },
+            { art: "text", md: "Aufgenommene Geräusche – Regen, Schritte, eine Ladenglocke – legst du als **`.wav`**, **`.flac`** oder **`.ogg`** (Vorbis, z. B. die freien Kenney-Klänge) ins Projekt (mono oder stereo, 8 000 … 96 000 Hz, höchstens 10 Minuten) und lädst sie mit **`Klang.laden(\"klaenge/regen.flac\")`** – auch ohne Herd. Vor dem Start bäckt der Vorbacker jede Klangdatei zu einem **Klangteig** (16 Bit, die Abtastrate bleibt; umgerechnet wird erst beim Abspielen). Im Dateibaum zeigt die Vorschau Dauer, Rate und Kanäle und hat einen Abspielknopf." },
             {
               art: "code",
               ausfuehrbar: false,
@@ -1490,7 +1490,7 @@
                 "Bote.sage((regen.dauer() + \" s\"));"
               )
             },
-            { art: "text", md: "- Geladene Klänge spielst du wie erzeugte: `spiele(lautstaerke, schleife, tonhoehe, panorama)`, die Spur kann `setzeLage` (Raum) und `beimEnde`. **Formen** (`huelle`, `tiefpass`, `mische` …) gehen nur mit erzeugten Klängen – gemischt wird, indem mehrere Spuren zugleich laufen.\n- Fehler kommen mit dem Pfad: `klaenge/x.wav ist kein lesbarer Klang (WAV oder FLAC).`, `… ist zu lang (12:30) – höchstens 10 Minuten.`, `… hat 6 Kanäle – höchstens 2 (Mono oder Stereo).`\n- Alle Klänge eines Projekts zusammen dürfen vorgebacken höchstens 64 MB groß sein (`PizzaFehler P0021`); MP3 und OGG gehen (noch) nicht – wandle sie z. B. mit Audacity in FLAC.\n- Ausprobieren: **Geräuschkiste** unter *Beispiele → Herd* (freie CC0-Geräusche von Freesound)." }
+            { art: "text", md: "- Geladene Klänge spielst du wie erzeugte: `spiele(lautstaerke, schleife, tonhoehe, panorama)`, die Spur kann `setzeLage` (Raum) und `beimEnde`. **Formen** (`huelle`, `tiefpass`, `mische` …) gehen nur mit erzeugten Klängen – gemischt wird, indem mehrere Spuren zugleich laufen.\n- Fehler kommen mit dem Pfad: `klaenge/x.wav ist kein lesbarer Klang (WAV, FLAC oder OGG).`, `… ist zu lang (12:30) – höchstens 10 Minuten.`, `… hat 6 Kanäle – höchstens 2 (Mono oder Stereo).`\n- Alle Klänge eines Projekts zusammen dürfen vorgebacken höchstens 64 MB groß sein (`PizzaFehler P0021`); MP3 und Opus gehen (noch) nicht – wandle sie z. B. mit Audacity in FLAC oder OGG Vorbis.\n- Ausprobieren: **Geräuschkiste** unter *Beispiele → Herd* (freie CC0-Geräusche von Freesound)." }
           ]
         },
         {

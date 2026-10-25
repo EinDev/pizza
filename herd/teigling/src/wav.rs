@@ -85,6 +85,7 @@ pub(crate) fn kopf(q: &[u8]) -> Result<(Info, Daten), KFehler> {
                 bits: f.bits as u32,
                 flac: false,
                 float: f.tag == 3,
+                vorbis: false,
                 frames: Some((da / block) as u64),
                 frames_laut_kopf: Some((laut_kopf / block) as u64),
             };

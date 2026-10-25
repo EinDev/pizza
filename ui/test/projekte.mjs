@@ -24,6 +24,7 @@ assert.equal(dateiArt("modelle/tisch.bin"), "daten");
 assert.equal(pruefePfad("modelle/tisch.gltf"), null);
 assert.equal(dateiArt("klaenge/regen.flac"), "klang");   // H-K19a
 assert.equal(dateiArt("klaenge/tuer.WAV"), "klang");
+assert.equal(dateiArt("klaenge/glocke.ogg"), "klang");   // H-K19b
 assert.equal(pruefePfad("klaenge/regen.wav"), null);
 assert.match(pruefePfad("klaenge/regen.mp3"), /Dateiart.*\.wav, \.flac/);
 assert.equal(dateiArt("notiz.md"), "text");
@@ -317,8 +318,18 @@ assert.match(dataUrl(png), /^data:image\/png;base64,iVBORw0KGgo/);
   assert.deepEqual(klangInfo(flac), { art: "flac" });
   assert.equal(klangInfo(png), null);
   assert.equal(pruefeKlang("k/a.flac", flac).ok, true);
-  assert.equal(pruefeKlang("k/a.flac", wav).fehler, "k/a.flac ist kein lesbarer Klang (WAV oder FLAC).");
-  assert.equal(klangFehlerText("x.wav", null), "x.wav ist kein lesbarer Klang (WAV oder FLAC).");
+  assert.equal(pruefeKlang("k/a.flac", wav).fehler, "k/a.flac ist kein lesbarer Klang (WAV, FLAC oder OGG).");
+  assert.equal(klangFehlerText("x.wav", null), "x.wav ist kein lesbarer Klang (WAV, FLAC oder OGG).");
+  // OGG Vorbis (H-K19b): Signatur „OggS“, vorgebacken mit Flag Vorbis; Opus im OGG → Fehler-Klangteig mit Text
+  const ogg = tk("vorbis-stereo-44100.ogg");
+  assert.deepEqual(klangInfo(ogg), { art: "ogg" });
+  assert.equal(pruefeKlang("k/a.ogg", ogg).ok, true);
+  assert.equal(pruefeKlang("k/a.ogg", flac).ok, false);
+  const ko = await vb.vorbackeKlang("k/a.ogg", ogg);
+  assert.equal(ko.ok, true, ko.fehler || ko.grund);
+  assert.deepEqual([ko.kopf.rate, ko.kopf.kanaele, ko.kopf.frames, ko.kopf.vorbis], [44100, 2, 17640, true]);
+  assert.equal((await vb.vorbackeKlang("k/o.ogg", tk("fehler-opus.ogg"))).fehler,
+    "k/o.ogg ist ein OGG in einem Format, das der Herd nicht kann (nur Vorbis I mit Floor 1, kein Opus).");
   const k1 = await vb.vorbackeKlang("k/a.flac", flac);
   assert.equal(k1.ok, true, k1.fehler || k1.grund);
   assert.deepEqual([k1.kopf.rate, k1.kopf.kanaele, k1.kopf.frames], [44100, 2, 11025]);

@@ -13,7 +13,7 @@
 //! | `modell_vorbacken` | `(ptr, len) → len` | Modellteig aus einem Quellpaket (`TEIGQUEL …`) oder direkt aus einer `.glb` |
 //! | `modell_braucht` | `(ptr, len) → len` | Eingabe: Pfad, NUL, Hauptdatei → Text „URI ⇥ Projektpfad“ je Zeile (was ein `.gltf` braucht) |
 //! | `klang_version` | `() → i32` | Formatversion der Klangteige (1, H-K19a; Cache-Schlüssel `klang/1`) |
-//! | `klang_vorbacken` | `(ptr, len) → len` | Klangteig aus einer WAV- oder FLAC-Datei (bei Fehlern ein Fehler-Klangteig mit fertigem Text) |
+//! | `klang_vorbacken` | `(ptr, len) → len` | Klangteig aus einer WAV-, FLAC- oder OGG-Vorbis-Datei (bei Fehlern ein Fehler-Klangteig mit fertigem Text) |
 //!
 //! `abi_version` bleibt 1: die Modell- und Klang-Exporte sind Zusatz; Hüllen erkennen sie an `modell_version` bzw.
 //! `klang_version`.

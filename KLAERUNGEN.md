@@ -2466,7 +2466,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   `herd-funken-aufprall`, Beispiel `funkenschlag`, SPEC §18.6, Doku `herd-ausbau`, `herd/README.md` §7, B15. Kein Bildpaket
   (`TEILCHEN3D` unverändert), keine Glut, kein Interpreter/Laufzeit/Host. **Status:** fest.
 
-### K-163 Klang: Klänge aus Dateien – `Klang.laden` (WAV, FLAC), Klangteig, Klangmenge P0021 (H-K19a)
+### K-163 Klang: Klänge aus Dateien – `Klang.laden` (WAV, FLAC, OGG Vorbis), Klangteig, Klangmenge P0021 (H-K19a, H-K19b)
 - **Frage:** Wie kommen Geräusche aus Dateien (Regen, Schritte, Stadt) in `Klang`, bitgleich in allen Motoren, sicher gegenüber fremden
   Dateien und ohne Kern oder GPU zu belasten?
 - **Entscheidung (HERD.md §13.3 H-K19a):** zuerst **WAV** (RIFF/WAVE inkl. `WAVE_FORMAT_EXTENSIBLE`; PCM 8/16/24/32 Bit, Float 32 Bit)
@@ -2492,6 +2492,19 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 - **Betroffen:** HERD.md §11.1/§13.1/§13.3/§13.4, SPEC §18.8, PROJEKTE §1.3/§5.11, HOST-ABI §2, `herd/README.md`, Vorbacker, Erzeuger,
   Interpreter, Laufzeit, Compiler, JS-Host, nativer Host (Mischer mit Ratenumrechnung, Stereo), Worker, Playground, CLI, Durchreiche,
   nginx, E2E-Server, Doku `herd-ausbau`, Beispiel `geraeuschkiste`. **Status:** fest.
+- **Nachtrag H-K19b (OGG Vorbis):** `.ogg` ist erlaubte Projektdatei (Signatur `OggS`, binär, MIME `audio/ogg`). Eigener
+  **Vorbis-I-Dekoder** im Vorbacker (`ogg.rs`, `vorbis.rs`, `mdct.rs`; Vorbild libvorbis 1.3/stb_vorbis, kein Fremd-Crate): erster
+  logischer Ogg-Strom mit CRC, Codebücher, Floor 1, Residue 0/1/2, Kopplung, inverse MDCT über FFT, Fenster, Überlappung,
+  Granulpositionen wie `vorbis_synthesis_blockin`. **Floor 0 und fremde Ogg-Inhalte** (Opus, FLAC-in-Ogg …) → Fehler-Klangteig Code 6
+  „ist ein OGG in einem Format, das der Herd nicht kann (nur Vorbis I mit Floor 1, kein Opus).“; Code 1 heißt jetzt „ist kein lesbarer
+  Klang (WAV, FLAC oder OGG).“ (Text im Teig; der Erzeuger-Rückfall `KEIN_KLANG` für Ungültiges ohne Teig bleibt bis zur nächsten
+  Laufzeit-Stufe „(WAV oder FLAC)“ – keine Laufzeit-Änderung in H-K19b). **Determinismus:** f32 nur mit + − × in fester Reihenfolge,
+  keine FMA, Tabellen (Fenster, MDCT-Drehfaktoren) einmal je Datei aus `libm`, Floor-dB-Tafel als Bitmuster – bitgleich nativ =
+  `teigling.wasm`; gegen libvorbis höchstens 1 LSB (≈ 0,1 % der Werte). Klangteig unverändert v1: Flag-Bit 2 = Quelle Vorbis (immer mit
+  Bit 1 Float, Bits 32), Abtastwerte → i16 wie Float-WAV. **Grenzen:** Blockgrößen 64 … 8192, Codebücher zusammen ≤ 2²⁰ Einträge und
+  ≤ 2²² VQ-Werte, Dimension ≤ 64, Floor 1 ≤ 65 Stützstellen (Code 6 bzw. 1); die Länge kennt Ogg erst am Ende – Dauer und 64 MB laufen
+  mit wie beim FLAC mit unbekannter Länge. Keine neue Sprache, kein neuer Fehlercode, keine Laufzeit-Änderung (nur die Endungslisten in
+  Interpreter, Compiler, CLI, Playground, Durchreiche, nginx).
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
 

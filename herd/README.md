@@ -14,7 +14,7 @@ Umsetzung im Ordner `herd/`: Aufbau, Komponenten-Registry, **Herd-ABI**, **Bildp
 | `skript/` (`herd-skript`) | Szenen-Skripte (§7.1) nativ abspielen: Zeilen für den Determinismus-Test, Zeiten (`--mess`); Bibliothek für `herd-bild` |
 | `werkzeug/` (`herd-bild`) | Schriftatlas erzeugen, Szenen-Skripte rendern (PNG), Glut-Messung |
 | `skript.js`, `test-kern.js` | JS-Spieler der Szenen-Skripte gegen `kern.wasm`; Determinismus-Test nativ = Wasm |
-| `teigling/` (`herd-teigling`, `no_std` + `alloc`, nur `miniz_oxide`) | **Vorbacker** (§11, PROJEKTE.md §5.3): PNG/JPEG → Teigling (RGBA8 + Mipmaps), glTF → Modellteig (H-K16), WAV/FLAC → Klangteig (H-K19a, `klang.rs`, eigener Dekoder), nur Ganzzahlen; Testbild-Erzeuger und Werkzeug `herd-teigling` hinter Feature `testbilder` |
+| `teigling/` (`herd-teigling`, `no_std` + `alloc`, `miniz_oxide`, `libm` nur für Vorbis-Tabellen) | **Vorbacker** (§11, PROJEKTE.md §5.3): PNG/JPEG → Teigling (RGBA8 + Mipmaps), glTF → Modellteig (H-K16), WAV/FLAC → Klangteig (H-K19a, `klang.rs`, eigener Dekoder), nur Ganzzahlen; OGG Vorbis → Klangteig (H-K19b, `ogg.rs`, `vorbis.rs`, `mdct.rs`, f32 nur + − ×); Testbild-Erzeuger und Werkzeug `herd-teigling` hinter Feature `testbilder` |
 | `teigling/wasm/` (`herd-teigling-wasm`) | Wasm-Hülle `site/js/herd/teigling.wasm` (keine Importe, eigener Allocator). Nur für `wasm32v1-none` |
 | `test-teigling.js` | Bitgleich-Test Vorbacker nativ = `teigling.wasm` = `teigling/golden.txt` (§11.4) |
 | `klang/` (`herd-klang`, `no_std` + `alloc` + `libm`) | **Klang-Erzeuger** (§12, H-K14, K-153): Töne, Rauschen, Noten, Hüllkurven, Filter, Mischen → PCM 48 kHz mono i16; geladene Klangteige (H-K19a); `Abi` (Methoden = Exporte), Raumformel `raum` |
@@ -774,8 +774,9 @@ Speicher) und `klein` (opt-level "z", LTO, strip).
 
 PNG und JPEG sind nur **Eingabe**: der Vorbacker backt sie einmal zu einem **Teigling** (RGBA8 nicht vormultipliziert +
 Mipmaps bis 1 × 1). Derselbe Rust-Code läuft nativ und als `site/js/herd/teigling.wasm` (Browser-Worker, Node-CLI,
-Interpreter, Harnische) und rechnet **nur mit Ganzzahlen** → bitgleich per Konstruktion. Einzige Abhängigkeit:
-`miniz_oxide` 0.8.9 (Inflate, `no_std`, in `Cargo.lock` gesperrt); PNG- und JPEG-Decoder sind eigener Code. Der native Host
+Interpreter, Harnische) und rechnet **nur mit Ganzzahlen** → bitgleich per Konstruktion (Ausnahme Vorbis, H-K19b: f32 nur mit
++ − × in fester Reihenfolge, Tabellen aus `libm` – ebenfalls bitgleich). Abhängigkeiten: `miniz_oxide` 0.8.9 (Inflate, `no_std`,
+in `Cargo.lock` gesperrt) und `libm` 0.2 (nur Fenster- und MDCT-Tabellen); PNG-, JPEG-, WAV-, FLAC- und Vorbis-Decoder sind eigener Code. Der native Host
 braucht den Vorbacker nicht (er bekommt fertige Teiglinge im pkarton, PA2).
 
 ### 11.1 Decoder
@@ -871,6 +872,26 @@ vorgebacken) sowie ohne Wasm `kopf`, `stufe` (Vorschau), `teigmenge` (verschiede
   `SCHREIBE_GOLDEN=1` schreibt neu), `node herd/test-teigling.js` (teigling.wasm = golden-modelle.txt, Hülle), Kern
   `tests::hk16`, Szene `modell.herd` (nativ = Wasm).
 
+### 11.6 Klänge: OGG Vorbis → Klangteig (H-K19b, K-163)
+
+- **Ogg** (`ogg.rs`, RFC 3533): Seiten Version 0 mit CRC-32 (0x04C11DB7), Pakete über Seitengrenzen; nur der erste logische
+  Strom (Seriennummer der BOS-Seite) bis zu seiner EOS-Seite, fremde Ströme übergangen; Lücke in der Seitenfolge, falsches
+  Fortsetzungs-Flag, CRC → Code 1; abgeschnittene letzte Seite = Strom-Ende.
+- **Vorbis I** (`vorbis.rs`): Kennungs-, Kommentar-, Setup-Kopf; Codebücher (Längen dünn/geordnet, Codewörter wie libvorbis
+  `_make_words`, über- und unterbestimmte Bäume → Code 1, ein einziges Wort = 1 Bit; Huffman über Schnelltafel 10 Bit + Baum;
+  VQ-Lookup 1/2 wie `_book_unquantize`), **Floor 1** (Floor 0 → Code 6), Residue 0/1/2, Kopplung, inverse MDCT (`mdct.rs`:
+  DCT-IV über komplexe FFT N/4), Fenster `sin(π/2 · sin²(…))`, Überlappung und Granulpositionen wie `vorbis_synthesis_blockin`.
+  Fremde Ogg-Inhalte (Opus, FLAC, Speex, Theora) und Vorbis-Version ≠ 0 → Code 6.
+- **Determinismus:** f32 nur mit + − × in fester Reihenfolge (keine FMA), Floor-dB-Tafel aus der Spezifikation (Bitmuster),
+  Fenster und Drehfaktoren je Datei einmal mit `libm` (f64 → f32); Abtastwerte → i16 wie Float-WAV (× 32767, halbe Stufen vom
+  Nullpunkt weg). Kopf: Flags Bit 1 + Bit 2, Bits 32.
+- **Grenzen:** Blockgrößen 64 … 8192; ≤ 256 Codebücher mit zusammen ≤ 2²⁰ Einträgen und ≤ 2²² VQ-Werten, Dimension ≤ 64;
+  Floor 1 ≤ 65 Stützstellen; Länge laufend geprüft (über 10 Minuten bricht das Dekodieren ab, der Text nennt die größere von
+  dekodierter Dauer und letzter Granulposition; über 64 MB nur noch gezählt).
+- **Tests:** `cargo test -p herd-teigling` (`vorbis_tests.rs`: libvorbis-Abgleich gegen `testklaenge/libvorbis/*.flac` ≤ 1 LSB,
+  Setup-Grenzen, Floor 0, Kennung, Fuzz 7 × 400 mit neu berechneter Ogg-CRC; `klang_tests.rs`: OGG-Dateien in `erwartet.txt`
+  und `golden-klaenge.txt`), `node herd/test-teigling.js` (nativ = `teigling.wasm`). Testdateien: `testklaenge/quellen.md`.
+
 ## 12. Klang-Erzeuger `herd/klang` (H-K14, K-153, SPEC §18.8)
 
 - **Format:** PCM 48 kHz, mono, i16 Little Endian; Hash = FNV-1a-64 über die PCM-Bytes (16 Hex-Ziffern, im Ereignis `klang`). Zustand in
@@ -882,7 +903,7 @@ vorgebacken) sowie ohne Wasm `kopf`, `stufe` (Vorschau), `teigmenge` (verschiede
 - **ABI** (`Abi`, Methoden = Exporte von `klang.wasm`, HOST-ABI §2 Gruppe `klang`): Ergebnis `id ≥ 1` oder `-1`; Fehler über `fehler_art`
   (1 TypAnanas, 2 LaufzeitAnanas), `fehler_text`, `fehler_neu` – alle Fehlertexte stehen in `src/lib.rs`.
 - **Geladene Klänge** (H-K19a, K-163): `laden(pfad, teig)` nimmt einen **Klangteig** aus dem Vorbacker (`herd/teigling/src/klang.rs`,
-  WAV/FLAC → PCM i16 mit eigener Rate 8 … 96 kHz, mono oder stereo verschachtelt), prüft den Kopf vollständig (Fehler-Klangteig →
+  WAV/FLAC/OGG Vorbis → PCM i16 mit eigener Rate 8 … 96 kHz, mono oder stereo verschachtelt), prüft den Kopf vollständig (Fehler-Klangteig →
   „<pfad> <Text aus dem Teig>“, Ungültiges → „<pfad> ist kein lesbarer Klang (WAV oder FLAC).“) und legt einen nur **abspielbaren**
   Klang an (Formen lehnen ihn ab, die 5 Minuten zählen ihn nicht). `rate(id)`/`kanaele(id)` für die Wiedergabe; `dauer` = Frames / Rate.
 - **Raum** (`raum(lage, reichweite, hoerer)` → Lautstärke, Panorama, Tiefpass): Formel der Wiedergaben (nativer Mischer

@@ -207,7 +207,7 @@ function modellTeigKopf(t) {
 // → null | { fehler: diavolo, sha256: hex, rate, kanaele, frames }
 const KLANG_MAGIE = [84, 69, 73, 71, 75, 76, 78, 71];   // "TEIGKLNG"
 const KLANGMENGE_MAX = 67108864;
-function istKlangPfad(pfad) { return /\.(wav|flac)$/.test(pfad); }
+function istKlangPfad(pfad) { return /\.(wav|flac|ogg)$/.test(pfad); }
 function klangTeigKopf(t) {
   if (!(t instanceof Uint8Array) || t.length < 64) return null;
   for (let i = 0; i < 8; i++) if (t[i] !== KLANG_MAGIE[i]) return null;

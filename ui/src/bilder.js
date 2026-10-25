@@ -6,7 +6,7 @@
 // IndexedDB-Speicher `teiglinge` (Schlüssel PizzaVorbacker.cacheSchluessel = SHA-256 der Quelle + Formatversion, LRU 128 MiB).
 // Beim Lauf gehen die Teiglinge und das kompilierte Modul an den Worker (`teiglinge`, `vorbacker`); der Interpreter prüft jeden.
 // Modelle (H-K16, .glb/.gltf) genauso: Quellpaket aus der Datei und ihren Nachbardateien, Schlüssel SHA-256 + „modell/1“.
-// Klänge (H-K19a, .wav/.flac) genauso: Klangteig (PCM i16, Rate bleibt), Schlüssel SHA-256 + „klang/1“; eigene Klangmenge (P0021).
+// Klänge (H-K19a/b, .wav/.flac/.ogg) genauso: Klangteig (PCM i16, Rate bleibt), Schlüssel SHA-256 + „klang/1“; eigene Klangmenge (P0021).
 
 export const MAX_SEITE = 2048;
 export const VORBACKER_URL = "js/herd/teigling.wasm";
@@ -77,24 +77,25 @@ export function modellFehlerText(pfad, kopf) {
   return kopf.fehler ? pfad + " " + kopf.fehler.text : null;
 }
 
-// ---------- Klänge (H-K19a, HERD.md §13.3): .wav/.flac, vorgebacken zum Klangteig ----------
-/** Signatur: „RIFF“ … „WAVE“ bzw. „fLaC“ → { art: "wav" | "flac" } | null */
+// ---------- Klänge (H-K19a/b, HERD.md §13.3): .wav/.flac/.ogg, vorgebacken zum Klangteig ----------
+/** Signatur: „RIFF“ … „WAVE“, „fLaC“ bzw. „OggS“ → { art: "wav" | "flac" | "ogg" } | null */
 export function klangInfo(b) {
   if (!(b instanceof Uint8Array)) return null;
   if (b.length >= 12 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x41 && b[10] === 0x56 && b[11] === 0x45) return { art: "wav" };
   if (b.length >= 4 && b[0] === 0x66 && b[1] === 0x4c && b[2] === 0x61 && b[3] === 0x43) return { art: "flac" };
+  if (b.length >= 4 && b[0] === 0x4f && b[1] === 0x67 && b[2] === 0x67 && b[3] === 0x53) return { art: "ogg" };
   return null;
 }
 /** Prüfung beim Hinzufügen: Endung + Signatur → { ok: true, info } | { ok: false, fehler } (Text wie zur Laufzeit). */
 export function pruefeKlang(pfad, bytes) {
   const info = klangInfo(bytes);
   const e = String(pfad).split(".").pop().toLowerCase();
-  if (!info || info.art !== e) return { ok: false, fehler: `${pfad} ist kein lesbarer Klang (WAV oder FLAC).` };
+  if (!info || info.art !== e) return { ok: false, fehler: `${pfad} ist kein lesbarer Klang (WAV, FLAC oder OGG).` };
   return { ok: true, info };
 }
 /** Meldung zu einem Fehler-Klangteig – der Text steht im Teig (Vorbacker), wie zur Laufzeit mit dem Pfad davor. */
 export function klangFehlerText(pfad, kopf) {
-  if (!kopf) return `${pfad} ist kein lesbarer Klang (WAV oder FLAC).`;
+  if (!kopf) return `${pfad} ist kein lesbarer Klang (WAV, FLAC oder OGG).`;
   return kopf.fehler ? pfad + " " + kopf.fehler.text : null;
 }
 
@@ -218,7 +219,7 @@ export function erstelleVorbacker({ ablage = null, url = VORBACKER_URL, huelleUr
     async teiglingeFuer(bilder, sammlung = null) {
       const aus = {};
       for (const [pfad, bytes] of Object.entries(bilder)) {
-        if (/\.(wav|flac)$/.test(pfad)) {
+        if (/\.(wav|flac|ogg)$/.test(pfad)) {
           const r = await vorbackeKlang(pfad, bytes);
           if (r.teig) aus[pfad] = r.teig;
           continue;

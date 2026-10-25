@@ -354,6 +354,7 @@ dependencies = [
 name = "herd-teigling"
 version = "3.1.0"
 dependencies = [
+ "libm",
  "miniz_oxide 0.8.9",
 ]
 

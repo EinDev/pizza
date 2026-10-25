@@ -1,7 +1,7 @@
 // Bildvorschau für Bilddateien des Projekts (PROJEKTE.md §3.1, §5.8): Pixelgröße, Dateigröße, pixelscharfe Zoomstufen; Anzeige
 // über eine data:-URL (CSP img-src 'self' data: bleibt); dazu „vorgebacken … · n Stufen“ aus dem Teigling (Vorbacker, PD1).
 // Modelle (H-K16, .glb/.gltf): Kennzahlen aus dem Modellteig („612 Ecken · 3 Bilder · vorgebacken 1,2 MB“) bzw. die Meldung wie
-// zur Laufzeit; Puffer (.bin): nur die Größe. Klänge (H-K19a, .wav/.flac): Kennzahlen aus dem Klangteig („2,5 s · 22 050 Hz ·
+// zur Laufzeit; Puffer (.bin): nur die Größe. Klänge (H-K19a/b, .wav/.flac/.ogg): Kennzahlen aus dem Klangteig („2,5 s · 22 050 Hz ·
 // mono · vorgebacken 108 KB“) und ein Abspielknopf – Ton erst nach dem Klick (Autoplay-Regel), in automatisierten Browsern
 // (E2E) stumm in einen OfflineAudioContext gerendert (data-gespielt mit dem Pegel).
 import { bildInfo, dataUrl, pruefeBild, modellInfo, pruefeModell, klangInfo, pruefeKlang } from "./bilder.js";

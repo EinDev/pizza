@@ -37,15 +37,15 @@
  *     PizzaVorbacker.modellCacheSchluessel(sha256Hex) → "<hex>/modell/1"
  *     teigmenge(…) zählt Teiglinge und Modellteige (je SHA-256 einmal, Fehler nicht; eingebettete Bilder je Quelle einmal, auch
  *                  über Modelle und Bilddateien hinweg); teigmengeFehler(bytes, mitModellen)
- *   Klänge (WAV/FLAC, H-K19a, HERD.md §13.3; Format „Klangteig“ in herd/teigling/src/klang.rs – PCM i16 LE verschachtelt ab
- *   Byte 64, Rate der Quelle, kein Umrechnen):
+ *   Klänge (WAV/FLAC, H-K19a; OGG Vorbis, H-K19b; HERD.md §13.3; Format „Klangteig“ in herd/teigling/src/klang.rs – PCM i16 LE
+ *   verschachtelt ab Byte 64, Rate der Quelle, kein Umrechnen; Flag-Bit 2 = Quelle Vorbis):
  *     Vorbacker.hatKlaenge → boolean                teigling.wasm kennt klang_vorbacken (klang_version() === 1)
  *     Vorbacker.klangVorbacken(quelle) → Uint8Array Klangteig (bei Fehlern ein Fehler-Klangteig mit fertigem Text, ohne Pfad)
  *     Vorbacker.klangBesorge(teig | null, quelle) → Uint8Array   den gegebenen Teig, wenn sein Kopf gültig ist, er kein Fehler-Teig
  *                                                    ist und die SHA-256 der Quelle passt – sonst neu vorgebacken
- *     PizzaVorbacker.klangKopf(teig) → null | { rate, kanaele, bits, frames, dauer (Sekunden), flac, float, sha256 (hex), pcmBytes,
+ *     PizzaVorbacker.klangKopf(teig) → null | { rate, kanaele, bits, frames, dauer (Sekunden), flac, float, vorbis, sha256 (hex), pcmBytes,
  *                                               fehler: null | { code: 1 … 6, text } }   (vollständig geprüft wie klang::kopf)
- *     PizzaVorbacker.istKlangPfad(pfad) → boolean      .wav/.flac
+ *     PizzaVorbacker.istKlangPfad(pfad) → boolean      .wav/.flac/.ogg
  *     PizzaVorbacker.klangmenge(teige) → Bytes          Summe ganzer Klangteige je Quell-SHA-256 einmal, Fehler-Teige nicht (P0021)
  *     PizzaVorbacker.klangmengeFehler(bytes) → null | „Die Klänge sind zusammen zu groß für den Ofen (… MB vorgebacken, höchstens 64 MB).“
  *     PizzaVorbacker.klangCacheSchluessel(sha256Hex) → "<hex>/klang/1"
@@ -172,7 +172,7 @@
   var KLANG_MAGIE = [84, 69, 73, 71, 75, 76, 78, 71]; // "TEIGKLNG"
   var KLANG_VERSION = 1, KLANG_KOPF = 64;
   var MAX_KLANG_QUELLE = 16777216, MAX_KLANG_PCM = 67108864, MAX_KLANGMENGE = 67108864;
-  function istKlangPfad(p) { return /\.(wav|flac)$/.test(p); }
+  function istKlangPfad(p) { return /\.(wav|flac|ogg)$/.test(p); }
   /** Kopf eines Klangteigs lesen und vollständig prüfen (wie klang::kopf in herd/teigling/src/klang.rs). */
   function klangKopf(t) {
     if (!t || t.length < KLANG_KOPF) return null;
@@ -186,17 +186,17 @@
       if (code < 1 || code > 6 || t.length !== KLANG_KOPF + 4 + n || !utf8) return null;
       var text;
       try { text = new TextDecoder("utf-8", { fatal: true }).decode(t.subarray(68)); } catch (e) { return null; }
-      return { rate: 0, kanaele: 0, bits: 0, frames: 0, dauer: 0, flac: false, float: false, sha256: sha, pcmBytes: 0, fehler: { code: code, text: text } };
+      return { rate: 0, kanaele: 0, bits: 0, frames: 0, dauer: 0, flac: false, float: false, vorbis: false, sha256: sha, pcmBytes: 0, fehler: { code: code, text: text } };
     }
     if (art !== 0) return null;
     var rate = u32(t, 48), kanaele = u16(t, 52), bits = u16(t, 54), frames = u32(t, 56);
-    var flac = (flags & 1) !== 0, float = (flags & 2) !== 0;
-    if ((flags & ~3) !== 0 || u32(t, 60) !== 0) return null;
-    var bitsOk = flac ? !float && bits >= 4 && bits <= 24 : float ? bits === 32 : bits === 8 || bits === 16 || bits === 24 || bits === 32;
+    var flac = (flags & 1) !== 0, float = (flags & 2) !== 0, vorbis = (flags & 4) !== 0;
+    if ((flags & ~7) !== 0 || u32(t, 60) !== 0) return null;
+    var bitsOk = vorbis ? (flags & 3) === 2 && bits === 32 : flac ? !float && bits >= 4 && bits <= 24 : float ? bits === 32 : bits === 8 || bits === 16 || bits === 24 || bits === 32;
     if (!bitsOk || rate < 8000 || rate > 96000 || (kanaele !== 1 && kanaele !== 2)) return null;
     var pcm = frames * kanaele * 2;
     if (frames < 1 || frames > 600 * rate || pcm > MAX_KLANG_PCM || t.length !== KLANG_KOPF + pcm) return null;
-    return { rate: rate, kanaele: kanaele, bits: bits, frames: frames, dauer: frames / rate, flac: flac, float: float, sha256: sha, pcmBytes: pcm, fehler: null };
+    return { rate: rate, kanaele: kanaele, bits: bits, frames: frames, dauer: frames / rate, flac: flac, float: float, vorbis: vorbis, sha256: sha, pcmBytes: pcm, fehler: null };
   }
   /** Klangmenge (P0021): ganze Klangteige, je SHA-256 der Quelle einmal; Fehler-Teige und andere Bytes zählen nicht. */
   function klangmenge(teige) {
