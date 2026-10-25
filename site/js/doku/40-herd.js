@@ -322,7 +322,7 @@
                 ["`Partikel`","2D","`rate` 30, `lebensdauer` 1, `tempo` 80, `richtung` 270, `streuung` 360, `schwerkraft` 0, `groesse` 6, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `aktiv` ja, `saat` 0","Teilchen-Sprüher, die Teilchen leben in der Engine; `richtung` 0 = rechts, 90 = unten"],
                 ["`Linie`","2D","`zuX` 100, `zuY` 0, `dicke` 2, `farbe` ofen, `rund` nein","Strecke von der Lage des Teils zum Endpunkt (`zuX`, `zuY`) relativ zum Teil; `rund` = runde Enden"],
                 ["`Rahmen`","2D","`bildchen` karton, `kante` 4, `breite` 64, `hoehe` 32, `groesse` 1, `farbe` weiss","9-Slice-Tafel: Ecken (`kante` Bildchen-Pixel) bleiben scharf, Kanten und Mitte werden auf `breite` × `hoehe` gestreckt"],
-                ["`Funken`","3D","`rate` 30, `lebensdauer` 1, `tempo` 2, `richtungX` 0, `richtungY` 1, `richtungZ` 0, `streuung` 30, `schwerkraft` 0, `groesse` 0.2, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `mischung` leuchtend, `weltlage` ja, `aktiv` ja, `saat` 0; Regen: `streckung` 0, `licht` 0, `volumen` 0, `aufschlag` nein, `boden` 0, `spritzer` 3, `regen` nein","3D-Teilchen, die zur Kamera schauen: Ausstoß im Kegel um die Richtung (`streuung` = halber Öffnungswinkel in Grad), `leuchtend` addiert sich zu Glut, `deckend` mischt (Rauch); Regen: Striche entlang der Bewegung, im Licht der Szene, Volumen um das Teil, Spritzer am Boden, Rate × `Stimmung.regen`"],
+                ["`Funken`","3D","`rate` 30, `lebensdauer` 1, `tempo` 2, `richtungX` 0, `richtungY` 1, `richtungZ` 0, `streuung` 30, `schwerkraft` 0, `groesse` 0.2, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `mischung` leuchtend, `weltlage` ja, `aktiv` ja, `saat` 0; Regen: `streckung` 0, `licht` 0, `volumen` 0, `aufschlag` nein, `boden` 0, `spritzer` 3, `regen` nein; Aufprall: `kollision` keine, `aufprall` vergehen, `abprall` 0.3","3D-Teilchen, die zur Kamera schauen: Ausstoß im Kegel um die Richtung (`streuung` = halber Öffnungswinkel in Grad), `leuchtend` addiert sich zu Glut, `deckend` mischt (Rauch); Regen: Striche entlang der Bewegung, im Licht der Szene, Volumen um das Teil, Spritzer am Boden, Rate × `Stimmung.regen`; Aufprall auf einer Ebene oder an festen Fühlern und Gelände: vergehen, abprallen oder liegen bleiben"],
                 ["`Gleiten`","beide","`was` x, `nach` 0, `dauer` 1, `kurve` sanft, `schleife` einmal, `laeuft` ja","Tween: eine Größe der Lage (`x`, `y`, `z`, `drehung`, `neigung`, `rollen`, `groesse`) gleitet vom aktuellen Wert nach `nach`; Kurven `linear`, `sanft`, `rein`, `raus`, `federnd`, `huepfend`; `einmal`, `wiederholen`, `pendeln`"],
                 ["`Ablauf`","beide","`zeiten` [], `xWerte`, `yWerte`, `zWerte`, `drehWerte`, `groesseWerte` [], `kurve` linear, `schleife` ja, `tempo` 1, `zeit` 0, `laeuft` ja","Keyframes: zu den `zeiten` gelten die Werte aus den Wertelisten (Blech aus Zahlen), dazwischen `linear` oder `sanft`; `zeit` setzen springt"],
                 ["`Belag`","3D","`farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton","geteiltes Material: jeder `Koerper` mit `belag` = dieses Teil zeichnet mit diesen Werten statt den eigenen; zeichnet selbst nichts"],
@@ -1218,6 +1218,46 @@
             },
             { art: "ausgabe", text: z("0.03 5 3 ja") },
             { art: "text", md: "Ein ganzes Beispiel ist **Neon-Napoli** unter *Beispiele → Herd*: Regen um den Spieler, der in den Farben der Neonschilder glitzert, Spritzer auf dem Asphalt und Ringe in den Pfützen." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Funken-Aufprall: abprallen, liegen bleiben, vergehen",
+          inhalt: [
+            { art: "text", md: "**`kollision`** lässt `Funken` auf etwas treffen. `\"boden\"` ist eine waagerechte Ebene auf der Höhe **`boden`** – billig und für flache Böden genug. `\"welt\"` prüft jedes Teilchen auf seinem Weg im Takt gegen **alle festen Fühler** (Kasten, Kugel, Kapsel, Netz) und das **Gelände** (Fühler mit Form `\"netz\"`): Regen landet auf Dächern und Gehwegen, Funken springen über Hügel. Auslöser, Figuren und dynamische `Schwung`-Körper zählen nicht. Der Standard `\"keine\"` lässt alles durch (dann gilt wie bisher `aufschlag`)." },
+            { art: "text", md: "**`aufprall`** sagt, was danach passiert: `\"vergehen\"` (Standard – Regen), `\"abprallen\"` (zurück mit dem Anteil **`abprall`** des Tempos senkrecht zur Fläche, Standard 0.3; entlang der Fläche gleitet es weiter, wird der Sprung zu klein, rutscht es nur noch) oder `\"liegen\"` (bleibt als Glut liegen, bis seine `lebensdauer` um ist). Bei jedem kräftigen Aufprall steigen **`spritzer`** kleine Teilchen von der Fläche auf – höchstens 1 000 neue je Takt und Emitter." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Aufprall","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"2f1faffb3fe8eac3","paket":"ad5188aac8e76870"},
+                {"art":"bild","bildnummer":8,"szene":"b919296690b207a4","paket":"b9e28eb8108840e3"},
+                {"art":"bild","bildnummer":12,"szene":"eaf4ba868c0451a8","paket":"bbbc90b2b2deae30"},
+                {"art":"bild","bildnummer":16,"szene":"a3c4932ca85d64e7","paket":"37221d63ed8b4ebc"},
+                {"art":"bild","bildnummer":20,"szene":"bb2789e091ca6a2d","paket":"94168e0aa26defd4"},
+                {"art":"bild","bildnummer":24,"szene":"1e7607b21e82c4b6","paket":"104cb3c58abd2d71"},
+                {"art":"bild","bildnummer":28,"szene":"c1fc463c8976203d","paket":"b50d4e6a1f5832e1"},
+                {"art":"bild","bildnummer":32,"szene":"02a44077af18a4c4","paket":"cb95cbd58590585f"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Aufprall\", breite: 320, hoehe: 180);",
+                "herd.kamera().setzeLage(0, 3, 7).schaueAuf(0, 0.8, 0);",
+                "Teil dach = herd.koerper(Form.wuerfel(), 0, 1, 0, farbe: \"tomate\").setzeGroesse(2, 0.2, 2);",
+                "dach.mit(neu Fuehler(ausloeser: nein));",
+                "herd.koerper(Form.ebene(), farbe: \"oliven\").setzeGroesse(12, 1, 12).mit(neu Fuehler(ausloeser: nein));",
+                "Funken regen = herd.raum(0, 3, 0).mit(neu Funken(rate: 800, lebensdauer: 1.2, tempo: 8, richtungY: -1, streuung: 2,",
+                "    groesse: 0.03, streckung: 0.03, volumen: 2.5, kollision: \"welt\", spritzer: 3));",
+                "Funken funken = herd.raum(-2, 0.8, 0).mit(neu Funken(rate: 60, lebensdauer: 3, tempo: 4, richtungX: 1, schwerkraft: 9.81,",
+                "    kollision: \"welt\", aufprall: \"abprallen\", abprall: 0.5, spritzer: 0));",
+                "herd.backe(() -> { funken.teil().setzeDrehung(herd.bildnummer() * 4); });",
+                "Bote.sage((regen.kollision() + \" \" + regen.aufprall() + \" \" + funken.aufprall() + \" \" + funken.abprall()));"
+              )
+            },
+            { art: "ausgabe", text: z("welt vergehen abprallen 0.5") },
+            { art: "text", md: "Ein ganzes Beispiel ist **Funkenschlag** unter *Beispiele → Herd*: Funken aus einem Ofenschlot springen über die Hänge und an Steinen ab, Regen spritzt auf Steinen und Dach auf; die Leertaste schaltet zwischen abprallen, liegen und vergehen." }
           ]
         },
         {

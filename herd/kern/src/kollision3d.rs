@@ -1,7 +1,7 @@
 //! Gemeinsame 3D-Kollision (H-K17, HERD.md §13.1 Regel 9): Formen in Weltlage, Engphase mit Kontaktpunkten, Hüllen-Baum je
 //! Netz (einmal je Ressourcen-ID, Cache in [`crate::ressourcen::Ressourcen::baeume`], nicht im Hash) und das Höhenraster des
-//! `Gelaende` analytisch. `Schwung` (H-K17) löst damit Kontakte; `Figur`/`Strahl` (H-K20), Funken-Aufprall (H-K25) und
-//! `Wasser` (H-K28) erweitern es nur additiv.
+//! `Gelaende` analytisch. `Schwung` (H-K17) löst damit Kontakte; `Figur`/`Strahl` (H-K20), Funken-Aufprall (H-K25, [`Gitter`]
+//! für viele kurze Strecken) und `Wasser` (H-K28) erweitern es nur additiv.
 //!
 //! Formen ([`Form`]): Kugel, Kapsel (Strecke + Radius, Achse y des Teils), Kasten (gedreht: Mitte, drei Einheitsachsen, halbe
 //! Seiten), Netz (Dreiecke einer Form-Ressource unter der Welt-Matrix, nur fest) und Gelände (Höhenraster, nur fest). Der Bau aus
@@ -1403,10 +1403,10 @@ fn strahl_kasten(o: V, d: V, m: V, ax: &[V; 3], h: V) -> Option<Treffer> {
             continue;
         }
         let (mut a, mut b) = ((-h[k] - p) / q, (h[k] - p) / q);
-        let mut s = -1.0;
+        // Eintrittsseite nach der Richtung (nicht nach a > b: bei Dicke 0 – Ebene als Kasten – sind beide gleich)
+        let s = if q < 0.0 { 1.0 } else { -1.0 };
         if a > b {
             core::mem::swap(&mut a, &mut b);
-            s = 1.0;
         }
         if a > t0 {
             t0 = a;
@@ -1772,4 +1772,148 @@ pub fn strahl_ziele(ziele: &[Ziel], u: &Umgebung, o: V, d: V, laenge: f64, ohne:
         }
     }
     best
+}
+
+// ------------------------------------------------------------------------------------------------ Gitter (H-K25)
+
+/// Breitphase für viele kurze Strecken (Funken-Aufprall, H-K25): die Ziele, deren Kasten einen Welt-Kasten berührt, in einem
+/// waagerechten Gitter (x/z, höchstens 64 × 64 Zellen, Zelle ≥ 2 Einheiten) mit der größten Oberkante je Zelle. Eine Strecke prüft
+/// nur die Zellen unter ihrem Kasten und dort nur Ziele, deren Kasten sie berührt; liegt sie ganz über der Oberkante, gar keins.
+/// Einträge je Zelle in Ziel-Reihenfolge (nach Teil-ID), Gleichstand → kleinerer Index: das Ergebnis hängt nicht davon ab, über
+/// welche Zelle ein Ziel gefunden wird.
+pub struct Gitter {
+    x0: f64,
+    z0: f64,
+    zelle: f64,
+    nx: usize,
+    nz: usize,
+    /// Zelle c: Einträge `eintrag[start[c] .. start[c + 1]]` (Ziel-Indizes)
+    start: Vec<u32>,
+    eintrag: Vec<u32>,
+    oben: Vec<f64>,
+}
+
+/// Größte Zahl Zellen je Achse im [`Gitter`].
+const GITTER_MAX: usize = 64;
+
+#[inline]
+fn kaesten_beruehren(alo: V, ahi: V, blo: V, bhi: V) -> bool {
+    alo[0] <= bhi[0] && ahi[0] >= blo[0] && alo[1] <= bhi[1] && ahi[1] >= blo[1] && alo[2] <= bhi[2] && ahi[2] >= blo[2]
+}
+
+impl Gitter {
+    /// Gitter über dem Welt-Kasten `lo`–`hi` aus den Zielen, für die `nimm` gilt und deren Kasten ihn berührt.
+    pub fn neu(ziele: &[Ziel], lo: V, hi: V, nimm: impl Fn(&Ziel) -> bool) -> Gitter {
+        let groesser = |a: f64, b: f64| if a > b { a } else { b };
+        let (ex, ez) = (groesser(hi[0] - lo[0], 0.0), groesser(hi[2] - lo[2], 0.0));
+        let zelle = groesser(2.0, groesser(ex, ez) / GITTER_MAX as f64);
+        let anzahl = |e: f64| {
+            let f = libm::floor(e / zelle);
+            if !(f < (GITTER_MAX - 1) as f64) {
+                GITTER_MAX
+            } else {
+                f as usize + 1
+            }
+        };
+        let (nx, nz) = (anzahl(ex), anzahl(ez));
+        let mut g = Gitter { x0: lo[0], z0: lo[2], zelle, nx, nz, start: alloc::vec![0; nx * nz + 1], eintrag: Vec::new(), oben: alloc::vec![f64::NEG_INFINITY; nx * nz] };
+        let mut gewaehlt: Vec<(u32, (usize, usize, usize, usize))> = Vec::new();
+        for (i, z) in ziele.iter().enumerate() {
+            if !nimm(z) || !kaesten_beruehren(z.lo, z.hi, lo, hi) {
+                continue;
+            }
+            gewaehlt.push((i as u32, g.bereich(z.lo, z.hi)));
+        }
+        for &(_, (i0, i1, j0, j1)) in &gewaehlt {
+            for j in j0..=j1 {
+                for i in i0..=i1 {
+                    g.start[j * nx + i + 1] += 1;
+                }
+            }
+        }
+        for c in 0..nx * nz {
+            g.start[c + 1] += g.start[c];
+        }
+        let mut voll: Vec<u32> = g.start[..nx * nz].to_vec();
+        g.eintrag = alloc::vec![0; g.start[nx * nz] as usize];
+        for &(zi, (i0, i1, j0, j1)) in &gewaehlt {
+            let oben = ziele[zi as usize].hi[1];
+            for j in j0..=j1 {
+                for i in i0..=i1 {
+                    let c = j * nx + i;
+                    g.eintrag[voll[c] as usize] = zi;
+                    voll[c] += 1;
+                    if oben > g.oben[c] {
+                        g.oben[c] = oben;
+                    }
+                }
+            }
+        }
+        g
+    }
+
+    /// Zellbereich (i0, i1, j0, j1) unter dem Kasten, auf das Gitter geklemmt.
+    fn bereich(&self, lo: V, hi: V) -> (usize, usize, usize, usize) {
+        let idx = |x: f64, x0: f64, n: usize| {
+            let f = libm::floor((x - x0) / self.zelle);
+            if !(f > 0.0) {
+                0
+            } else if f >= (n - 1) as f64 {
+                n - 1
+            } else {
+                f as usize
+            }
+        };
+        (idx(lo[0], self.x0, self.nx), idx(hi[0], self.x0, self.nx), idx(lo[2], self.z0, self.nz), idx(hi[2], self.z0, self.nz))
+    }
+
+    /// Hat das Gitter überhaupt Ziele?
+    pub fn leer(&self) -> bool {
+        self.eintrag.is_empty()
+    }
+
+    /// Erster Treffer der Strecke `o` → `e` (Welt) gegen die Ziele im Gitter: (Ziel-Index, Treffer mit `t` als Abstand ab `o`).
+    /// Die Strecke soll im Kasten liegen, über dem das Gitter gebaut wurde (außerhalb zählen nur die Randzellen).
+    pub fn strecke(&self, ziele: &[Ziel], u: &Umgebung, o: V, e: V) -> Option<(usize, Treffer)> {
+        let mut lo = o;
+        let mut hi = o;
+        for k in 0..3 {
+            if e[k] < lo[k] {
+                lo[k] = e[k];
+            }
+            if e[k] > hi[k] {
+                hi[k] = e[k];
+            }
+        }
+        let weg = minus(e, o);
+        let l = laenge(weg);
+        if !(l > 1e-12 && l.is_finite()) {
+            return None;
+        }
+        let d = mal(weg, 1.0 / l);
+        let (i0, i1, j0, j1) = self.bereich(lo, hi);
+        let mut best: Option<(usize, Treffer)> = None;
+        for j in j0..=j1 {
+            for i in i0..=i1 {
+                let c = j * self.nx + i;
+                if lo[1] > self.oben[c] {
+                    continue;
+                }
+                for &zi in &self.eintrag[self.start[c] as usize..self.start[c + 1] as usize] {
+                    let zi = zi as usize;
+                    let z = &ziele[zi];
+                    if best.is_some_and(|(b, _)| b == zi) || !kaesten_beruehren(lo, hi, z.lo, z.hi) {
+                        continue;
+                    }
+                    let grenze = best.map_or(l, |b| b.1.t);
+                    if let Some(h) = strahl(o, d, grenze, &z.form, u) {
+                        if best.is_none_or(|(bi, b)| h.t < b.t || (h.t == b.t && zi < bi)) {
+                            best = Some((zi, h));
+                        }
+                    }
+                }
+            }
+        }
+        best
+    }
 }

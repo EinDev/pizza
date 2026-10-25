@@ -1,0 +1,26 @@
+// Herd §18.6 / HERD.md §13.3 H-K25: Funken-Aufprall – kollision (keine/boden/welt), aufprall (vergehen/abprallen/liegen), abprall;
+// Regen auf einem Dach (fester Fühler), Funken springen auf einer Ebene, Glut bleibt auf einem Hang liegen; Standardwerte und Fehler
+Herd herd = neu Herd("Aufprall", breite: 320, hoehe: 180);
+Funken vorgabe = herd.raum(6, 0, 0).mit(neu Funken());
+Bote.sage((vorgabe.kollision() + " " + vorgabe.aufprall() + " " + vorgabe.abprall() + " " + vorgabe.aufschlag() + " " + vorgabe.boden() + " " + vorgabe.spritzer()));
+Teil dach = herd.koerper(Form.wuerfel(), 0, 1, 0, farbe: "#a0522d").setzeGroesse(3, 0.2, 3);
+dach.mit(neu Fuehler(ausloeser: nein));
+Blech<funghi> h = [];
+für (salami j = 0; j < 9; j++) {
+  für (salami i = 0; i < 9; i++) { h.hinzu(((i - 4) * 0.3)); }
+}
+Teil hang = herd.raum(8, -2, 0);
+hang.mit(neu Gelaende(hoehen: h, spalten: 9, zeilen: 9, weite: 1, farbe: "oliven"));
+hang.mit(neu Fuehler(form: "netz", ausloeser: nein));
+Funken regen = herd.raum(0, 4, 0).mit(neu Funken(rate: 400, lebensdauer: 1, tempo: 9, richtungY: -1, streuung: 2, groesse: 0.03,
+                                                 streckung: 0.03, volumen: 1.2, kollision: "welt", spritzer: 3));
+Funken springer = herd.raum(-6, 2, 0).mit(neu Funken(rate: 60, tempo: 4, richtungX: 1, richtungY: 0.5, schwerkraft: 9.81,
+                                                    kollision: "boden", boden: -0.5, aufprall: "abprallen", abprall: 0.6, spritzer: 0));
+Funken glut = herd.raum(8, 3, 0).mit(neu Funken(rate: 80, lebensdauer: 3, tempo: 1, streuung: 40, schwerkraft: 9.81, farbe: "tomate",
+                                               kollision: "welt", aufprall: "liegen", spritzer: 0));
+Bote.sage((regen.kollision() + " " + regen.aufprall() + " " + springer.kollision() + " " + springer.aufprall() + " " + springer.abprall() + " " + glut.aufprall()));
+herd.backe(() -> { falls (herd.bildnummer() == 6) { springer.setzeAufprall("liegen"); regen.setzeKollision("boden").setzeBoden(1.1); } });
+Bote.sage(("nach " + herd.bildnummer() + " Takten: " + springer.aufprall() + " " + regen.kollision() + " " + regen.boden()));
+probier { springer.setzeAbprall(1.5); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { regen.setzeKollision("wand"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { glut.setzeAufprall("kleben"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

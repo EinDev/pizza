@@ -2397,6 +2397,40 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   §2/§3/§7.1/§11.5, ARCHITEKTUR §1, Vorbacker, Kern, `kern-wasm`, Skript-Spieler, Interpreter, Laufzeit, Compiler, Host, Playground,
   Durchreiche, nginx, E2E-Server, Doku `herd-ausbau`, Beispiel `pizzeria`. **Status:** fest.
 
+### K-167 Herd: Funken-Aufprall – `kollision`, `aufprall`, `abprall` (H-K25)
+- **Frage:** Wie treffen `Funken`-Teilchen eine Ebene oder die Welt (Unity: Collision-Modul, Sub-Emitter), ohne den Regen (`aufschlag`,
+  `boden`, `spritzer` 0 … 16 als Zahl, Spritzer mit negativem `leben`) doppelt zu bauen, ohne Hashes bestehender Szenen zu ändern und bei
+  20 000 Tropfen bezahlbar?
+- **Entscheidung (Kern-only, HERD.md §13.3 H-K25):** drei **Nachtragsfelder** an `Funken` statt der Plan-Namen: **`kollision`** `keine`
+  (Standard) | `boden` | `welt`, **`aufprall`** `vergehen` (Standard) | `abprallen` | `liegen`, **`abprall`** 0.3 (0 … 1). Die Ebene ist
+  das vorhandene **`boden`** (kein `aufprallHoehe`), die Spritzer bleiben die vorhandenen **`spritzer`** (Anzahl je Aufprall, eingebaute
+  kurze Teilchen; kein `spritzerAnzahl`, kein Spritzer-Emitter als Teil – ein eigener Sub-Emitter ist „später“). Standard `vergehen`
+  (Plan: `abprallen`), weil Regen der Hauptfall ist und `kollision: "welt"` allein dann genügt; `aufschlag: ja` bleibt die alte,
+  bitgleiche Kurzform für eine Ebene mit `vergehen` und gilt nur bei `kollision` keine.
+- **Verfahren:** `kollision` keine → der alte Code läuft unverändert (Hashes, Regen-Referenzbild, Neon-Napoli bleiben gleich).
+  `boden`: Ebene y = `boden` in Teilchen-Koordinaten, Treffpunkt auf der Ebene. `welt`: jedes Teilchen als **Strecke** von der Lage vor zur
+  Lage nach seinem Schritt gegen die Ziele aus H-K20 (`kollision3d::ziele`, einmal je Takt, erst wenn ein Emitter sie braucht; Stand nach
+  dem vorigen Takt, `Funken` 13 läuft vor `Schwung`/`Figur`), nur feste Formen: nicht Auslöser, nicht `Figur`, nicht dynamischer
+  `Schwung`, nicht das eigene Teil; Netz/Gelände einseitig, Eintritt zählt (`kollision3d::strahl`). Bei `weltlage` nein Strecke in Welt,
+  Normale über Mᵀ zurück. **Breitphase** `kollision3d::Gitter`: Kasten aller Wege des Emitters (Lagen ± (Tempo + g·DT)·DT), Ziele, die
+  ihn berühren, in einem waagerechten Gitter (≤ 64 × 64, Zelle ≥ 2) mit größter Oberkante je Zelle – eine Strecke über der Oberkante
+  kostet zwei Vergleiche; Gleichstand → kleinerer Ziel-Index (= kleinere Teil-ID), unabhängig von der Zelle.
+- **Nach dem Aufprall:** `vergehen`; `abprallen` = Normalanteil × −`abprall` (unter 0,1 → 0, gleitet), Tangentialanteil bleibt, Lage 2 mm
+  über dem Treffpunkt; `liegen` = 2 mm über dem Treffpunkt, Tempo 0, **negatives `alter`** im selben 8er-Satz (kein neues Feld, Format der
+  Teilchen-Puffer bleibt), altert weiter, läuft nicht mit dem Volumen um; wird `kollision` wieder keine, fällt es weiter. Spritzer: je
+  Aufprall mit Normaltempo ≥ 1 Einheit/s `spritzer` Stück im Kegel 50° um die Normale, Tempo 16 % des ganzen Aufpralltempos; höchstens
+  **1 000 neue je Takt und Emitter**; Spritzer prallen nicht (vergehen beim Treffen).
+- **Determinismus:** f64, `libm::sqrt`/`floor`, Teilchen in Index-Reihenfolge, Kern-Zufall des Emitters; nativ = `kern.wasm` = Interpreter
+  (`aufprall.herd`, `herd-funken-aufprall`).
+- **Messung (B15):** siehe `bench/herd/ERGEBNISSE.md` (Plan-Ziele B16: 20 000 gegen Ebene ≤ 0,5 ms, 10 000 gegen Gelände ≤ 2 ms je Takt
+  nativ – beide erreicht).
+- **Berichtigung (H-K20):** `strahl_kasten` bestimmt die Eintrittsseite jetzt nach der Strahlrichtung – bei einem Kasten der Dicke 0
+  (Fühler an `Form.ebene()`) zeigte die Normale zuvor in die falsche Richtung (Strahl: `normaleY` −1 statt 1; Funken wären durch die
+  Ebene geprallt). Für Kästen mit Dicke unverändert; keine bestehende Erwartung ändert sich.
+- **Betroffen:** `komponenten/funken.rs`, `kollision3d.rs` additiv (`Gitter`) und die Berichtigung, `kern.wasm`/`schema.json`; Szene `aufprall.herd`, Fall
+  `herd-funken-aufprall`, Beispiel `funkenschlag`, SPEC §18.6, Doku `herd-ausbau`, `herd/README.md` §7, B15. Kein Bildpaket
+  (`TEILCHEN3D` unverändert), keine Glut, kein Interpreter/Laufzeit/Host. **Status:** fest.
+
 ## Offene Umsetzungen (Aufträge für andere Agents)
 
 | Nr. | Datei(en) | Was | Testfall |

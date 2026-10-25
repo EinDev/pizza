@@ -1,0 +1,68 @@
+// Funkenschlag – auf einer Hügelkuppe steht ein Holzofen, aus dessen Schlot Funken stieben. Sie springen über die Hänge
+// und an den Steinen ab, während ein Regenschauer auf Steine, Dach und Wiese prasselt und aufspritzt. Die Leertaste schaltet,
+// was die Funken beim Aufprall tun: abprallen → liegen bleiben (als Glut) → vergehen.
+//
+// So arbeitet die Engine für dich: `Funken(kollision: "welt")` prüft jedes Teilchen auf seinem Weg im Takt gegen alle festen
+// Fühler (hier das Gelände mit Form "netz", die Steine als Kugeln, das Ofendach als Kasten) – ohne dass du eine Zeile
+// Kollision schreibst. `aufprall` sagt, was danach passiert, `abprall` wie viel Schwung zurückkommt, `spritzer` wie viele
+// kleine Spritzer beim Aufprall aufsteigen. `kollision: "boden"` wäre die billige Variante: eine waagerechte Ebene.
+
+Herd herd = neu Herd("Funkenschlag", breite: 960, hoehe: 540);
+herd.himmel("#0a0d1c", "#3b3050");
+herd.umgebung("#7080b0", staerke: 0.22);
+herd.sonne().licht().setzeStaerke(0.25);
+herd.kamera().setzeLage(0, 6.5, 15).schaueAuf(0, 1.6, 0);
+
+// Gelände 40 × 40: Kuppe in der Mitte, Mulden ringsum
+salami SEITE = 40;
+Rezept hoehe = (funghi x, funghi z) -> {
+    funghi d = Mathe.wurzel(x * x + z * z);
+    serviere ((2.4 * Mathe.cos(Mathe.min(d * 0.16, 3.14)) + Mathe.sin(x * 0.5) * Mathe.cos(z * 0.45) * 0.35));
+};
+Blech<funghi> hoehen = [];
+für (salami j = 0; j < SEITE; j++) {
+    für (salami i = 0; i < SEITE; i++) { hoehen.hinzu(hoehe(i - (SEITE - 1) / 2, j - (SEITE - 1) / 2)); }
+}
+Teil land = herd.raum(0, 0, 0);
+land.mit(neu Gelaende(hoehen: hoehen, spalten: SEITE, zeilen: SEITE, weite: 1, farbe: "#3f6b3a", glanz: 0.1));
+land.mit(neu Fuehler(form: "netz", ausloeser: nein));
+
+// Holzofen auf der Kuppe: Kuppel, Dach (fester Kasten) und Schlot
+herd.koerper(Form.kugel(teile: 20), 0, 2.4, 0, farbe: "#b5653a", glanz: 0.2).setzeGroesse(2.2, 1.6, 2.2);
+Teil dach = herd.koerper(Form.wuerfel(), 0, 3.35, 0, farbe: "#4a3a32", glanz: 0.3).setzeGroesse(2.8, 0.15, 2.8);
+dach.mit(neu Fuehler(ausloeser: nein));
+herd.koerper(Form.zylinder(teile: 12), 0.6, 4, 0.4, farbe: "#2b2524").setzeGroesse(0.35, 1.3, 0.35);
+herd.licht(0, 2.9, 1.4, farbe: "#ff9a40", reichweite: 9).licht().setzeStaerke(2.4);
+
+// Steine am Hang: Kugeln mit Fühler (Form "kugel")
+Blech<funghi> STEINE = [-4, 3, 0.9, 4.5, 2.5, 1.2, -2.5, -4, 0.8, 5, -2, 1, 1.5, 5.5, 0.7];
+für (salami i = 0; i < 5; i++) {
+    funghi x = STEINE.stück(3 * i + 1);
+    funghi z = STEINE.stück(3 * i + 2);
+    funghi r = STEINE.stück(3 * i + 3);
+    Teil stein = herd.koerper(Form.kugel(teile: 14), x, hoehe(x, z) + r * 0.6, z, farbe: "#7d7a80", glanz: 0.35).setzeGroesse(r * 2);
+    stein.mit(neu Fuehler(form: "kugel", radius: r, ausloeser: nein));
+}
+
+// Funken aus dem Schlot: springen über die Hänge
+Teil schlot = herd.raum(0.6, 4.7, 0.4);
+Funken funken = schlot.mit(neu Funken(rate: 260, lebensdauer: 4, tempo: 5, richtungY: 1, streuung: 55, schwerkraft: 9.81,
+                                      groesse: 0.07, groesseEnde: 0.02, farbe: "#ffd23a", farbeEnde: "#ff4a1a", streckung: 0.02,
+                                      kollision: "welt", aufprall: "abprallen", abprall: 0.45, spritzer: 2));
+
+// Regenschauer über der Kuppe: Tropfen enden auf Steinen, Dach und Wiese und spritzen auf
+Teil wolke = herd.raum(0, 10, 0);
+wolke.mit(neu Funken(rate: 2500, lebensdauer: 1.4, tempo: 9, richtungX: 0.05, richtungY: -1, streuung: 2, schwerkraft: 3,
+                     groesse: 0.018, groesseEnde: 0.018, farbe: "#c8d6ffa0", farbeEnde: "#c8d6ffa0", streckung: 0.03, licht: 1,
+                     volumen: 9, kollision: "welt", spritzer: 3));
+
+Blech<margherita> ARTEN = ["abprallen", "liegen", "vergehen"];
+salami art = 1;
+Teil hinweis = herd.text("Leertaste: Funken " + ARTEN.stück(art), 480, 512, groesse: 18, farbe: "#f0e6d8", ausrichtung: "mitte");
+herd.backe(() -> {
+    falls (herd.gedrueckt("Leertaste")) {
+        art = art % 3 + 1;
+        funken.setzeAufprall(ARTEN.stück(art));
+        hinweis.text().setzeInhalt("Leertaste: Funken " + ARTEN.stück(art));
+    }
+});

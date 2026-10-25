@@ -82,6 +82,9 @@ const LAEUFE = [
   ['figur.herd', { N: 100, S: 1000, TAKTE: 40 }],
   ['modell.herd', {}],
   ['modell.herd', { N: 200, TAKTE: 2 }],
+  ['aufprall.herd', {}],
+  ['aufprall.herd', { KOLL: 1 }],
+  ['aufprall.herd', { N: 20000, TAKTE: 60 }],
 ];
 
 const args = process.argv.slice(2);

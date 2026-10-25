@@ -112,7 +112,10 @@
       {"nummer": 20, "name": "aufschlag", "typ": "diavolo", "standard": false, "min": null, "max": null, "nachtrag": true},
       {"nummer": 21, "name": "boden", "typ": "zahl", "standard": 0, "min": null, "max": null, "nachtrag": true},
       {"nummer": 22, "name": "spritzer", "typ": "ganz", "standard": 3, "min": 0, "max": 16, "nachtrag": true},
-      {"nummer": 23, "name": "regen", "typ": "diavolo", "standard": false, "min": null, "max": null, "nachtrag": true}]},
+      {"nummer": 23, "name": "regen", "typ": "diavolo", "standard": false, "min": null, "max": null, "nachtrag": true},
+      {"nummer": 24, "name": "kollision", "typ": "wahl", "standard": "keine", "min": null, "max": null, "wahl": ["keine", "boden", "welt"], "nachtrag": true},
+      {"nummer": 25, "name": "aufprall", "typ": "wahl", "standard": "vergehen", "min": null, "max": null, "wahl": ["vergehen", "abprallen", "liegen"], "nachtrag": true},
+      {"nummer": 26, "name": "abprall", "typ": "zahl", "standard": 0.3, "min": 0, "max": 1, "nachtrag": true}]},
     {"name": "Gleiten", "nummer": 14, "genus": "n", "raum": "beide", "braucht": [], "system": true, "felder": [
       {"nummer": 1, "name": "was", "typ": "wahl", "standard": "x", "min": null, "max": null, "wahl": ["x", "y", "z", "drehung", "neigung", "rollen", "groesse"]},
       {"nummer": 2, "name": "nach", "typ": "zahl", "standard": 0, "min": null, "max": null},

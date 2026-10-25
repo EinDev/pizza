@@ -858,7 +858,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Funken", "kollision"), ("Funken", "aufprall"), ("Funken", "abprall"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -6787,5 +6787,360 @@ mod hk16 {
         }
         // nur gültige Varianten legen etwas an; der Zustand bleibt erklärbar (kein Absturz)
         assert!(k.welt.as_ref().unwrap().ressourcen.liste.len() >= vorher.0);
+    }
+}
+
+/// H-K25: Funken-Aufprall (`kollision`, `aufprall`, `abprall`) gegen die Ebene `boden` und gegen die Welt (Fühler, Gelände).
+mod hk25 {
+    use super::*;
+    use crate::komponenten::funken;
+
+    fn setze(k: &mut Kern, c: i32, t: i32, werte: &[(&str, f64)]) {
+        for &(n, v) in werte {
+            let f = feld(k, t, n);
+            assert_eq!(k.setze_zahl(c, f, v), 0, "{} = {}", n, v);
+        }
+    }
+    fn setze_t(k: &mut Kern, c: i32, t: i32, n: &str, v: &str) {
+        let f = feld(k, t, n);
+        assert_eq!(k.setze_text(c, f, v.as_bytes()), 0, "{} = {}", n, v);
+    }
+    /// Sprüher bei p nach unten (Tempo 6, Schwerkraft 9.81, Lebensdauer 3 s), Volumen `vol` (0 = Strahl), Saat 7; gibt (Typ, Teil, Komp)
+    fn spruehser(k: &mut Kern, p: [f64; 3], vol: f64) -> (i32, i32, i32) {
+        let fu = typ(k, "Funken");
+        let t = k.teil_neu(3);
+        k.teil_lage(t, p[0], p[1], p[2]);
+        let c = k.komp_neu(fu);
+        setze(k, c, fu, &[("rate", 120.0), ("lebensdauer", 3.0), ("tempo", 6.0), ("richtungY", -1.0), ("streuung", 0.0), ("schwerkraft", 9.81), ("volumen", vol), ("saat", 7.0)]);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        (fu, t, c)
+    }
+    /// Teilchen des ersten Funken-Emitters (je 8 Zahlen)
+    fn teilchen(k: &Kern, fu: i32) -> Vec<[f64; 8]> {
+        let s = &k.welt.as_ref().unwrap().speicher[fu as usize - 1];
+        s.puffer(funken::TEILCHEN)[0].chunks_exact(8).map(|c| c.try_into().unwrap()).collect()
+    }
+    fn haupt(v: &[[f64; 8]]) -> Vec<[f64; 8]> {
+        v.iter().filter(|p| p[7] > 0.0).copied().collect()
+    }
+    fn spritzer(v: &[[f64; 8]]) -> usize {
+        v.iter().filter(|p| p[7] < 0.0).count()
+    }
+    fn takte(k: &mut Kern, n: usize) {
+        for _ in 0..n {
+            k.takt();
+        }
+    }
+    /// fester Kasten (Mitte p, Größe g) mit Fühler, auf Wunsch Würfel-Körper (sonst die Fühler-Maße)
+    fn kasten(k: &mut Kern, p: [f64; 3], g: [f64; 3], ausloeser: bool) -> (i32, i32) {
+        let fi = typ(k, "Fuehler");
+        let t = k.teil_neu(3);
+        k.teil_lage(t, p[0], p[1], p[2]);
+        let f = k.komp_neu(fi);
+        setze_t(k, f, fi, "form", "kasten");
+        setze(k, f, fi, &[("breite", g[0]), ("hoehe", g[1]), ("tiefe", g[2]), ("ausloeser", if ausloeser { 1.0 } else { 0.0 })]);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        (t, f)
+    }
+
+    #[test]
+    fn schema_standard_und_byte_gleich() {
+        let mut k = welt();
+        let fu = typ(&mut k, "Funken");
+        let c = k.komp_neu(fu);
+        for (n, v) in [("kollision", "keine"), ("aufprall", "vergehen")] {
+            let f = feld(&mut k, fu, n);
+            assert_eq!(text(&mut k, c, f), v);
+        }
+        let ab = feld(&mut k, fu, "abprall");
+        assert_eq!(k.hole_zahl(c, ab), 0.3);
+        assert!(k.setze_zahl(c, ab, 1.5) < 0);
+        let ko = feld(&mut k, fu, "kollision");
+        assert!(k.setze_text(c, ko, b"wand") < 0);
+        // Standardwerte ausdrücklich gesetzt (mit dem alten Aufschlag) = nichts gesetzt: Hash und Paket gleich
+        let lauf = |setzen: bool| {
+            let mut k = welt();
+            let (fu, _, c) = spruehser(&mut k, [0.0, 3.0, 0.0], 1.0);
+            setze(&mut k, c, fu, &[("aufschlag", 1.0), ("boden", 0.2)]);
+            if setzen {
+                setze_t(&mut k, c, fu, "kollision", "keine");
+                setze_t(&mut k, c, fu, "aufprall", "vergehen");
+                setze(&mut k, c, fu, &[("abprall", 0.3)]);
+            }
+            takte(&mut k, 60);
+            k.bild(1);
+            (k.hash_szene(), k.paket().to_vec())
+        };
+        assert_eq!(lauf(false), lauf(true));
+    }
+
+    #[test]
+    fn boden_vergehen_mit_spritzern() {
+        let mut k = welt();
+        let (fu, _, c) = spruehser(&mut k, [0.0, 3.0, 0.0], 1.0);
+        setze_t(&mut k, c, fu, "kollision", "boden");
+        setze(&mut k, c, fu, &[("boden", 0.5), ("spritzer", 4.0)]);
+        let mut spritzer_gesehen = 0;
+        for _ in 0..90 {
+            k.takt();
+            let v = teilchen(&k, fu);
+            assert!(haupt(&v).iter().all(|p| p[1] >= 0.5), "kein Tropfen unter dem Boden");
+            spritzer_gesehen = spritzer_gesehen.max(spritzer(&v));
+            // Spritzer starten 5 mm über dem Boden und vergehen unter ihm
+            assert!(v.iter().filter(|p| p[7] < 0.0).all(|p| p[1] >= 0.5));
+        }
+        assert!(spritzer_gesehen > 20, "{}", spritzer_gesehen);
+    }
+
+    #[test]
+    fn boden_abprallen_und_gleiten() {
+        let mut k = welt();
+        let (fu, _, c) = spruehser(&mut k, [0.0, 2.0, 0.0], 0.0);
+        setze_t(&mut k, c, fu, "kollision", "boden");
+        setze_t(&mut k, c, fu, "aufprall", "abprallen");
+        setze(&mut k, c, fu, &[("abprall", 0.5), ("spritzer", 0.0), ("richtungX", 0.3)]);
+        takte(&mut k, 20);
+        // Ausstoß aus, dann fallen und springen lassen
+        let ak = feld(&mut k, fu, "aktiv");
+        k.setze_zahl(c, ak, 0.0);
+        let mut hoch = false;
+        for _ in 0..140 {
+            k.takt();
+            for p in teilchen(&k, fu) {
+                assert!(p[1] >= 0.0, "über dem Boden: {:?}", p);
+                // nach dem Aufprall höchstens abprall² der Fallhöhe (+ Startschwung)
+                if p[4] > 0.0 {
+                    hoch = true;
+                    assert!(p[1] < 1.5, "{:?}", p);
+                }
+            }
+        }
+        assert!(hoch, "Teilchen springen zurück");
+        // am Ende gleiten sie auf dem Boden (Normaltempo ≈ 0, waagerecht weiter)
+        let v = teilchen(&k, fu);
+        assert!(!v.is_empty());
+        assert!(v.iter().all(|p| p[1] < 0.05 && p[0] > 0.0), "{:?}", &v[..1]);
+    }
+
+    #[test]
+    fn boden_liegen_bleibt_bis_zum_ende() {
+        let mut k = welt();
+        let (fu, _, c) = spruehser(&mut k, [0.0, 1.0, 0.0], 2.0);
+        setze_t(&mut k, c, fu, "kollision", "boden");
+        setze_t(&mut k, c, fu, "aufprall", "liegen");
+        setze(&mut k, c, fu, &[("boden", 0.25), ("spritzer", 0.0), ("lebensdauer", 1.0)]);
+        takte(&mut k, 50);
+        let v = teilchen(&k, fu);
+        let liegend: Vec<_> = v.iter().filter(|p| p[6] < 0.0).collect();
+        assert!(liegend.len() > 20);
+        for p in &liegend {
+            assert_eq!(p[1], 0.25 + 0.002);
+            assert_eq!([p[3], p[4], p[5]], [0.0; 3]);
+        }
+        // Lebensdauer läuft weiter: ohne Ausstoß sind nach 1 s alle weg
+        let ak = feld(&mut k, fu, "aktiv");
+        k.setze_zahl(c, ak, 0.0);
+        takte(&mut k, 61);
+        assert!(teilchen(&k, fu).is_empty());
+        // Bild: liegende Teilchen werden gezeichnet (Alter als Betrag)
+        k.setze_zahl(c, ak, 1.0);
+        takte(&mut k, 30);
+        k.bild(1);
+        let (n, ..) = teilchen_3d(&k).unwrap();
+        assert!(n > 0);
+    }
+
+    #[test]
+    fn welt_kasten_dach_und_ausloeser() {
+        // Dach 2 × 0,2 × 2 mit Oberkante y = 1 unter einem Sprüher mit Volumen 2: innen landet alles auf dem Dach, außen fällt es vorbei
+        for ausloeser in [false, true] {
+            let mut k = welt();
+            kasten(&mut k, [0.0, 0.9, 0.0], [2.0, 0.2, 2.0], ausloeser);
+            let (fu, _, c) = spruehser(&mut k, [0.0, 3.0, 0.0], 2.0);
+            setze_t(&mut k, c, fu, "kollision", "welt");
+            let mut unter_dach = 0;
+            let mut spritzer_max = 0;
+            for _ in 0..90 {
+                k.takt();
+                let v = teilchen(&k, fu);
+                for p in haupt(&v) {
+                    if p[0].abs() < 0.99 && p[2].abs() < 0.99 && p[1] < 1.0 {
+                        unter_dach += 1;
+                    }
+                }
+                spritzer_max = spritzer_max.max(spritzer(&v));
+            }
+            if ausloeser {
+                assert!(unter_dach > 0, "Auslöser halten nichts auf");
+                assert_eq!(spritzer_max, 0);
+            } else {
+                assert_eq!(unter_dach, 0, "nichts durch das Dach");
+                assert!(spritzer_max > 0);
+            }
+        }
+    }
+
+    #[test]
+    fn welt_ebene_als_kasten_dicke_null() {
+        // Körper `Form.ebene()` mit Fühler: Kasten der Dicke 0 – Funken prallen nach oben ab, Spritzer steigen auf
+        let mut k = welt();
+        let kp = typ(&mut k, "Koerper");
+        let fi = typ(&mut k, "Fuehler");
+        let ebene = k.form_grund(5, 4.0, 0.0);
+        assert!(ebene > 0);
+        let t = k.teil_neu(3);
+        k.teil_groesse(t, 12.0, 1.0, 12.0);
+        let c = k.komp_neu(kp);
+        let kform = feld(&mut k, kp, "form");
+        k.setze_zahl(c, kform, ebene as f64);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        let f = k.komp_neu(fi);
+        setze(&mut k, f, fi, &[("ausloeser", 0.0)]);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        let (fu, _, c) = spruehser(&mut k, [0.0, 2.0, 0.0], 1.0);
+        setze_t(&mut k, c, fu, "kollision", "welt");
+        setze_t(&mut k, c, fu, "aufprall", "abprallen");
+        setze(&mut k, c, fu, &[("abprall", 0.5), ("spritzer", 2.0)]);
+        let mut hoch = false;
+        for _ in 0..90 {
+            k.takt();
+            for p in teilchen(&k, fu) {
+                assert!(p[1] >= 0.0, "nicht durch die Ebene: {:?}", p);
+                hoch |= p[7] > 0.0 && p[4] > 0.0;
+            }
+        }
+        assert!(hoch, "prallen nach oben ab");
+    }
+
+    #[test]
+    fn welt_kugel_netz_und_gelaende_liegen() {
+        let mut k = welt();
+        let fi = typ(&mut k, "Fuehler");
+        // Kugel r = 0,5 bei (−3, 1, 0)
+        let kt = k.teil_neu(3);
+        k.teil_lage(kt, -3.0, 1.0, 0.0);
+        let kf = k.komp_neu(fi);
+        setze_t(&mut k, kf, fi, "form", "kugel");
+        setze(&mut k, kf, fi, &[("radius", 0.5), ("ausloeser", 0.0)]);
+        assert_eq!(k.komp_haenge(kf, kt), 0);
+        // Würfel-Netz 1 × 1 × 1 bei (3, 1, 0)
+        let kp = typ(&mut k, "Koerper");
+        let wuerfel = k.form_grund(1, 0.0, 0.0);
+        let nt = k.teil_neu(3);
+        k.teil_lage(nt, 3.0, 1.0, 0.0);
+        let nk = k.komp_neu(kp);
+        let kform = feld(&mut k, kp, "form");
+        k.setze_zahl(nk, kform, wuerfel as f64);
+        assert_eq!(k.komp_haenge(nk, nt), 0);
+        let nf = k.komp_neu(fi);
+        setze_t(&mut k, nf, fi, "form", "netz");
+        setze(&mut k, nf, fi, &[("ausloeser", 0.0)]);
+        assert_eq!(k.komp_haenge(nf, nt), 0);
+        // schiefes Gelände y = 0,2 · x − 1 (Dreiecke einer Ebene: exakt)
+        let gt = typ(&mut k, "Gelaende");
+        let (gh, gsp, gze) = (feld(&mut k, gt, "hoehen"), feld(&mut k, gt, "spalten"), feld(&mut k, gt, "zeilen"));
+        let (sp, ze) = (17usize, 17usize);
+        let mut hoehen = Vec::new();
+        for _ in 0..ze {
+            for i in 0..sp {
+                hoehen.push(0.2 * (i as f64 - 8.0) - 1.0);
+            }
+        }
+        let land = k.teil_neu(3);
+        let g = k.komp_neu(gt);
+        k.setze_zahl(g, gsp, sp as f64);
+        k.setze_zahl(g, gze, ze as f64);
+        k.setze_zahlen(g, gh, &hoehen);
+        assert_eq!(k.komp_haenge(g, land), 0);
+        let lf = k.komp_neu(fi);
+        setze_t(&mut k, lf, fi, "form", "netz");
+        setze(&mut k, lf, fi, &[("ausloeser", 0.0)]);
+        assert_eq!(k.komp_haenge(lf, land), 0);
+        let (fu, _, c) = spruehser(&mut k, [0.0, 4.0, 0.0], 4.0);
+        setze_t(&mut k, c, fu, "kollision", "welt");
+        setze_t(&mut k, c, fu, "aufprall", "liegen");
+        setze(&mut k, c, fu, &[("rate", 600.0), ("spritzer", 0.0)]);
+        takte(&mut k, 120);
+        let v = teilchen(&k, fu);
+        let liegend: Vec<_> = v.iter().filter(|p| p[6] < 0.0).copied().collect();
+        assert!(liegend.len() > 500, "{}", liegend.len());
+        let (mut auf_kugel, mut auf_netz, mut auf_land) = (0, 0, 0);
+        for p in &liegend {
+            let dk = ((p[0] + 3.0).powi(2) + (p[1] - 1.0).powi(2) + p[2].powi(2)).sqrt();
+            let im_netz = (p[0] - 3.0).abs() < 0.5 && (p[1] - 1.0).abs() < 0.5 && p[2].abs() < 0.5;
+            assert!(dk > 0.5 && !im_netz, "{:?}", p);
+            if (dk - 0.502).abs() < 1e-6 {
+                auf_kugel += 1;
+            } else if (p[1] - 1.502).abs() < 1e-9 && (p[0] - 3.0).abs() <= 0.5 {
+                auf_netz += 1;
+            } else {
+                // auf dem Hang: 2 mm entlang der Normale (−0,2, 1, 0)/|…| über y = 0,2 x − 1
+                let l = (1.0f64 + 0.04).sqrt();
+                let d = (p[1] - (0.2 * p[0] - 1.0)) / l;
+                assert!((d - 0.002).abs() < 1e-6, "{:?} {}", p, d);
+                auf_land += 1;
+            }
+        }
+        assert!(auf_kugel > 5 && auf_netz > 5 && auf_land > 100, "{} {} {}", auf_kugel, auf_netz, auf_land);
+        // nichts fällt durch das Gelände
+        assert!(v.iter().all(|p| p[1] > 0.2 * p[0] - 1.0));
+    }
+
+    #[test]
+    fn welt_im_raum_des_teils_und_figur_ignoriert() {
+        // Sprüher mit weltlage nein, gedreht und verschoben; Dach in Welt unter ihm
+        let mut k = welt();
+        kasten(&mut k, [5.0, 0.0, 0.0], [8.0, 0.2, 8.0], false);
+        let (fu, t, c) = spruehser(&mut k, [5.0, 2.0, 0.0], 1.0);
+        k.teil_setze(t, tf::DREHUNG, 30.0);
+        k.teil_groesse(t, 2.0, 1.0, 2.0);
+        setze(&mut k, c, fu, &[("weltlage", 0.0)]);
+        setze_t(&mut k, c, fu, "kollision", "welt");
+        takte(&mut k, 90);
+        let welt_y: Vec<f64> = teilchen(&k, fu).iter().filter(|p| p[7] > 0.0).map(|p| p[1] + 2.0).collect();
+        assert!(!welt_y.is_empty());
+        assert!(welt_y.iter().all(|y| *y >= 0.1), "nichts durch das Dach im Raum des Teils");
+        // eine Figur (und ein dynamischer Körper) ist kein Ziel: Tropfen fallen durch sie hindurch
+        let mut k = welt();
+        let fi = typ(&mut k, "Fuehler");
+        let ft = k.teil_neu(3);
+        k.teil_lage(ft, 0.0, 0.0, 0.0);
+        let ff = k.komp_neu(fi);
+        setze_t(&mut k, ff, fi, "form", "kapsel");
+        setze(&mut k, ff, fi, &[("radius", 1.0), ("hoehe", 2.0), ("ausloeser", 0.0)]);
+        assert_eq!(k.komp_haenge(ff, ft), 0);
+        let fg = typ(&mut k, "Figur");
+        let g = k.komp_neu(fg);
+        let schw = feld(&mut k, fg, "schwerkraft");
+        k.setze_zahl(g, schw, 0.0);
+        assert_eq!(k.komp_haenge(g, ft), 0);
+        let (fu, _, c) = spruehser(&mut k, [0.0, 3.0, 0.0], 0.0);
+        setze_t(&mut k, c, fu, "kollision", "welt");
+        takte(&mut k, 60);
+        assert!(teilchen(&k, fu).iter().any(|p| p[1] < -1.0), "durch die Figur");
+    }
+
+    #[test]
+    fn spritzer_grenze_je_takt_und_bitgleich() {
+        let lauf = || {
+            let mut k = welt();
+            kasten(&mut k, [0.0, -0.1, 0.0], [20.0, 0.2, 20.0], false);
+            let (fu, _, c) = spruehser(&mut k, [0.0, 0.5, 0.0], 8.0);
+            setze_t(&mut k, c, fu, "kollision", "welt");
+            setze(&mut k, c, fu, &[("rate", 60_000.0), ("spritzer", 16.0), ("tempo", 30.0)]);
+            let mut max_neu = 0;
+            for _ in 0..30 {
+                k.takt();
+                let v = teilchen(&k, fu);
+                // neue Spritzer tragen Alter 0
+                let neu = v.iter().filter(|p| p[7] < 0.0 && p[6] == 0.0).count();
+                max_neu = max_neu.max(neu);
+                assert!(v.len() <= funken::MAX_TEILCHEN);
+            }
+            assert!(max_neu > 0 && max_neu <= funken::SPRITZ_MAX_TAKT, "{}", max_neu);
+            k.bild(1);
+            (k.hash_szene(), k.paket().to_vec())
+        };
+        assert_eq!(lauf(), lauf());
     }
 }

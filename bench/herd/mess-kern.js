@@ -39,6 +39,9 @@ const LAEUFE = [
   ['B12', 'schwung.herd', { N: 0, K: 2000, TAKTE: 120 }],
   ['B13', 'schatten.herd', { N: 1000, L: 8, NACHT: 1, AUS: 0, TAKTE: 120 }],
   ['B14', 'figur.herd', { N: 100, S: 0, TAKTE: 240 }],
+  ['B15', 'aufprall.herd', { N: 40000, KOLL: 0, TAKTE: 180 }],
+  ['B15', 'aufprall.herd', { N: 40000, KOLL: 1, TAKTE: 180 }],
+  ['B15', 'aufprall.herd', { N: 40000, KOLL: 2, TAKTE: 180 }],
 ];
 
 if (!process.argv.includes('--ohne-cargo')) {

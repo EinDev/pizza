@@ -1,0 +1,6 @@
+keine vergehen 0.3 nein 0 3
+welt vergehen boden abprallen 0.6 liegen
+nach 8 Takten: liegen boden 1.1
+LaufzeitAnanas: Funken.abprall muss zwischen 0 und 1 liegen, nicht 1.5.
+LaufzeitAnanas: Funken.kollision kennt 'wand' nicht. Erlaubt: keine, boden, welt.
+LaufzeitAnanas: Funken.aufprall kennt 'kleben' nicht. Erlaubt: vergehen, abprallen, liegen.

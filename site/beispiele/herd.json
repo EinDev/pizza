@@ -292,6 +292,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Modell", "glTF", "Projekt"],
       "herd": true
+    },
+    {
+      "id": "funkenschlag",
+      "titel": "Funkenschlag: Teilchen prallen auf",
+      "beschreibung": "Aus dem Schlot eines Holzofens auf einer Hügelkuppe stieben Funken, springen über die Hänge und an Steinen ab, während ein Regenschauer auf Steine, Ofendach und Wiese prasselt und aufspritzt. Funken mit kollision: \"welt\" treffen alle festen Fühler und das Gelände; die Leertaste schaltet, ob die Funken abprallen, als Glut liegen bleiben oder vergehen.",
+      "ordner": "herd/funkenschlag",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Funken", "Kollision", "Regen", "Gelaende"],
+      "herd": true
     }
   ]
 }

@@ -1,0 +1,180 @@
+# H-K25 (HERD.md §13.3): Funken-Aufprall. Zwei Regen-Sprüher mit je N/2 Tropfen (Grenze 10 000 je Sprüher) über einer kleinen
+# Stadt auf einem gewellten Gelände: Häuser (feste Kästen), Kugel, Kapsel, Rampe aus eigenem Netz, ein Auslöser (wird nicht
+# getroffen); KOLL wählt `kollision` der Regen-Sprüher (0 keine, 1 boden, 2 welt; Standard welt) mit `aufprall: vergehen` und
+# Spritzern. Dazu Funken, die von einem gedrehten Teil im eigenen Raum (weltlage nein) über die Hügel springen (`abprallen`), und
+# Glut, die auf einer Ebene liegen bleibt (`liegen`). Mitten im Lauf: Haus versetzt und entfernt, Modus gewechselt (liegend →
+# keine → fällt weiter). Voll: N = 20 000 (B15). Der Szenen-Hash enthält alle Teilchen – test-kern.js vergleicht nativ gegen Wasm.
+vorgabe N 600
+vorgabe KOLL 2
+vorgabe TAKTE 90
+welt_neu 960 540 "Aufprall"
+welt_himmel "#07080f" "#231a33"
+typ_nummer "Funken" -> T_F
+typ_nummer "Fuehler" -> T_FU
+typ_nummer "Koerper" -> T_K
+typ_nummer "Gelaende" -> T_G
+typ_nummer "Bewegung" -> T_BEW
+feld_nummer T_F "rate" -> F_RATE
+feld_nummer T_F "lebensdauer" -> F_LEBEN
+feld_nummer T_F "tempo" -> F_TEMPO
+feld_nummer T_F "richtungX" -> F_RX
+feld_nummer T_F "richtungY" -> F_RY
+feld_nummer T_F "streuung" -> F_STREU
+feld_nummer T_F "schwerkraft" -> F_SCHWER
+feld_nummer T_F "groesse" -> F_GR
+feld_nummer T_F "weltlage" -> F_WELT
+feld_nummer T_F "saat" -> F_SAAT
+feld_nummer T_F "streckung" -> F_STRECK
+feld_nummer T_F "volumen" -> F_VOL
+feld_nummer T_F "boden" -> F_BODEN
+feld_nummer T_F "spritzer" -> F_SPRITZ
+feld_nummer T_F "kollision" -> F_KOLL
+feld_nummer T_F "aufprall" -> F_AUFPRALL
+feld_nummer T_F "abprall" -> F_ABPRALL
+feld_nummer T_FU "form" -> FU_FORM
+feld_nummer T_FU "radius" -> FU_RAD
+feld_nummer T_FU "hoehe" -> FU_H
+feld_nummer T_FU "ausloeser" -> FU_AUS
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_G "hoehen" -> G_H
+feld_nummer T_G "spalten" -> G_SP
+feld_nummer T_G "zeilen" -> G_ZE
+feld_nummer T_G "weite" -> G_W
+feld_nummer T_BEW "tempoX" -> B_TX
+feld_nummer T_BEW "tempoZ" -> B_TZ
+feld_nummer T_BEW "drehtempo" -> B_DREH
+teil_lage 1 0 16 30
+teil_schaue 1 0 0 0
+form_grund 1 0 0 -> WUERFEL
+# Gelände 33 × 33, Weite 1.5, gewellt (Fühler netz)
+teil_neu 3 -> land
+teil_lage land 0 -0.5 0
+komp_neu T_G -> g
+setze_zahl g G_SP 33
+setze_zahl g G_ZE 33
+setze_zahl g G_W 1.5
+setze_zahlen g G_H [folge 1089 i ((i % 33 - 16) * (i % 33 - 16) * 0.006 + (boden(i / 33) - 16) * (boden(i / 33) - 16) * 0.004 + (i % 7) * 0.05)]
+komp_haenge g land
+komp_neu T_FU -> fu_land
+setze_zahl fu_land FU_FORM 6
+setze_zahl fu_land FU_AUS 0
+komp_haenge fu_land land
+# 4 × 4 Häuser (feste Kästen mit Würfel-Körper), Höhe 2 … 8
+teil_neu 3 -> haeuser
+wiederhole 16 e
+  teil_neu 3 -> h
+  teil_lage h ((e % 4) * 6 - 9) ((1 + (e * 7) % 4 * 1.0) * 1.0) (boden(e / 4) * 6 - 9)
+  teil_groesse h 3.5 ((1 + (e * 7) % 4 * 1.0) * 2.0) 3.5
+  komp_neu T_K -> kh
+  setze_zahl kh K_FORM WUERFEL
+  komp_haenge kh h
+  komp_neu T_FU -> fh
+  setze_zahl fh FU_FORM 3
+  setze_zahl fh FU_AUS 0
+  komp_haenge fh h
+ende
+# Kugel, Kapsel, Auslöser (wird nicht getroffen), Rampe aus eigenem Netz
+teil_neu 3 -> kugel
+teil_lage kugel -3 3 -3
+komp_neu T_FU -> fk
+setze_zahl fk FU_FORM 4
+setze_zahl fk FU_RAD 1.2
+setze_zahl fk FU_AUS 0
+komp_haenge fk kugel
+teil_neu 3 -> kapsel
+teil_lage kapsel 3 2 3
+teil_setze kapsel 6 40
+komp_neu T_FU -> fka
+setze_zahl fka FU_FORM 5
+setze_zahl fka FU_RAD 0.6
+setze_zahl fka FU_H 3
+setze_zahl fka FU_AUS 0
+komp_haenge fka kapsel
+teil_neu 3 -> geist
+teil_lage geist 0 3 0
+komp_neu T_FU -> fg
+setze_zahl fg FU_FORM 4
+setze_zahl fg FU_RAD 1.5
+komp_haenge fg geist
+form_eigene [0, 0, 0, 0, 0, -3, 4, 1.86, -3, 4, 1.86, 0] [0, 2, 1, 0, 3, 2] 0 -> RAMPE
+teil_neu 3 -> rampe
+teil_lage rampe -14 0.5 1
+komp_neu T_K -> k_r
+setze_zahl k_r K_FORM RAMPE
+komp_haenge k_r rampe
+komp_neu T_FU -> f_r
+setze_zahl f_r FU_FORM 6
+setze_zahl f_r FU_AUS 0
+komp_haenge f_r rampe
+# Regen: zwei Sprüher mit Volumen über der Stadt, einer wandert
+wiederhole 2 e
+  teil_neu 3 -> wolke
+  teil_lage wolke (e * 4 - 2) 12 (e * -3)
+  komp_neu T_F -> f
+  setze_zahl f F_RATE (N * 0.5)
+  setze_zahl f F_LEBEN 2
+  setze_zahl f F_TEMPO 10
+  setze_zahl f F_RX 0.08
+  setze_zahl f F_RY -1
+  setze_zahl f F_STREU 3
+  setze_zahl f F_SCHWER 3
+  setze_zahl f F_GR 0.02
+  setze_zahl f F_SAAT (3 + e)
+  setze_zahl f F_STRECK 0.03
+  setze_zahl f F_VOL 13
+  setze_zahl f F_BODEN 0.2
+  setze_zahl f F_SPRITZ 3
+  setze_zahl f F_KOLL KOLL
+  komp_haenge f wolke
+ende
+komp_neu T_BEW -> bw
+setze_zahl bw B_TX 1.2
+setze_zahl bw B_TZ -0.8
+komp_haenge bw wolke
+# Funken im Raum eines gedrehten, drehenden Teils: springen über die Hügel
+teil_neu 3 -> esse
+teil_lage esse 9 4 -9
+teil_setze esse 5 25
+komp_neu T_F -> fe
+setze_zahl fe F_RATE 200
+setze_zahl fe F_LEBEN 3
+setze_zahl fe F_TEMPO 7
+setze_zahl fe F_RX 1
+setze_zahl fe F_RY 0.6
+setze_zahl fe F_STREU 25
+setze_zahl fe F_SCHWER 9.81
+setze_zahl fe F_GR 0.05
+setze_zahl fe F_WELT 0
+setze_zahl fe F_SPRITZ 2
+setze_zahl fe F_KOLL 2
+setze_zahl fe F_AUFPRALL 1
+setze_zahl fe F_ABPRALL 0.45
+komp_haenge fe esse
+komp_neu T_BEW -> bwe
+setze_zahl bwe B_DREH 40
+komp_haenge bwe esse
+# Glut auf einer Ebene: bleibt liegen
+teil_neu 3 -> glut
+teil_lage glut -9 6 9
+komp_neu T_F -> fgl
+setze_zahl fgl F_RATE 150
+setze_zahl fgl F_LEBEN 4
+setze_zahl fgl F_TEMPO 3
+setze_zahl fgl F_STREU 60
+setze_zahl fgl F_SCHWER 9.81
+setze_zahl fgl F_GR 0.06
+setze_zahl fgl F_BODEN 1.5
+setze_zahl fgl F_SPRITZ 0
+setze_zahl fgl F_KOLL 1
+setze_zahl fgl F_AUFPRALL 2
+komp_haenge fgl glut
+takte TAKTE
+# Haus versetzt, eines entfernt; Glut: liegend → keine (fällt weiter) → wieder boden; Esse liegt nun in der Welt
+teil_lage (haeuser + 6) 0 6 0
+teil_entferne (haeuser + 11)
+setze_zahl fgl F_KOLL 0
+setze_zahl fe F_AUFPRALL 2
+takte 20
+setze_zahl fgl F_KOLL 1
+setze_zahl fe F_AUFPRALL 0
+takte 20
