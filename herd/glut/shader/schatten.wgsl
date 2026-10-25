@@ -41,6 +41,43 @@ fn vs_schatten(e: EinSchatten) -> AusSchatten {
     return a;
 }
 
+// Haut (H-K23b): wie vs_haut in licht.wgsl – Palette an Bindung 23, Gelenke + Gewichte @14/@15, Palettenzeile in
+// ZUSATZ3D.merkmale (@12) Bits 16–31
+@group(0) @binding(23) var gelenke_t: texture_2d<f32>;
+
+struct EinHaut {
+    @location(14) gelenk: vec4<u32>,
+    @location(15) gewicht: vec4<f32>,
+}
+
+fn gelenk_zeile(j: u32, r: u32) -> vec4<f32> {
+    return textureLoad(gelenke_t, vec2<i32>(i32((j & 255u) * 3u + r), i32(j >> 8u)), 0);
+}
+
+@vertex
+fn vs_schatten_haut(e: EinSchatten, h: EinHaut, @location(12) merkmale: u32) -> AusSchatten {
+    let basis = merkmale >> 16u;
+    let p0 = vec4<f32>(e.pos, 1.0);
+    var ph = vec3<f32>(0.0);
+    for (var k = 0u; k < 4u; k = k + 1u) {
+        let g = h.gewicht[k];
+        if (g > 0.0) {
+            let j = basis + h.gelenk[k];
+            ph = ph + g * vec3<f32>(dot(gelenk_zeile(j, 0u), p0), dot(gelenk_zeile(j, 1u), p0), dot(gelenk_zeile(j, 2u), p0));
+        }
+    }
+    let p = vec4<f32>(ph, 1.0);
+    let w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
+    var a: AusSchatten;
+    a.pos = schatten_zug.vp * vec4<f32>(w, 1.0);
+    let box = vec4<f32>(e.uvbox);
+    a.uv = e.uv * (box.zw - box.xy);
+    a.uvbox = box;
+    a.textur = e.textur;
+    a.schwelle = e.karten.w & 255u;
+    return a;
+}
+
 @fragment
 fn fs_schatten(a: AusSchatten) {
     if ((a.textur & 65536u) != 0u) {

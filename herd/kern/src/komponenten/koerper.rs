@@ -67,7 +67,18 @@ fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
             continue;
         }
         let m = w.teile.welt[tz];
-        let (min, max) = kasten_3d(&m, [netz.min.x as f64, netz.min.y as f64, netz.min.z as f64], [netz.max.x as f64, netz.max.y as f64, netz.max.z as f64]);
+        let (mi, ma) = ([netz.min.x as f64, netz.min.y as f64, netz.min.z as f64], [netz.max.x as f64, netz.max.y as f64, netz.max.z as f64]);
+        let (mut min, mut max) = kasten_3d(&m, mi, ma);
+        // Haut (H-K23b): Netz mit Gelenken → Palette relativ zum Teil, Hülle aus den Gelenk-Teilen; die Palettenzeile reist in
+        // `ZUSATZ3D.merkmale` Bits 16–31 mit (dort sonst frei)
+        let (mut zusatz, mut haut) = (zusatz, 0);
+        if let Some(h) = w.ressourcen.haut_netz(fo[z] as u32) {
+            if let Some((basis, a, bb)) = super::puppe::haut(w, &mut b.haut_karte, tz, h, mi, ma, &m, &mut b.gelenke) {
+                haut = basis + 1;
+                zusatz[3] |= basis << 16;
+                (min, max) = (a, bb);
+            }
+        }
         let (uv, seite) = match w.ressourcen.bildchen(bild as u32) {
             Some(t) => ([t.x as u16, t.y as u16, (t.x + t.breite) as u16, (t.y + t.hoehe) as u16], t.seite as i64),
             None => ([0; 4], -1),
@@ -86,6 +97,7 @@ fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
             max,
             zusatz,
             karten,
+            haut,
         });
     }
 }

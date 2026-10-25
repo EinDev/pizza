@@ -316,6 +316,116 @@ function texturModell(eingebettet) {
   b.json.animations = [winken, nicken, welle];
   lege('puppe.glb', b.glb());
 }
+// 9. Gehäutete Figur (H-K23b): 60 Gelenke (Becken, Rücken, Kopf, Arme mit je drei Fingern, Beine, Zopf, Schweif), ein Netz aus
+// Achteck-Röhren je Knochen (Ringe am Anfang halb Eltern/halb selbst, Mitte und Ende ganz selbst), Gelenke u8, Gewichte u16
+// normiert, Folgen Laufen/Winken/Tanzen (LINEAR, Schleife). Blickrichtung +z, links = +x.
+{
+  const b = new Bau();
+  const knochen = [];   // { name, eltern, kopf (Welt, Ruhelage), richtung, laenge, r }
+  const neu = (name, eltern, kopf, richtung, laenge, r) => {
+    const l = Math.hypot(...richtung);
+    knochen.push({ name, eltern, kopf, richtung: richtung.map((x) => x / l), laenge, r });
+    return knochen.length - 1;
+  };
+  const ende = (i) => knochen[i].kopf.map((x, k) => x + knochen[i].richtung[k] * knochen[i].laenge);
+  const kette = (name, eltern, kopf, richtung, laengen, r0, r1) => {
+    let e = eltern, k = kopf;
+    laengen.forEach((l, j) => { e = neu(laengen.length > 1 ? name + '.' + j : name, e, k, richtung, l, r0 + (r1 - r0) * j / Math.max(1, laengen.length - 1)); k = ende(e); });
+    return e;
+  };
+  const becken = neu('Becken', -1, [0, 0.95, 0], [0, 1, 0], 0.12, 0.13);
+  const ruecken = kette('Ruecken', becken, ende(becken), [0, 1, 0], [0.12, 0.12, 0.12, 0.1], 0.13, 0.15);
+  const hals = neu('Hals', ruecken, ende(ruecken), [0, 1, 0], 0.08, 0.05);
+  const kopf = neu('Kopf', hals, ende(hals), [0, 1, 0], 0.24, 0.11);
+  for (const [s, x] of [['L', 1], ['R', -1]]) {
+    const schulter = neu('Schulter.' + s, ruecken, [0.04 * x, 1.48, 0], [x, 0, 0], 0.14, 0.06);
+    const ober = neu('Oberarm.' + s, schulter, ende(schulter), [x, -0.15, 0], 0.27, 0.05);
+    const unter = neu('Unterarm.' + s, ober, ende(ober), [x, -0.1, 0], 0.25, 0.04);
+    const hand = neu('Hand.' + s, unter, ende(unter), [x, 0, 0], 0.08, 0.035);
+    for (let f = 0; f < 3; f++) kette('Finger' + f + '.' + s, hand, ende(hand).map((v, k) => v + [0, 0, (f - 1) * 0.025][k]), [x, 0, (f - 1) * 0.3], [0.04, 0.03, 0.025], 0.012, 0.009);
+    const oberschenkel = neu('Oberschenkel.' + s, becken, [0.09 * x, 0.95, 0], [0, -1, 0], 0.42, 0.075);
+    const unterschenkel = neu('Unterschenkel.' + s, oberschenkel, ende(oberschenkel), [0, -1, 0], 0.4, 0.055);
+    const fuss = neu('Fuss.' + s, unterschenkel, ende(unterschenkel), [0, -0.6, 1], 0.12, 0.045);
+    neu('Zeh.' + s, fuss, ende(fuss), [0, 0, 1], 0.07, 0.035);
+  }
+  kette('Zopf', kopf, [0, 1.72, -0.1], [0, -0.6, -0.4], [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05], 0.03, 0.015);
+  kette('Schweif', becken, [0, 0.95, -0.12], [0, -0.3, -1], [0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07], 0.035, 0.012);
+  if (knochen.length !== 60) throw new Error('Figur: ' + knochen.length + ' Gelenke statt 60');
+  // Netz: je Knochen drei Ringe à 8 Ecken
+  const pos = [], nor = [], uv = [], gel = [], gew = [], idx = [];
+  const N = 8;
+  knochen.forEach((k, i) => {
+    const d = k.richtung;
+    const a = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    let u = [d[1] * a[2] - d[2] * a[1], d[2] * a[0] - d[0] * a[2], d[0] * a[1] - d[1] * a[0]];
+    const lu = Math.hypot(...u); u = u.map((x) => x / lu);
+    const v = [d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0]];
+    const basis = pos.length / 3;
+    for (const [t, rf] of [[0, 1], [0.5, 1.1], [1, 0.85]]) {
+      for (let j = 0; j < N; j++) {
+        const w = 2 * Math.PI * j / N, c = Math.cos(w), s = Math.sin(w);
+        const n = [0, 1, 2].map((q) => u[q] * c + v[q] * s);
+        pos.push(...[0, 1, 2].map((q) => k.kopf[q] + d[q] * k.laenge * t + n[q] * k.r * rf));
+        nor.push(...n);
+        uv.push(j / N, (i + t) / knochen.length);
+        if (t === 0 && k.eltern >= 0) { gel.push(i, k.eltern, 0, 0); gew.push(32768, 32767, 0, 0); } else { gel.push(i, 0, 0, 0); gew.push(65535, 0, 0, 0); }
+      }
+    }
+    for (let r = 0; r < 2; r++) for (let j = 0; j < N; j++) {
+      const p0 = basis + r * N + j, p1 = basis + r * N + (j + 1) % N, q0 = p0 + N, q1 = p1 + N;
+      idx.push(p0, p1, q1, p0, q1, q0);
+    }
+  });
+  b.json.materials = [{ name: 'Stoff', pbrMetallicRoughness: { baseColorFactor: [0.85, 0.45, 0.2, 1], metallicFactor: 0, roughnessFactor: 0.7 } }];
+  b.json.meshes = [{ name: 'Figur', primitives: [{ attributes: { POSITION: b.acc(pos, 'VEC3', 'f32'), NORMAL: b.acc(nor, 'VEC3', 'f32'), TEXCOORD_0: b.acc(uv, 'VEC2', 'f32'),
+    JOINTS_0: b.acc(gel, 'VEC4', 'u8'), WEIGHTS_0: b.acc(gew, 'VEC4', 'u16', { normalized: true }) }, indices: b.acc(idx, 'SCALAR', 'u16'), material: 0 }] }];
+  // Knoten: 0 = Figur (Netz + Haut), 1 … 60 = Gelenke (Lage relativ zum Eltern-Gelenk)
+  const nodes = [{ name: 'Figur', mesh: 0, skin: 0 }];
+  knochen.forEach((k, i) => {
+    const e = k.eltern >= 0 ? knochen[k.eltern].kopf : [0, 0, 0];
+    const n = { name: k.name, translation: k.kopf.map((x, q) => f32(x - e[q])) };
+    const kinder = knochen.map((c, j) => (c.eltern === i ? 1 + j : -1)).filter((j) => j >= 0);
+    if (kinder.length) n.children = kinder;
+    nodes.push(n);
+  });
+  b.json.nodes = nodes;
+  const ibm = [];
+  for (const k of knochen) ibm.push(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -k.kopf[0], -k.kopf[1], -k.kopf[2], 1);
+  b.json.skins = [{ name: 'Haut', joints: knochen.map((_, i) => 1 + i), skeleton: 1, inverseBindMatrices: b.acc(ibm, 'MAT4', 'f32') }];
+  b.json.scenes = [{ nodes: [0, 1] }];
+  const nr = (name) => 1 + knochen.findIndex((k) => k.name === name);
+  const qZ = (g) => [0, 0, f32(Math.sin(grad(g) / 2)), f32(Math.cos(grad(g) / 2))];
+  const folge = (name, zeiten, kanaele) => {
+    const t = b.acc(zeiten, 'SCALAR', 'f32', { min: [zeiten[0]], max: [zeiten[zeiten.length - 1]] });
+    const a = { name, samplers: [], channels: [] };
+    for (const [knoten, pfad, werte] of kanaele) {
+      a.samplers.push({ input: t, output: b.acc(werte.flat(), pfad === 'rotation' ? 'VEC4' : 'VEC3', 'f32') });
+      a.channels.push({ sampler: a.samplers.length - 1, target: { node: nr(knoten), path: pfad } });
+    }
+    return a;
+  };
+  const z5 = [0, 0.25, 0.5, 0.75, 1];
+  const laufen = folge('Laufen', z5, [
+    ['Oberschenkel.L', 'rotation', [30, 0, -30, 0, 30].map(quatX)], ['Oberschenkel.R', 'rotation', [-30, 0, 30, 0, -30].map(quatX)],
+    ['Unterschenkel.L', 'rotation', [10, 50, 10, 0, 10].map(quatX)], ['Unterschenkel.R', 'rotation', [10, 0, 10, 50, 10].map(quatX)],
+    ['Oberarm.L', 'rotation', [-25, 0, 25, 0, -25].map(quatX)], ['Oberarm.R', 'rotation', [25, 0, -25, 0, 25].map(quatX)],
+    ['Becken', 'translation', [[0, 0.95, 0], [0, 0.99, 0], [0, 0.95, 0], [0, 0.99, 0], [0, 0.95, 0]]],
+    ['Schweif.0', 'rotation', [-20, 0, 20, 0, -20].map(quatY)], ['Zopf.0', 'rotation', [10, -10, 10, -10, 10].map(quatX)],
+  ]);
+  const winken = folge('Winken', z5, [
+    ['Oberarm.R', 'rotation', [-60, -60, -60, -60, -60].map(qZ)], ['Unterarm.R', 'rotation', [-30, 0, 30, 0, -30].map(qZ)],
+    ['Hand.R', 'rotation', [0, 20, 0, -20, 0].map(qZ)], ['Kopf', 'rotation', [0, 10, 0, 10, 0].map(qZ)],
+  ]);
+  const tanzen = folge('Tanzen', z5, [
+    ['Ruecken.0', 'rotation', [0, 25, 0, -25, 0].map(quatY)], ['Ruecken.2', 'rotation', [0, 15, 0, -15, 0].map(qZ)],
+    ['Oberarm.L', 'rotation', [60, 120, 60, 120, 60].map(qZ)], ['Oberarm.R', 'rotation', [-120, -60, -120, -60, -120].map(qZ)],
+    ['Unterarm.L', 'rotation', [40, 0, 40, 0, 40].map(qZ)], ['Unterarm.R', 'rotation', [0, -40, 0, -40, 0].map(qZ)],
+    ['Oberschenkel.L', 'rotation', [0, -20, 0, -20, 0].map(qZ)], ['Unterschenkel.L', 'rotation', [0, 40, 0, 40, 0].map(quatX)],
+    ['Schweif.0', 'rotation', [30, -30, 30, -30, 30].map(quatY)], ['Zopf.0', 'rotation', [20, -20, 20, -20, 20].map(qZ)],
+  ]);
+  b.json.animations = [laufen, winken, tanzen];
+  lege('figur.glb', b.glb());
+}
 // ---------------------------------------------------------------- Fehlerfälle
 {
   const b = new Bau();

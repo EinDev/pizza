@@ -24,6 +24,7 @@ pub fn testmodelle() -> Vec<(&'static str, &'static [u8])> {
         ("haut.glb", tm!("haut.glb")),
         ("folge.glb", tm!("folge.glb")),
         ("quant.glb", tm!("quant.glb")),
+        ("figur.glb", tm!("figur.glb")),
         ("fehler-draco.glb", tm!("fehler-draco.glb")),
         ("fehler-kaputt.glb", tm!("fehler-kaputt.glb")),
         ("fehler-zu-gross.glb", tm!("fehler-zu-gross.glb")),
@@ -318,5 +319,5 @@ fn verdorbene_modelle_brechen_nie_ab() {
             n += 1;
         }
     }
-    assert_eq!(n, 14 * 400);
+    assert_eq!(n, testmodelle().len() * 400);
 }

@@ -194,6 +194,7 @@ fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
             max,
             zusatz: [0; 4],
             karten: [0; 4],
+            haut: 0,
         });
     }
 }

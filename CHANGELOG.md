@@ -60,6 +60,8 @@ Veröffentlichung in einem Schritt umgestellt (wie beim Wechsel auf 3.1).
 - **Grafik:** viele Lichter (Clustered Forward) und Spot-Licht, `Stimmung` (HDR, Bloom, ACES, Höhennebel, `strahlen`), Material
   (Relief, Kachelung, PBR, Nässe), Spiegelung nasser Böden, Regen (gestreckte Tropfen, Aufschläge, Pfützenringe) und ein
   Bindungswächter für die Shader (H-K15).
+- **Gehäutete Figuren (H-K23b):** Modelle mit Skelett und Haut (glTF `skins`) verformen sich nach ihren Gelenk-Teilen – auf der
+  Grafikkarte, auch in Schatten, Spiegelung und Bildschirmraum; Beispiel „Tanzfiguren“ (Kenney Mini Characters, CC0).
 - **Klang (H-K14, K-153):** eigene Importgruppe `klang` mit `Klang.ton`, `rauschen`, `stille`, `noten`, Hüllkurve, Filtern, Mischen
   und Schleifen; `k.spiele()` liefert eine Spur mit Lautstärke, Tonhöhe, Panorama und Lage im Raum (Hörer = Kamera). Die Erzeugung
   ist nativ und in Wasm bitgleich. Abgespielt wird über WebAudio bzw. waveOut/ALSA, ohne Gerät bleibt es stumm; getestet wird mit

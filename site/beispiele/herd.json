@@ -342,6 +342,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Modell", "glTF", "Belag", "Karten", "Projekt"],
       "herd": true
+    },
+    {
+      "id": "tanzfiguren",
+      "titel": "Tanzfiguren: gehäutete Modelle",
+      "beschreibung": "Drei Figuren aus glTF-Modellen mit Skelett und Haut (Kenney Mini Characters, CC0): eine Puppe spielt ihre Folgen ab, der Herd verformt die Haut nach den Gelenken – auch im Schatten. Ein Wechsel blendet über, die Gelenke sind Teile: eine Tomate liegt in einer Hand. Taster oder Leertaste: nächste Folge; 1 … 7 wählen, 0 Ruhelage, L langsam.",
+      "ordner": "herd/tanzfiguren",
+      "dateien": ["pizza.json", "hauptgang.pizza", "modelle/female-a.glb", "modelle/female-d.glb", "modelle/male-c.glb", "modelle/textures/colormap.png", "quellen.md"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Modell", "glTF", "Animation", "Haut", "Projekt"],
+      "herd": true
     }
   ]
 }

@@ -223,6 +223,75 @@ fn vs_licht(e: EinNetz) -> AusNetz {
     return a;
 }
 
+// Haut (H-K23b): Gelenk-Palette RGBA32F (je Gelenk 3 Texel = Zeilen der 3 × 4-Matrix relativ zum Körper-Teil, 256 Gelenke je
+// Zeile; nur textureLoad, im Vertex-Shader), Gelenke + Gewichte als zweiter Ecken-Strom (@14, @15), erste Palettenzeile der
+// Instanz in ZUSATZ3D.merkmale Bits 16–31. vs_licht bleibt unverändert (Bilder ohne Haut bitgleich).
+@group(0) @binding(23) var gelenke_t: texture_2d<f32>;
+
+struct EinHaut {
+    @location(14) gelenk: vec4<u32>,
+    @location(15) gewicht: vec4<f32>,
+}
+
+struct HautMatrix {
+    z0: vec4<f32>,
+    z1: vec4<f32>,
+    z2: vec4<f32>,
+}
+
+fn gelenk_zeile(j: u32, r: u32) -> vec4<f32> {
+    return textureLoad(gelenke_t, vec2<i32>(i32((j & 255u) * 3u + r), i32(j >> 8u)), 0);
+}
+
+// Σ Gewicht · Gelenk-Matrix (Gewichte summieren zu 1)
+fn haut_mischen(basis: u32, h: EinHaut) -> HautMatrix {
+    var m: HautMatrix;
+    m.z0 = vec4<f32>(0.0);
+    m.z1 = vec4<f32>(0.0);
+    m.z2 = vec4<f32>(0.0);
+    for (var k = 0u; k < 4u; k = k + 1u) {
+        let g = h.gewicht[k];
+        if (g > 0.0) {
+            let j = basis + h.gelenk[k];
+            m.z0 = m.z0 + g * gelenk_zeile(j, 0u);
+            m.z1 = m.z1 + g * gelenk_zeile(j, 1u);
+            m.z2 = m.z2 + g * gelenk_zeile(j, 2u);
+        }
+    }
+    return m;
+}
+
+@vertex
+fn vs_haut(e: EinNetz, h: EinHaut) -> AusNetz {
+    // erst verformen (relativ zum Körper-Teil), dann wie vs_licht
+    let s = haut_mischen(e.merkmale >> 16u, h);
+    let p0 = vec4<f32>(e.pos, 1.0);
+    let p = vec4<f32>(dot(s.z0, p0), dot(s.z1, p0), dot(s.z2, p0), 1.0);
+    let s0 = vec3<f32>(s.z0.x, s.z1.x, s.z2.x);
+    let s1 = vec3<f32>(s.z0.y, s.z1.y, s.z2.y);
+    let s2 = vec3<f32>(s.z0.z, s.z1.z, s.z2.z);
+    let nh = cross(s1, s2) * e.normale.x + cross(s2, s0) * e.normale.y + cross(s0, s1) * e.normale.z;
+    let w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
+    let c0 = vec3<f32>(e.z0.x, e.z1.x, e.z2.x);
+    let c1 = vec3<f32>(e.z0.y, e.z1.y, e.z2.y);
+    let c2 = vec3<f32>(e.z0.z, e.z1.z, e.z2.z);
+    let n = cross(c1, c2) * nh.x + cross(c2, c0) * nh.y + cross(c0, c1) * nh.z;
+    var a: AusNetz;
+    a.pos = szene.ansicht_proj * vec4<f32>(w, 1.0);
+    a.welt = w;
+    a.normale = n;
+    let box = vec4<f32>(e.uvbox);
+    a.uv = e.uv * (box.zw - box.xy);
+    a.farbe = vec4<f32>(zu_linear(e.farbe.rgb), e.farbe.a);
+    a.material = e.material;
+    a.uvbox = box;
+    a.textur = e.textur;
+    a.roh = e.uv;
+    a.zus = vec4<u32>(e.relief, bitcast<u32>(e.km.x), bitcast<u32>(e.km.y), e.merkmale);
+    a.karten = e.karten;
+    return a;
+}
+
 // Weicher PCF-Zeltfilter über 5 × 5 Texel aus 9 bilinearen Vergleichen (Castaño, „Shadow Mapping Summary“, 2013):
 // glatte Kanten ohne Treppen, auch bei großen Texeln (flache Sonne).
 fn zeltfilter(uv: vec2<f32>, bezug: f32) -> f32 {

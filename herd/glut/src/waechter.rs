@@ -117,7 +117,8 @@ fn bindungswaechter() {
     for (programm, quelle, layout) in &programme {
         let st = stufen(programm, quelle);
         let vs: Vec<&Stufe> = st.iter().filter(|s| s.vertex).collect();
-        assert_eq!(vs.len(), 1, "{programm}: genau ein Vertex-Einstiegspunkt erwartet");
+        // licht/schatten haben je zwei (H-K23b: `vs_haut`, `vs_schatten_haut`): jede Kombination VS + FS zählt
+        assert!(!vs.is_empty(), "{programm}: kein Vertex-Einstiegspunkt");
         for s in &st {
             println!("{:<26} {:>6}/16 {:>4}/12  {}", s.name, s.einheiten.len(), s.bloecke.len(), liste(&s.einheiten));
             let stufe = if s.vertex { wgpu::ShaderStages::VERTEX } else { wgpu::ShaderStages::FRAGMENT };
@@ -134,10 +135,30 @@ fn bindungswaechter() {
             if s.bloecke.len() > BLOECKE_STUFE {
                 fehler.push(format!("{}: {} Uniform-Blöcke > {BLOECKE_STUFE}", s.name, s.bloecke.len()));
             }
-            if !s.vertex && s.einheiten.len() + vs[0].einheiten.len() > EINHEITEN_ZUSAMMEN {
-                fehler.push(format!("{} + {}: zusammen {} Einheiten > {EINHEITEN_ZUSAMMEN}", vs[0].name, s.name, s.einheiten.len() + vs[0].einheiten.len()));
+            for v in vs.iter().filter(|_| !s.vertex) {
+                if s.einheiten.len() + v.einheiten.len() > EINHEITEN_ZUSAMMEN {
+                    fehler.push(format!("{} + {}: zusammen {} Einheiten > {EINHEITEN_ZUSAMMEN}", v.name, s.name, s.einheiten.len() + v.einheiten.len()));
+                }
             }
         }
     }
     assert!(fehler.is_empty(), "Bindungs-Budget überschritten (herd/README.md §9):\n{}", fehler.join("\n"));
+}
+
+/// Vertex-Attribute je Pipeline (WebGL2-Minimum `MAX_VERTEX_ATTRIBS` = 16, Orte 0 … 15): `vs_haut` nimmt alle 16 (H-K23b).
+#[test]
+fn vertex_attribute() {
+    let mut fehler = Vec::new();
+    for (name, l) in [
+        ("licht", super::licht_layouts().to_vec()),
+        ("licht haut", super::licht_haut_layouts().to_vec()),
+        ("schatten haut", super::schatten_haut_layouts().to_vec()),
+    ] {
+        let orte: Vec<u32> = l.iter().flatten().flat_map(|b| b.attributes.iter().map(|a| a.shader_location)).collect();
+        println!("{name:<14} {:>2}/16 Attribute", orte.len());
+        if orte.len() > 16 || orte.iter().any(|&o| o >= 16) {
+            fehler.push(format!("{name}: {} Attribute, Orte {orte:?}", orte.len()));
+        }
+    }
+    assert!(fehler.is_empty(), "Vertex-Attribute über dem WebGL2-Minimum:\n{}", fehler.join("\n"));
 }

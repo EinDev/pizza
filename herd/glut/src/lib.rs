@@ -158,6 +158,8 @@ struct Netz {
     ecken: wgpu::Buffer,
     indizes: wgpu::Buffer,
     anzahl: u32,
+    /// Haut (H-K23b, Abschnitt HAUT): Gelenke + Gewichte je Ecke
+    haut: Option<wgpu::Buffer>,
 }
 
 /// Wachsender GPU-Puffer (wird nie kleiner, nur bei Bedarf auf die nächste Zweierpotenz vergrößert).
@@ -253,12 +255,13 @@ struct Pipelines {
     abschluss: wgpu::RenderPipeline,
     flach: wgpu::RenderPipeline,
     himmel: wgpu::RenderPipeline,
-    fest: wgpu::RenderPipeline,
+    /// je [starr, Haut (H-K23b, `vs_haut`)]
+    fest: [wgpu::RenderPipeline; 2],
     /// einseitige FEST-Züge (H-K26): ohne Rückseiten bzw. – Umlaufsinn gedreht – ohne Vorderseiten
-    fest_ohne_hinten: wgpu::RenderPipeline,
-    fest_ohne_vorn: wgpu::RenderPipeline,
-    durch_hinten: wgpu::RenderPipeline,
-    durch_vorn: wgpu::RenderPipeline,
+    fest_ohne_hinten: [wgpu::RenderPipeline; 2],
+    fest_ohne_vorn: [wgpu::RenderPipeline; 2],
+    durch_hinten: [wgpu::RenderPipeline; 2],
+    durch_vorn: [wgpu::RenderPipeline; 2],
     funken_leuchtend: wgpu::RenderPipeline,
     funken_deckend: wgpu::RenderPipeline,
     /// Himmelszelt (H-K11b): `vs_himmel` + `fs_zelt`
@@ -309,10 +312,11 @@ struct BildraumZiele {
 
 /// Pipelines des Bildschirmraums (beim Anlegen der Glut vorab erzeugt).
 struct BildraumPipelines {
-    vorlauf: wgpu::RenderPipeline,
+    /// je [starr, Haut (H-K23b)]
+    vorlauf: [wgpu::RenderPipeline; 2],
     /// einseitige FEST-Züge (H-K26) wie `Pipelines::fest_ohne_*`
-    vorlauf_ohne_hinten: wgpu::RenderPipeline,
-    vorlauf_ohne_vorn: wgpu::RenderPipeline,
+    vorlauf_ohne_hinten: [wgpu::RenderPipeline; 2],
+    vorlauf_ohne_vorn: [wgpu::RenderPipeline; 2],
     verdeckung: wgpu::RenderPipeline,
     weich_x: wgpu::RenderPipeline,
     weich_y: wgpu::RenderPipeline,
@@ -348,7 +352,8 @@ pub struct Glut {
     mod_himmel: wgpu::ShaderModule,
     mod_licht: wgpu::ShaderModule,
     mod_funken: wgpu::ShaderModule,
-    schatten_pipeline: wgpu::RenderPipeline,
+    /// [starr, Haut (H-K23b)]
+    schatten_pipeline: [wgpu::RenderPipeline; 2],
     pipelines: Vec<Pipelines>,
     s_linear: wgpu::Sampler,
     /// nächster Nachbar (Bildraum: Tiefe des Vorlaufs)
@@ -364,6 +369,8 @@ pub struct Glut {
     lichter_t: (wgpu::Texture, wgpu::TextureView),
     zellen_t: (wgpu::Texture, wgpu::TextureView),
     lichter_an: bool,
+    /// Gelenk-Palette (H-K23b, Abschnitt GELENKE, Bindung 23 im Haupt- und Schatten-Layout): RGBA32F, wächst nur
+    gelenke_t: (wgpu::Texture, wgpu::TextureView),
     /// Spiegelbild voll (H-K21, Abschnitt LICHTER_SPIEGEL): Kopf der zweiten Zellen-Tabelle (Bindung 14 der Spiegel-Bindegruppe;
     /// `frei.x` = ihr erstes Wort in `zellen_t`, Anzahl 0 = aus → die 8 Lichter aus SZENE wie beim einfachen Spiegel)
     lichter_kopf_spiegel: wgpu::Buffer,
@@ -521,6 +528,19 @@ const KARTEN3D_ATTR: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![13 =>
 fn karten_layout() -> Option<wgpu::VertexBufferLayout<'static>> {
     Some(wgpu::VertexBufferLayout { array_stride: KARTEN3D_BYTES as u64, step_mode: wgpu::VertexStepMode::Instance, attributes: &KARTEN3D_ATTR })
 }
+/// Haut (H-K23b, Abschnitt HAUT, 16 B je Ecke): 4 × u16 Gelenk @14, 4 × u16 Gewicht (normiert) @15 – zweiter Ecken-Strom nur der
+/// Haut-Pipelines; damit nimmt `vs_haut` 16 von 16 Attributen (WebGL2-Minimum)
+const HAUT_BYTES: usize = 16;
+const HAUT_ATTR: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![14 => Uint16x4, 15 => Unorm16x4];
+fn haut_layout() -> Option<wgpu::VertexBufferLayout<'static>> {
+    Some(wgpu::VertexBufferLayout { array_stride: HAUT_BYTES as u64, step_mode: wgpu::VertexStepMode::Vertex, attributes: &HAUT_ATTR })
+}
+fn zusatz_layout() -> Option<wgpu::VertexBufferLayout<'static>> {
+    Some(wgpu::VertexBufferLayout { array_stride: ZUSATZ3D_BYTES as u64, step_mode: wgpu::VertexStepMode::Instance, attributes: &ZUSATZ3D_ATTR })
+}
+/// Gelenk-Palette (H-K23b): RGBA32F, je Gelenk 3 Texel (Zeilen der 3 × 4-Matrix), 256 Gelenke je Zeile
+const GELENKE_JE_ZEILE: u32 = 256;
+const GELENK_BYTES: usize = 48;
 
 // ---- Bindegruppen-Layouts (Tabelle „Bindungen und Einheiten“: herd/README.md §9; geprüft vom Bindungswächter, src/waechter.rs)
 
@@ -585,6 +605,8 @@ fn layout_haupt() -> Vec<wgpu::BindGroupLayoutEntry> {
         // Verdeckung (H-K24, SSAO, halbe Größe; mit dem Sampler 6) und der Bildraum-Block
         textur_eintrag(21, St::FRAGMENT, T::Float { filterable: true }, D::D2),
         ubo_eintrag(22),
+        // Gelenk-Palette (H-K23b, RGBA32F, nur textureLoad im Vertex-Shader `vs_haut`)
+        textur_eintrag(23, St::VERTEX, T::Float { filterable: false }, D::D2),
     ]
 }
 
@@ -646,7 +668,9 @@ fn layout_schatten() -> Vec<wgpu::BindGroupLayoutEntry> {
         ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: true, min_binding_size: wgpu::BufferSize::new(64) },
         count: None,
     };
-    vec![ubo_eintrag(0), atlas_eintrag(), eigen_eintrag(7), eigen_eintrag(8), eigen_eintrag(9), eigen_eintrag(10), eigen_eintrag(11), zug]
+    // Gelenk-Palette (H-K23b, `vs_schatten_haut`)
+    let gelenke = textur_eintrag(23, wgpu::ShaderStages::VERTEX, wgpu::TextureSampleType::Float { filterable: false }, wgpu::TextureViewDimension::D2);
+    vec![ubo_eintrag(0), atlas_eintrag(), eigen_eintrag(7), eigen_eintrag(8), eigen_eintrag(9), eigen_eintrag(10), eigen_eintrag(11), zug, gelenke]
 }
 
 /// Nachbild: 0 Quelle, 1 Sampler, 2 Stimmung, 3 Bloom-Stufe 0
@@ -663,7 +687,17 @@ fn layout_nachbild() -> Vec<wgpu::BindGroupLayoutEntry> {
 /// Puffer-Layouts des Licht-Shaders: Ecke, INST3D, ZUSATZ3D (der Schatten-Shader nimmt nur die ersten beiden)
 fn licht_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 4] {
     let [e, i] = netz_layouts();
-    [e, i, Some(wgpu::VertexBufferLayout { array_stride: ZUSATZ3D_BYTES as u64, step_mode: wgpu::VertexStepMode::Instance, attributes: &ZUSATZ3D_ATTR }), karten_layout()]
+    [e, i, zusatz_layout(), karten_layout()]
+}
+
+/// Haut-Pipelines (H-K23b): dazu der Haut-Strom an Slot 4 (Licht) – Schatten: Ecke, INST3D, KARTEN3D, ZUSATZ3D (Palettenzeile), Haut
+fn licht_haut_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 5] {
+    let [e, i, z, k] = licht_layouts();
+    [e, i, z, k, haut_layout()]
+}
+fn schatten_haut_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 5] {
+    let [e, i] = netz_layouts();
+    [e, i, karten_layout(), zusatz_layout(), haut_layout()]
 }
 
 fn netz_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 2] {
@@ -869,12 +903,17 @@ impl Glut {
         let bildraum = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd bildraum"), size: BILDRAUM_BLOCK as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
 
         let [e, i] = netz_layouts();
-        // Schatten: Ecke, INST3D und KARTEN3D an Slot 2 (Schwelle, H-K26)
+        // Schatten: Ecke, INST3D und KARTEN3D an Slot 2 (Schwelle, H-K26); Haut (H-K23b): dazu ZUSATZ3D an 3 und der Haut-Strom an 4
         let layouts = [e, i, karten_layout()];
-        let schatten_pipeline = dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("herd schatten"),
+        let layouts_haut = schatten_haut_layouts();
+        let schatten_pipeline1 = |haut: bool| dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some(if haut { "herd schatten haut" } else { "herd schatten" }),
             layout: Some(&pl_schatten),
-            vertex: wgpu::VertexState { module: &mod_schatten, entry_point: Some("vs_schatten"), compilation_options: Default::default(), buffers: &layouts },
+            vertex: if haut {
+                wgpu::VertexState { module: &mod_schatten, entry_point: Some("vs_schatten_haut"), compilation_options: Default::default(), buffers: &layouts_haut }
+            } else {
+                wgpu::VertexState { module: &mod_schatten, entry_point: Some("vs_schatten"), compilation_options: Default::default(), buffers: &layouts }
+            },
             primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: TIEFE,
@@ -889,6 +928,7 @@ impl Glut {
             multiview_mask: None,
             cache: None,
         });
+        let schatten_pipeline = [schatten_pipeline1(false), schatten_pipeline1(true)];
 
         let sampler = |name: &str, filter: wgpu::FilterMode, vergleich: Option<wgpu::CompareFunction>| {
             dev.create_sampler(&wgpu::SamplerDescriptor {
@@ -943,6 +983,7 @@ impl Glut {
         let lichter_kopf_spiegel = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd lichter spiegel"), size: LICHTER_KOPF_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let lichter_t = Glut::daten_textur(dev, "herd lichter", wgpu::TextureFormat::Rgba32Float, 3 * LICHTER_JE_ZEILE, 1);
         let zellen_t = Glut::daten_textur(dev, "herd zellen", wgpu::TextureFormat::R32Uint, ZELLEN_BREITE, 1);
+        let gelenke_t = Glut::daten_textur(dev, "herd gelenke", wgpu::TextureFormat::Rgba32Float, 3 * GELENKE_JE_ZEILE, 1);
         let atlas_min = if adapter.get_info().backend == wgpu::Backend::Gl { 2 } else { 1 };
         let (schatten_map, schatten_schichten) = Glut::schatten_textur(dev, 1, atlas_min);
         let schattenlichter = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd schattenlichter"), size: SCHATTENLICHTER_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
@@ -984,6 +1025,7 @@ impl Glut {
             lichter_t,
             zellen_t,
             lichter_an: false,
+            gelenke_t,
             lichter_kopf_spiegel,
             lichter_spiegel_an: false,
             stimmung,
@@ -1051,10 +1093,15 @@ impl Glut {
     #[allow(clippy::too_many_arguments)]
     fn bildraum_pipelines(dev: &wgpu::Device, pl_haupt: &wgpu::PipelineLayout, mod_licht: &wgpu::ShaderModule, pl_bild: &wgpu::PipelineLayout, mod_bild: &wgpu::ShaderModule, hdr_format: wgpu::TextureFormat, hdr_msaa: u32) -> BildraumPipelines {
         let layouts = licht_layouts();
-        let vorlauf = |name: &str, cull: Option<wgpu::Face>| dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let layouts_haut = licht_haut_layouts();
+        let vorlauf1 = |name: &str, cull: Option<wgpu::Face>, haut: bool| dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some(name),
             layout: Some(pl_haupt),
-            vertex: wgpu::VertexState { module: mod_licht, entry_point: Some("vs_licht"), compilation_options: Default::default(), buffers: &layouts },
+            vertex: if haut {
+                wgpu::VertexState { module: mod_licht, entry_point: Some("vs_haut"), compilation_options: Default::default(), buffers: &layouts_haut }
+            } else {
+                wgpu::VertexState { module: mod_licht, entry_point: Some("vs_licht"), compilation_options: Default::default(), buffers: &layouts }
+            },
             primitive: wgpu::PrimitiveState { cull_mode: cull, front_face: wgpu::FrontFace::Ccw, ..Default::default() },
             depth_stencil: Some(wgpu::DepthStencilState { format: TIEFE, depth_write_enabled: Some(true), depth_compare: Some(wgpu::CompareFunction::Less), stencil: Default::default(), bias: Default::default() }),
             multisample: Default::default(),
@@ -1070,6 +1117,7 @@ impl Glut {
             multiview_mask: None,
             cache: None,
         });
+        let vorlauf = |name: &str, cull: Option<wgpu::Face>| [vorlauf1(name, cull, false), vorlauf1(&format!("{name} haut"), cull, true)];
         let voll = |name: &str, fs: &str, format: wgpu::TextureFormat, blend: Option<wgpu::BlendState>, proben: u32| {
             dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some(name),
@@ -1279,6 +1327,32 @@ impl Glut {
         Ok((LICHTER_KOPF_BYTES + kopf_sp + l.len() + z.len()) as u64)
     }
 
+    /// GELENKE (H-K23b): `u32 anzahl`, dann je Gelenk 3 × vec4 f32 → Palette RGBA32F (3 Texel je Gelenk, 256 Gelenke je Zeile).
+    fn gelenke(&mut self, d: &[u8]) -> Result<u64, Fehler> {
+        let kurz = || Fehler::Paket("Abschnitt GELENKE zu kurz".into());
+        if d.len() < 4 {
+            return Err(kurz());
+        }
+        let n = u32_at(d, 0);
+        let g = d.get(4..4 + n as usize * GELENK_BYTES).ok_or_else(kurz)?;
+        let zeilen = n.div_ceil(GELENKE_JE_ZEILE).max(1);
+        if self.gelenke_t.0.height() < zeilen {
+            self.gelenke_t = Glut::daten_textur(&self.device, "herd gelenke", wgpu::TextureFormat::Rgba32Float, 3 * GELENKE_JE_ZEILE, zeilen.next_power_of_two());
+            self.bg_haupt = None;
+            self.bg_schatten = None;
+        }
+        let zeile_b = GELENKE_JE_ZEILE as usize * GELENK_BYTES;
+        let mut b = g.to_vec();
+        b.resize(zeilen as usize * zeile_b, 0);
+        self.queue.write_texture(
+            wgpu::TexelCopyTextureInfo { texture: &self.gelenke_t.0, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            &b,
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(zeile_b as u32), rows_per_image: Some(zeilen) },
+            wgpu::Extent3d { width: 3 * GELENKE_JE_ZEILE, height: zeilen, depth_or_array_layers: 1 },
+        );
+        Ok(b.len() as u64)
+    }
+
     fn atlas_textur(dev: &wgpu::Device, kante: u32, schichten: u32) -> (wgpu::Texture, wgpu::TextureView) {
         let t = dev.create_texture(&wgpu::TextureDescriptor {
             label: Some("herd atlas"),
@@ -1448,11 +1522,16 @@ impl Glut {
             cache: None,
         });
         let layouts = licht_layouts();
-        let licht = |name: &str, cull: Option<wgpu::Face>, schreiben: bool, ziele: &[Option<wgpu::ColorTargetState>]| {
+        let layouts_haut = licht_haut_layouts();
+        let licht1 = |name: &str, cull: Option<wgpu::Face>, schreiben: bool, ziele: &[Option<wgpu::ColorTargetState>], haut: bool| {
             dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some(name),
                 layout: Some(&self.pl_haupt),
-                vertex: wgpu::VertexState { module: &self.mod_licht, entry_point: Some("vs_licht"), compilation_options: Default::default(), buffers: &layouts },
+                vertex: if haut {
+                    wgpu::VertexState { module: &self.mod_licht, entry_point: Some("vs_haut"), compilation_options: Default::default(), buffers: &layouts_haut }
+                } else {
+                    wgpu::VertexState { module: &self.mod_licht, entry_point: Some("vs_licht"), compilation_options: Default::default(), buffers: &layouts }
+                },
                 primitive: wgpu::PrimitiveState { cull_mode: cull, front_face: wgpu::FrontFace::Ccw, ..Default::default() },
                 depth_stencil: tiefe(schreiben, wgpu::CompareFunction::Less),
                 multisample: ms,
@@ -1460,6 +1539,9 @@ impl Glut {
                 multiview_mask: None,
                 cache: None,
             })
+        };
+        let licht = |name: &str, cull: Option<wgpu::Face>, schreiben: bool, ziele: &[Option<wgpu::ColorTargetState>]| {
+            [licht1(name, cull, schreiben, ziele, false), licht1(&format!("{name} haut"), cull, schreiben, ziele, true)]
         };
         let fest = licht("herd fest", None, true, &z_ersetz);
         let fest_ohne_hinten = licht("herd fest einseitig", Some(wgpu::Face::Back), true, &z_ersetz);
@@ -1871,11 +1953,25 @@ impl Glut {
                 } else {
                     let ecken = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor { label: Some("herd netz ecken"), contents: e, usage: wgpu::BufferUsages::VERTEX });
                     let ib = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor { label: Some("herd netz indizes"), contents: i, usage: wgpu::BufferUsages::INDEX });
-                    Some(Netz { ecken, indizes: ib, anzahl: indizes as u32 })
+                    Some(Netz { ecken, indizes: ib, anzahl: indizes as u32, haut: None })
                 };
                 Ok((e.len() + i.len()) as u64)
             }
             abschnitt::TEXTUR => self.textur(d),
+            abschnitt::HAUT => {
+                if d.len() < 8 {
+                    return Err(kurz());
+                }
+                let (id, ecken) = (u32_at(d, 0) as usize, u32_at(d, 4) as usize);
+                let h = d.get(8..8 + ecken * HAUT_BYTES).ok_or_else(kurz)?;
+                // nur zu einem bekannten Netz mit gleicher Eckenzahl (sonst bleibt es starr)
+                if let Some(Some(n)) = self.netze.get_mut(id) {
+                    if n.ecken.size() == (ecken * ECKE_BYTES) as u64 && ecken > 0 {
+                        n.haut = Some(self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor { label: Some("herd netz haut"), contents: h, usage: wgpu::BufferUsages::VERTEX }));
+                    }
+                }
+                Ok(h.len() as u64)
+            }
             _ => Ok(0),
         }
     }
@@ -1909,6 +2005,7 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 9, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[2].ansicht) },
                     wgpu::BindGroupEntry { binding: 10, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[3].ansicht) },
                     wgpu::BindGroupEntry { binding: 11, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[4].ansicht) },
+                    wgpu::BindGroupEntry { binding: 23, resource: wgpu::BindingResource::TextureView(&self.gelenke_t.1) },
                 ],
             }));
         }
@@ -1944,6 +2041,7 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 19, resource: wgpu::BindingResource::TextureView(spiegelbild) },
                     wgpu::BindGroupEntry { binding: 21, resource: wgpu::BindingResource::TextureView(self.bild.as_ref().map(|z| &z.ao).unwrap_or(&self.platzhalter)) },
                     wgpu::BindGroupEntry { binding: 22, resource: self.bildraum.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 23, resource: wgpu::BindingResource::TextureView(&self.gelenke_t.1) },
                 ],
             })
         }
@@ -1996,6 +2094,7 @@ impl Glut {
         let mut karten: Option<&[u8]> = None;
         let mut teilchen_zus: Option<&[u8]> = None;
         let mut schatten_d: Option<&[u8]> = None;
+        let mut gelenke_d: Option<&[u8]> = None;
         let mut n_leuchtend = 0u32;
         self.zuege.clear();
         let mut szene_da = false;
@@ -2035,6 +2134,7 @@ impl Glut {
                 }
                 abschnitt::ZUSATZ3D => zusatz = Some(d),
                 abschnitt::KARTEN3D => karten = Some(d),
+                abschnitt::GELENKE => gelenke_d = Some(d),
                 abschnitt::ZUSATZ_TEILCHEN => teilchen_zus = Some(d),
                 abschnitt::SCHATTENLICHTER => {
                     if d.len() < SCHATTENLICHTER_KOPF_BYTES || d.len() > SCHATTENLICHTER_BYTES || (d.len() - SCHATTENLICHTER_KOPF_BYTES) % SCHATTEN_ANSICHT_BYTES != 0 {
@@ -2161,6 +2261,11 @@ impl Glut {
                 }
             }
         }
+        // Gelenk-Palette (H-K23b): Zeilen zu je GELENKE_JE_ZEILE Gelenken (letzte aufgefüllt); ohne Abschnitt bleibt sie liegen
+        // (nur Haut-Züge lesen sie)
+        if let Some(d) = gelenke_d {
+            stat.hochgeladen += self.gelenke(d)?;
+        }
         let nt = (teilchen.len() / TEILCHEN3D_BYTES) as u32;
         self.teilchen.schreibe(&self.device, &self.queue, teilchen);
         // Zusatz je Teilchen (Strich, Licht): mit Abschnitt hochladen, sonst Nullen in passender Größe (wie ZUSATZ3D)
@@ -2202,10 +2307,10 @@ impl Glut {
                 .iter()
                 .enumerate()
                 .filter_map(|(i, z)| {
-                    if z[0] == zug::SCHATTEN {
+                    if z[0] & 0xFF == zug::SCHATTEN {
                         Some((i, 0, 0))
                     } else if z[0] & 0xFF == zug::ANSICHT {
-                        let a = (z[0] >> 8) as usize;
+                        let a = ((z[0] >> 8) & 0xFF) as usize;
                         ansichten.get(a).map(|v| (i, v.0, a as u32 + 1))
                     } else {
                         None
@@ -2333,11 +2438,13 @@ impl Glut {
                 }),
                 ..Default::default()
             });
-            p.set_pipeline(&self.schatten_pipeline);
             let g = SCHATTEN_GROESSE as f32;
             for &(i, _, a) in schatten_zuege.iter().filter(|z| z.1 == schicht) {
                 let z = self.zuege[i];
                 let Some(Some(n)) = self.netze.get(z[1] as usize) else { continue };
+                // Haut (H-K23b): eigene Pipeline mit Haut-Strom und ZUSATZ3D (Palettenzeile); ohne HAUT-Daten starr
+                let haut = n.haut.as_ref().filter(|_| z[0] & zug::HAUT != 0);
+                p.set_pipeline(&self.schatten_pipeline[haut.is_some() as usize]);
                 if z[2] + z[3] > n3 {
                     continue;
                 }
@@ -2349,7 +2456,13 @@ impl Glut {
                 p.set_bind_group(0, self.bg_schatten.as_ref(), &[(a as u64 * self.zug_schritt) as u32]);
                 p.set_vertex_buffer(0, n.ecken.slice(..));
                 p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
-                let anzahl = Glut::zeichne_netz(&mut p, &self.inst3d.puffer, &[(2, &self.karten3d.puffer)], n.anzahl, z[2], z[3], instancing);
+                let anzahl = match haut {
+                    Some(h) => {
+                        p.set_vertex_buffer(4, h.slice(..));
+                        Glut::zeichne_netz(&mut p, &self.inst3d.puffer, &[(2, &self.karten3d.puffer), (3, &self.zusatz3d.puffer)], n.anzahl, z[2], z[3], instancing)
+                    }
+                    None => Glut::zeichne_netz(&mut p, &self.inst3d.puffer, &[(2, &self.karten3d.puffer)], n.anzahl, z[2], z[3], instancing),
+                };
                 stat.draw_calls += anzahl;
                 stat.schatten_draw_calls += anzahl;
                 stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
@@ -2408,11 +2521,12 @@ impl Glut {
                     }
                     p.set_vertex_buffer(0, n.ecken.slice(..));
                     p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
+                    let h = Glut::haut_binden(&mut p, n, z[0]);
                     // einseitig (H-K26) wie im Hauptdurchgang
                     p.set_pipeline(match (z[0] & zug::EINSEITIG != 0, z[0] & zug::GEDREHT != 0) {
-                        (false, _) => &bp.vorlauf,
-                        (true, false) => &bp.vorlauf_ohne_hinten,
-                        (true, true) => &bp.vorlauf_ohne_vorn,
+                        (false, _) => &bp.vorlauf[h],
+                        (true, false) => &bp.vorlauf_ohne_hinten[h],
+                        (true, true) => &bp.vorlauf_ohne_vorn[h],
                     });
                     stat.draw_calls += Glut::zeichne_netz(&mut p, &self.inst3d.puffer, &[(2, &self.zusatz3d.puffer), (3, &self.karten3d.puffer)], n.anzahl, z[2], z[3], instancing);
                     stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
@@ -2653,6 +2767,7 @@ impl Glut {
                 }
                 p.set_vertex_buffer(0, n.ecken.slice(..));
                 p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
+                let h = Glut::haut_binden(p, n, z[0]);
                 // einseitig (H-K26, Karten ohne beidseitig): nur Vorderseiten; gespiegelte Matrix (GEDREHT) oder Spiegeldurchgang
                 // drehen den Umlaufsinn, dann gelten die „hinteren“ Dreiecke als vorn
                 let einseitig = z[0] & zug::EINSEITIG != 0;
@@ -2660,22 +2775,22 @@ impl Glut {
                 // gespiegelt (H-K21) dreht sich der Umlaufsinn: erst „vorn“ (zeigt dann die Rückseiten), dann „hinten“
                 let pipes: &[&wgpu::RenderPipeline] = if z[0] & zug::ART == zug::FEST {
                     if !einseitig {
-                        &[&pl.fest]
+                        &[&pl.fest[h]]
                     } else if umgedreht {
-                        &[&pl.fest_ohne_vorn]
+                        &[&pl.fest_ohne_vorn[h]]
                     } else {
-                        &[&pl.fest_ohne_hinten]
+                        &[&pl.fest_ohne_hinten[h]]
                     }
                 } else if einseitig {
                     if umgedreht {
-                        &[&pl.durch_hinten]
+                        &[&pl.durch_hinten[h]]
                     } else {
-                        &[&pl.durch_vorn]
+                        &[&pl.durch_vorn[h]]
                     }
                 } else if gespiegelt {
-                    &[&pl.durch_vorn, &pl.durch_hinten]
+                    &[&pl.durch_vorn[h], &pl.durch_hinten[h]]
                 } else {
-                    &[&pl.durch_hinten, &pl.durch_vorn]
+                    &[&pl.durch_hinten[h], &pl.durch_vorn[h]]
                 };
                 for pipe in pipes {
                     p.set_pipeline(pipe);
@@ -2707,6 +2822,18 @@ impl Glut {
                 stat.instanzen_3d += anzahl;
                 stat.dreiecke += 2 * anzahl as u64;
             }
+        }
+    }
+
+    /// Haut (H-K23b): bei einem Haut-Zug mit HAUT-Daten des Netzes den Haut-Strom an Slot 4 binden → 1 (Haut-Pipeline), sonst 0
+    /// (starr; ein Haut-Zug ohne Daten fällt so auf die Ruhelage zurück).
+    fn haut_binden(p: &mut wgpu::RenderPass<'_>, n: &Netz, art: u32) -> usize {
+        match n.haut.as_ref() {
+            Some(h) if art & zug::HAUT != 0 => {
+                p.set_vertex_buffer(4, h.slice(..));
+                1
+            }
+            _ => 0,
         }
     }
 

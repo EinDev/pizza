@@ -254,11 +254,11 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 5 | TEXTUR | eigene Textur aus einem Teigling (`bildchen_teigling`, PROJEKTE PD1): `u32 id` (Ressourcen-ID = Textur-ID), `u8 format` (0 = RGBA8, nicht vormultipliziert), `u8 stufen`, `u16 b, u16 h`, dann je Stufe `u32 länge` + Bytes (Stufe 0 = b × h, jede weitere halbiert, abgerundet, mindestens 1, bis 1 × 1; Zeilen von oben). Einmal je Bild (nicht je Verwendung), nur wenn Teiglinge geladen sind |
 | 10 | SZENE | 592 Bytes Uniform-Block (unten), immer vorhanden |
 | 11 | INST3D | n × 72 Bytes 3D-Instanzen |
-| 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH; H-K18: Bits 0–7 = 4 ANSICHT, Bits 8 … = Nummer der Schatten-Ansicht; H-K26: an FEST/DURCH Bit 16 EINSEITIG = Rückseiten weglassen (Instanzen mit Karten ohne `beidseitig`), Bit 17 GEDREHT = dabei Welt-Matrix mit Determinante < 0, die Glut lässt dann die Vorderseiten im Bild weg; ohne Karten nie gesetzt) |
+| 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH; H-K18: Bits 0–7 = 4 ANSICHT, Bits 8 … = Nummer der Schatten-Ansicht; H-K26: an FEST/DURCH Bit 16 EINSEITIG = Rückseiten weglassen (Instanzen mit Karten ohne `beidseitig`), Bit 17 GEDREHT = dabei Welt-Matrix mit Determinante < 0, die Glut lässt dann die Vorderseiten im Bild weg; ohne Karten nie gesetzt; H-K23b: an FEST/DURCH/SCHATTEN/ANSICHT Bit 18 HAUT = gehäutete Instanzen, nur mit HAUT/GELENKE) |
 | 13 | INST2D | k × 56 Bytes 2D-Instanzen, **bereits in Zeichenreihenfolge** |
 | 14 | TEILCHEN3D | `u32 leuchtend, u32 deckend`, dann (leuchtend + deckend) × 20 Bytes 3D-Teilchen (`Funken`, unten); nur wenn sichtbare Teilchen da sind |
 | 15 | HIMMELSZELT | 208 Bytes Uniform-Block des geltenden `Himmelszelt` (H-K11b, unten); nur wenn eines an einem wachen Teil hängt (dann ist auch Flag 4 gesetzt) |
-| 18 | ZUSATZ3D | Material-Zusatz je 3D-Instanz (16 B, gleiche Reihenfolge wie INST3D): `u32 relief` (wie `INST3D.textur`, nur eigene Texturen; 0 = keins), `f32 kachel`, `f32 metall`, `u32 merkmale` (Bit 0 pbr, Bit 1 Welt-Abbildung, Bits 8–15 nass · 255); nur wenn eine geschriebene Instanz einen hat (`Belag`-Material) |
+| 18 | ZUSATZ3D | Material-Zusatz je 3D-Instanz (16 B, gleiche Reihenfolge wie INST3D): `u32 relief` (wie `INST3D.textur`, nur eigene Texturen; 0 = keins), `f32 kachel`, `f32 metall`, `u32 merkmale` (Bit 0 pbr, Bit 1 Welt-Abbildung, Bits 8–15 nass · 255, H-K23b: Bits 16–31 erste Zeile der Gelenk-Palette einer gehäuteten Instanz); nur wenn eine geschriebene Instanz einen hat (`Belag`-Material) |
 | 19 | ZUSATZ_TEILCHEN | Zusatz je 3D-Teilchen (16 B, gleiche Reihenfolge wie TEILCHEN3D): `f32 strich x, y, z` (halbe Strichachse in Welt, 0 = rund), `u32 merkmale` (Bits 0–7 `licht` · 255); nur wenn ein geschriebenes Teilchen gestreckt oder beleuchtet ist (`Funken` „Regen“) |
 | 17 | STIMMUNG | 80 Bytes Uniform-Block der geltenden `Stimmung` (unten); nur wenn eine an einem wachen Teil hängt |
 | 16 | LICHTER | viele Lichter (Clustered Forward, `kern/src/lichter.rs`, unten); nur bei mehr als 8 wirksamen Punktlichtern (Stärke > 0), einem Spot (`Licht.kegel` > 0) oder einem schattenwerfenden Punkt-/Spotlicht (H-K18) |
@@ -266,6 +266,9 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 21 | LICHTER_SPIEGEL | Zellen-Tabelle der gespiegelten Kamera (H-K21, unten); nur bei `Stimmung.spiegelGuete` voll (mit `spiegelung` > 0) und vorhandenem LICHTER, direkt dahinter |
 | 22 | BILDRAUM | Bildschirmraum (H-K24, 32 Bytes, f32): `a vec4` (`verdeckung`, `verdeckungWeite`, `bildspiegel`, 1 = an) · `b vec4` (nah, fern der aktiven Kamera, 0, 0); nur wenn die geltende `Stimmung` `verdeckung` oder `bildspiegel` > 0 hat, direkt hinter STIMMUNG |
 | 23 | KARTEN3D | Belag-Karten je 3D-Instanz (H-K26, 16 B, gleiche Reihenfolge wie INST3D): `u32 normal` (Kennwort wie `INST3D.textur`, nur eigene Texturen; Bits 24–31 `normalStaerke` · 64), `u32 stoff` (Kennwort; Bit 24 `beidseitig`), `u32 leucht` (Kennwort), `u32 leuchtfarbe|schwelle` (Bits 8–31 `leuchtFarbe` RGB wie `farbe`, Bits 0–7 `schwelle` · 255 bezogen auf die Bild-Deckkraft – der Kern teilt durch die Deckkraft der Farbe und schreibt die Instanz deckend); nur wenn eine geschriebene Instanz Karten hat (sonst Paket wie vorher) |
+
+| 24 | HAUT | Haut eines Netzes (H-K23b, Ressource): `u32 netz, u32 ecken`, dann je Ecke 4 × `u16` Gelenk (Index in die Gelenke der Haut) + 4 × `u16` Gewicht (Summe 65 535) – einmal je Netz, im ersten Paket mit einem gehäuteten Zug dieses Netzes (nach `paket_voll` erneut), hinter den übrigen Ressourcen-Deltas |
+| 25 | GELENKE | Gelenk-Palette des Bildes (H-K23b): `u32 anzahl` (≤ 65 536), dann je Gelenk 3 × vec4 f32 = Zeilen der 3 × 4-Matrix `Welt(Körper-Teil)⁻¹ · Welt(Gelenk-Teil) · inverse Bindematrix` (f64 im Kern, f32 im Paket); die erste Zeile einer gehäuteten Instanz steht in `ZUSATZ3D.merkmale` Bits 16–31; nur wenn ein Zug das Merkmal HAUT trägt, hinter KARTEN3D |
 
 Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
 gelöscht. Atlasrechtecke liegen mit 1 Pixel Abstand.
@@ -294,6 +297,16 @@ zusammengefasst; je Zug erst Rückseiten, dann Vorderseiten, Tiefe testen, nicht
 Mit SCHATTENLICHTER folgen hinter `DURCH` **eigene Instanz-Kopien** der Werfer je Schatten-Ansicht (Kaskaden, dann Kacheln; je
 Ansicht nach (Netz, Teil-ID), nur Werfer, deren Hülle die Ansicht schneidet bzw. bei Kaskaden in die Lichtbox fällt) als Züge
 `ANSICHT | a << 8` – je Ansicht und Netz ein Draw-Call; mit Kaskaden entfallen die `SCHATTEN`-Züge der Sonne.
+
+**Haut (H-K23b):** Ein `Koerper`, dessen Form ein Netz mit Haut aus einem Modell ist (`JOINTS_0`/`WEIGHTS_0`), wird gehäutet,
+sobald sein Knoten-Teil (bzw. bei mehreren Primitiven dessen Eltern-Teil) eine Haut nennt und alle Gelenk-Teile unter der
+Modell-Wurzel gefunden werden (derselbe Gang wie bei der `Puppe`; mit oder ohne Puppe – die Puppe bewegt die Gelenk-Teile, das
+Programm darf es auch). Sonst bleibt er starr wie vorher. Die Instanz behält ihre Welt-Matrix (INST3D unverändert); die Palette ist
+relativ zum Körper-Teil, die Glut verformt im Vertex-Shader erst mit Σ Gewicht · Palette, dann wie immer. Gehäutete Instanzen stehen
+in eigenen Zügen (Merkmal HAUT; Sortierschlüssel Netz, Haut, Seiten, Gruppe, Teil – ohne Haut dieselbe Reihenfolge wie vorher), auch
+in SCHATTEN- und ANSICHT-Zügen. Hülle fürs Culling: je Gelenk dessen Weltlage ± größter Abstand einer Ecke des Ruhelage-Kastens im
+Gelenk-Raum × Gelenk-Maßstab (konservativ); `trifft` und Fühler `auto` behalten die Ruhelage-Hülle. Grenzen: ≤ 256 Gelenke je Haut
+(Vorbacker), ≤ 65 536 Gelenke je Bild (darüber starr). Ohne gehäutete Netze: kein HAUT, kein GELENKE, kein Merkmal – Pakete byte-gleich.
 
 **TEILCHEN3D (20 Bytes je Teilchen):** `f32 x, y, z` (Weltlage) · `f32 r` (halbe Größe, Welt-Einheiten) · `u8 r, g, b, a` (sRGB,
 nicht vormultipliziert). Erst die **leuchtenden** (additiv) in Ausstoßreihenfolge (Komponentenzeile, dann Teilchen), dann die
@@ -554,7 +567,7 @@ eingepasstes Spielfeld; mit Bildraum-Spiegelung geteilt: Himmel + `FEST`, Farbst
 
 **Vertex-Layouts:** Netz-Ecke 32 B (`pos` @0, `normale` @12, `uv` @24). INST3D 72 B als Instanzpuffer: Zeilen der Welt-Matrix
 @0/@16/@32 (`Float32x4`), Farbe @48 (`Unorm8x4`), `glanz, leuchten` @52 (`Float32x2`), Atlas-Rechteck @60 (`Uint16x4`),
-`textur` @68 (`Uint32`). INST2D 56 B: `m` @0 (`Float32x4`), `t` @16, `h` @24, `p` @32 (je `Float32x2`), Farbe @40 (`Unorm8x4`),
+`textur` @68 (`Uint32`). Haut (H-K23b, nur Haut-Pipelines): Ecken-Strom 16 B (`Uint16x4` Gelenke @14, `Unorm16x4` Gewichte @15). INST2D 56 B: `m` @0 (`Float32x4`), `t` @16, `h` @24, `p` @32 (je `Float32x2`), Farbe @40 (`Unorm8x4`),
 `art|seite<<8` @44 (`Uint32`), Atlas-Rechteck @48 (`Uint16x4`). TEILCHEN3D 20 B: `pos` @0 (`Float32x3`), `r` @12 (`Float32`),
 Farbe @16 (`Unorm8x4`). Die Bytes kommen unverändert aus dem Paket. Statistik: Teilchen zählen zu `instanzen_3d` und `dreiecke`.
 
@@ -646,7 +659,7 @@ WebGL2 zählen zwei Dinge, beide prüft der Wächter:
 | 20 | Uniform Ansicht·Projektion je Schatten-Zug (**Schatten-Layout**, dynamischer Versatz, 64 B je 256-B-Eintrag) | VS | `vs_schatten` | Block | H-K18 |
 | 21 (+ 6) | Verdeckung R8 (SSAO, halbe Zielgröße) | FS | `fs_licht` (`textureSampleLevel` mit dem Sampler 6) | 1 | H-K24 |
 | 22 | Uniform Bildraum (Glut, 128 B: Kern-Abschnitt BILDRAUM, Inverse von `ansicht_proj`, Viewport, Zielgröße) | VS + FS | `fs_licht` (Haupt-Layout), `fs_verdeckung`, `fs_weich_*`, `fs_bildspiegel` (Bildraum-Layout) | Block | H-K24 |
-| *23* | *Gelenk-Palette RGBA32F (Haupt- **und** Schatten-Layout)* | *VS* | *`vs_licht`, `vs_schatten`* | *1* | *geplant H-K23b* |
+| 23 | Gelenk-Palette `gelenke_t` RGBA32F (3 Texel je Gelenk, 256 Gelenke je Zeile, wächst nur; Haupt- **und** Schatten-Layout) | VS | `vs_haut`, `vs_schatten_haut` (`textureLoad`) | 1 | H-K23b |
 | *–* | *Szenenfarbe + Tiefe (Bildschirmraum-Kopien)* | *FS* | *`fs_wasser` im **eigenen** Layout `wasser`* | *0 im Haupt-Layout* | *geplant H-K28* |
 | – | Spiegel-Zellen | | in `zellen_t` (16) | 0 | H-K21 |
 | – | Normal-, Stoff-, Leucht-Karten | | über die PD3-Klassen 7 … 11 (`eigen_kachel` in `fs_licht`/`fs_vorlauf`), Schwelle in `fs_schatten` mit `eigen_lade` | 0 | H-K26 (umgesetzt) |
@@ -668,6 +681,17 @@ Spiegel-Zellen liegen hinter den Zellen von LICHTER in `zellen_t` (16), ihr Kopf
 Spiegel-Bindegruppe an **derselben** Bindung 14 bindet. `fs_leuchtend`/`fs_deckend` lesen jetzt auch SZENE (Verwerfen unter der
 Spiegelebene): je 2 Blöcke.
 
+**Stand H-K23b (gemessen, Wächter):** Haupt-Layout **13/16** Texturen (+1: Gelenk-Palette an 23, nur Vertex), 3/16 Sampler, 7/12
+Uniform-Puffer; Schatten-Layout **7/16** (+1, dieselbe Bindung). Zwei neue Vertex-Einstiegspunkte `vs_haut` (`licht.wgsl`, 1/16 Einheit:
+23) und `vs_schatten_haut` (`schatten.wgsl`, 1/16) – `vs_licht`/`vs_schatten` sind unverändert (Bilder ohne Haut bitgleich). Vertex-
+Attribute (eigener Test `vertex_attribute`): `vs_haut` **16/16** (Haut-Strom @14 `Uint16x4` Gelenke, @15 `Unorm16x4` Gewichte, 16 B je
+Ecke, Slot 4), `vs_schatten_haut` 16/16 (Ecke, INST3D, KARTEN3D, ZUSATZ3D an Slot 3 für die Palettenzeile in `merkmale` Bits 16–31,
+Haut an Slot 4). Die Palettenzeile reist deshalb in ZUSATZ3D statt in einem eigenen Instanz-Attribut. Pipelines vorab: je Licht-
+Pipeline eine Haut-Variante (`fest`, `fest_ohne_hinten`/`_vorn`, `durch_hinten`/`_vorn`, Vorlauf ×3, Schatten) – 9 mehr; ein Haut-Zug
+ohne HAUT-Daten des Netzes fällt auf die starre Pipeline zurück. Haupt-, Spiegel- (H-K21), Vorlauf- (H-K24) und Schattendurchgang
+wählen je Zug nach dem Merkmal HAUT. Der Wächter erlaubt jetzt mehrere Vertex-Einstiegspunkte je Programm (jede Kombination VS + FS
+≤ 32 Einheiten).
+
 **Stand H-K26 (gemessen, Wächter):** unverändert – Haupt-Layout **12/16** Texturen, 3/16 Sampler, 7/12 Uniform-Puffer; `fs_licht` 11/16 Einheiten, `fs_vorlauf` 6/16, `fs_schatten` 6/16: die Karten liegen in den PD3-Klassen 7 … 11, die `fs_licht` schon abtastet. Neu sind nur Vertex-Attribute: `vs_licht` nimmt 14 von 16 (WebGL2-Minimum `MAX_VERTEX_ATTRIBS`; H-K23b braucht noch 2 → 16/16), `vs_schatten` 8; Varyings `AusNetz` 10 Vektoren (≤ 15).
 
 **Stand H-K24 (gemessen, Wächter):** Haupt-Layout **12/16** Texturen (+1: Verdeckung an 21, mit dem vorhandenen Sampler 6),
@@ -675,8 +699,8 @@ Uniform-Puffer 7/12 (+ Bildraum an 22); `fs_licht` 11/16 Einheiten, 5 Blöcke. N
 
 | Layout | Texturen | Sampler | Uniform-Puffer VS/FS | nach dem Plan (§13) |
 |---|---|---|---|---|
-| haupt | **12/16** (H-K15: 11, H-K24: +1) | 3/16 | 7/12 · 7/12 (H-K15: 5 · 5) | 13/16 Texturen (+ H-K23b), ≤ 9/12 Blöcke (+ WIND) |
-| schatten | 6/16 | 0/16 | 2/12 · 1/12 (H-K15: 1 · 1) | 7/16 (+ Gelenk-Palette) |
+| haupt | **13/16** (H-K15: 11, H-K24: +1, H-K23b: +1) | 3/16 | 7/12 · 7/12 (H-K15: 5 · 5) | 13/16 Texturen, ≤ 9/12 Blöcke (+ WIND) |
+| schatten | **7/16** (H-K23b: +1) | 0/16 | 2/12 · 1/12 (H-K15: 1 · 1) | 7/16 |
 | nachbild | 2/16 | 1/16 | 0/12 · 1/12 | – |
 | bildraum (H-K24) | 9/16 | 2/16 | 3/12 · 3/12 | – |
 
@@ -684,8 +708,8 @@ Uniform-Puffer 7/12 (+ Bildraum an 22); `fs_licht` 11/16 Einheiten, 5 Blöcke. N
 |---|---|---|---|---|---|
 | `vs_flach` | 0 | 2 | `fs_flach` | 7 | 1 |
 | `vs_himmel` | 0 | 1 | `fs_himmel` / `fs_zelt` | 0 / 6 | 2 / 3 |
-| `vs_licht` | 0 | 1 | `fs_licht` / `fs_vorlauf` | **11/16** / 6 | 5 / 2 |
-| `vs_schatten` | 0 | 1 | `fs_schatten` | 6 | 0 |
+| `vs_licht` / `vs_haut` | 0 / 1 | 1 | `fs_licht` / `fs_vorlauf` | **11/16** / 6 | 5 / 2 |
+| `vs_schatten` / `vs_schatten_haut` | 0 / 1 | 1 | `fs_schatten` | 6 | 0 |
 | `vs_funke` | 2 | 4 | `fs_leuchtend` / `fs_deckend` | 0 / 0 | 2 / 2 (H-K18: 1 / 2) |
 | `vs_voll` | 0 | 0 | `fs_vorfilter` / `fs_ab` / `fs_auf` / `fs_abschluss` | 1 / 1 / 1 / 2 | 1 / 0 / 1 / 1 |
 | `vs_bildraum` | 0 | 0 | `fs_verdeckung` / `fs_weich_x`, `_y` / `fs_verkleinern` / `fs_bildspiegel` | 2 / 2 / 1 / 9 | 2 / 1 / 0 / 3 |
@@ -695,7 +719,7 @@ Vertex-Texturen haben unter wgpu-GL keinen eigenen Pool): H-K18 hat **keine** Ei
 Array statt 2D, Kacheln und Kaskaden liegen in ihren Schichten, die Matrizen in Uniform-Blöcken). Danach: **H-K21** 0 (umgesetzt: Spiegel-Zellen in
 `zellen_t`, Kopf an Bindung 14 der Spiegel-Bindegruppe) · **H-K24** +1 (umgesetzt: Verdeckung an 21 mit dem Sampler 6, Bildraum-Block an 22; SSAO, Weichzeichnen, Farbstufen und
 SSR-Strahlmarsch im eigenen Layout `bildraum`, der Vorlauf im Haupt-Layout ohne neuen Eintrag; `fs_licht` liest nur das
-Verdeckungsbild) → 12 · **H-K26** 0 (umgesetzt: PD3-Klassen, KARTEN3D als Instanzpuffer) · **H-K23b** +1 (Gelenk-Palette, im Haupt- **und** Schatten-Layout) → 13 ·
+Verdeckungsbild) → 12 · **H-K26** 0 (umgesetzt: PD3-Klassen, KARTEN3D als Instanzpuffer) · **H-K23b** +1 (umgesetzt: Gelenk-Palette an 23, im Haupt- **und** Schatten-Layout) → 13 ·
 **H-K27** 0 (Uniform-Block WIND, Instanzpuffer) · **H-K28** 0 im Haupt-Layout: der Wasser-Zug bekommt ein **eigenes Layout** `wasser`
 (SZENE, STIMMUNG, Lichter, Schatten, Spiegelbild, Szenenfarbe, Tiefe ≈ 9/16) statt Szenenfarbe und Tiefe ins Haupt-Layout zu legen. Ende
 des Plans: Haupt-Layout **13/16** Texturen, 9/12 Uniform-Blöcke; 3 Einheiten Reserve. **Konsolidierung, falls doch eng:** (1) Schrift
@@ -757,7 +781,8 @@ zu sehen –, nasser Gehweg 0,15 über der Ebene; `spiegelGuete` voll, `VOLL=0` 
 zwei schwache Laternen; `verdeckung` 1.4, Weite 0.6; `VERDECKUNG=0` zum Vergleich), `3d-bildspiegel` (H-K24: Halle mit
 poliertem Steinboden, glänzenden Säulen, polierter Metallwand, Leuchttafeln, Kugel und Würfel, Leuchtband halb über dem oberen
 Bildrand – Rückfall am Bildrand; `bildspiegel` 1, `BILDSPIEGEL=0` zum Vergleich, `PLANAR=1` mit planarer Spiegelung: sie hat dann
-auf dem Boden Vorrang).
+auf dem Boden Vorrang), `3d-haut` (H-K23b: die gehäutete Testfigur `figur.glb` mit 60 Gelenken in drei Posen – Ruhelage, „Laufen“, „Winken“ –
+auf nassem Plattenboden mit Sonnenschatten, Spiegelung und Verdeckung: alle Durchgänge verformen; `HAUT=0` ohne Puppen).
 **Pixeltest** in `cargo test`
 (`herd-werkzeug`): rendert jedes Skript auf dem Software-Adapter und vergleicht mit Toleranz K-129 (mittlere Abweichung ≤ 1,5 %,
 ≥ 98 % der Pixel innerhalb 10/255); ohne Software-Adapter wird er mit Hinweis übersprungen. Dazu: Instancing ändert das Bild nicht

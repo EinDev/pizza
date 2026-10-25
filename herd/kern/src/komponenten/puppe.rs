@@ -466,3 +466,191 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
         }
     }
 }
+
+// ------------------------------------------------------------------------------------------------ Haut (H-K23b)
+
+/// 3 × 4-Matrix zeilenweise (Rotation·Skalierung | Verschiebung), wie `Teile::welt` und INST3D.
+type M34 = [f64; 12];
+
+const EINS34: M34 = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+
+/// Höchstens so viele Gelenke je Bild (Palettenzeile in `ZUSATZ3D.merkmale` Bits 16–31).
+pub const MAX_GELENKE_BILD: usize = 65_536;
+
+fn m34_mal(a: &M34, b: &M34) -> M34 {
+    let mut r = [0.0; 12];
+    for z in 0..3 {
+        for s in 0..4 {
+            let v = a[z * 4] * b[s] + a[z * 4 + 1] * b[4 + s] + a[z * 4 + 2] * b[8 + s];
+            r[z * 4 + s] = if s == 3 { v + a[z * 4 + 3] } else { v };
+        }
+    }
+    r
+}
+
+/// Inverse einer affinen 3 × 4-Matrix über die Kofaktoren (nur + − × ÷); singulär → `None`.
+fn m34_invers(m: &M34) -> Option<M34> {
+    let (a, b, c, d, e, f, g, h, i) = (m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]);
+    let k0 = e * i - f * h;
+    let k1 = f * g - d * i;
+    let k2 = d * h - e * g;
+    let det = a * k0 + b * k1 + c * k2;
+    if !(det.abs() > 1e-300) || !det.is_finite() {
+        return None;
+    }
+    let r = [
+        k0 / det,
+        (c * h - b * i) / det,
+        (b * f - c * e) / det,
+        k1 / det,
+        (a * i - c * g) / det,
+        (c * d - a * f) / det,
+        k2 / det,
+        (b * g - a * h) / det,
+        (a * e - b * d) / det,
+    ];
+    let (tx, ty, tz) = (m[3], m[7], m[11]);
+    Some([
+        r[0],
+        r[1],
+        r[2],
+        -(r[0] * tx + r[1] * ty + r[2] * tz),
+        r[3],
+        r[4],
+        r[5],
+        -(r[3] * tx + r[4] * ty + r[5] * tz),
+        r[6],
+        r[7],
+        r[8],
+        -(r[6] * tx + r[7] * ty + r[8] * tz),
+    ])
+}
+
+/// Inverse Bindematrix (glTF, f32 spaltenweise 4 × 4) als 3 × 4 zeilenweise.
+fn ibm34(v: &[f32]) -> M34 {
+    let mut r = [0.0; 12];
+    for z in 0..3 {
+        for s in 0..4 {
+            r[z * 4 + s] = crate::mathe::fin(v[s * 4 + z]) as f64;
+        }
+    }
+    r
+}
+
+fn knoten_von(w: &Welt, etikett: usize, z: usize) -> f64 {
+    w.komp_zeile(z, etikett).map(|ez| w.speicher[etikett].zahl(super::etikett::KNOTEN)[ez]).unwrap_or(0.0)
+}
+
+fn eltern_zeile(w: &Welt, z: usize) -> Option<usize> {
+    let e = w.teile.eltern[z];
+    if e == 0 {
+        None
+    } else {
+        w.zeile_opt(e)
+    }
+}
+
+/// Gelenk-Palette eines gehäuteten `Koerper` (Teil-Zeile `tz`, Welt-Matrix `m`, Ruhelage-Kasten des Netzes `mi`/`ma`):
+/// das Knoten-Teil (das Teil selbst oder – bei mehreren Primitiven – sein Eltern-Teil) nennt über sein `Etikett` den Knoten,
+/// dessen Haut gilt; die Gelenk-Teile findet derselbe Gang wie bei der Puppe (von der Modell-Wurzel entlang der
+/// Modell-Hierarchie). Je Gelenk `m⁻¹ · Welt(Gelenk) · inverse Bindematrix` (f64) ans Ende von `palette`.
+/// Rückgabe: erste Palettenzeile und die Hülle fürs Culling (je Gelenk dessen Lage ± größter Abstand einer Ecke des
+/// Ruhelage-Kastens im Gelenk-Raum × Gelenk-Maßstab – konservativ). `None` = starr wie vorher (kein Knoten, keine Haut,
+/// fehlendes Gelenk-Teil, singuläre Matrix, Palette voll).
+#[allow(clippy::too_many_arguments)]
+pub fn haut(
+    w: &Welt,
+    karte: &mut (usize, usize, Vec<u32>),
+    tz: usize,
+    h: &crate::ressourcen::HautNetz,
+    mi: [f64; 3],
+    ma: [f64; 3],
+    m: &M34,
+    palette: &mut Vec<[f64; 12]>,
+) -> Option<(u32, [f64; 3], [f64; 3])> {
+    let etikett = w.art_index("Etikett")?;
+    let modell = w.ressourcen.modelle.get(h.modell as usize)?;
+    // Knoten-Teil: das Teil selbst oder das Eltern-Teil eines Primitiven-Kinds
+    let (mut kz, mut k) = (tz, knoten_von(w, etikett, tz));
+    if k < 1.0 {
+        kz = eltern_zeile(w, tz)?;
+        k = knoten_von(w, etikett, kz);
+    }
+    if !(k >= 1.0) || k as usize > modell.knoten.len() {
+        return None;
+    }
+    let ki = k as usize - 1;
+    let haut = modell.haeute.get(modell.knoten[ki].haut? as usize)?;
+    // hinauf zur Modell-Wurzel, entlang der Modell-Hierarchie
+    let (mut z, mut j) = (kz, ki);
+    while let Some(e) = modell.knoten[j].eltern {
+        let p = eltern_zeile(w, z)?;
+        if knoten_von(w, etikett, p) != (e + 1) as f64 {
+            return None;
+        }
+        z = p;
+        j = e as usize;
+    }
+    let wurzel = eltern_zeile(w, z)?;
+    if karte.0 != wurzel + 1 || karte.1 != h.modell as usize {
+        zuordnen(w, etikett, modell, wurzel, &mut karte.2);
+        karte.0 = wurzel + 1;
+        karte.1 = h.modell as usize;
+    }
+    let n = haut.gelenke.len().max(h.gelenke as usize);
+    let basis = palette.len();
+    if basis + n > MAX_GELENKE_BILD {
+        return None;
+    }
+    let inv = m34_invers(m)?;
+    let ecken: [[f64; 3]; 8] = core::array::from_fn(|c| {
+        [if c & 1 != 0 { ma[0] } else { mi[0] }, if c & 2 != 0 { ma[1] } else { mi[1] }, if c & 4 != 0 { ma[2] } else { mi[2] }]
+    });
+    let (mut lo, mut hi) = ([f64::MAX; 3], [f64::MIN; 3]);
+    for g in 0..n {
+        let Some(&gk) = haut.gelenke.get(g) else {
+            // Index jenseits der Gelenke der Haut: Ruhelage relativ zum Körper
+            palette.push(EINS34);
+            let (a, b) = crate::welt::kasten_3d(m, mi, ma);
+            for x in 0..3 {
+                lo[x] = lo[x].min(a[x]);
+                hi[x] = hi[x].max(b[x]);
+            }
+            continue;
+        };
+        let gz = match karte.2.get(gk as usize) {
+            Some(&t) if t > 0 => t as usize - 1,
+            _ => {
+                palette.truncate(basis);
+                return None;
+            }
+        };
+        let wg = &w.teile.welt[gz];
+        let b = ibm34(&haut.ibm[g * 16..g * 16 + 16]);
+        palette.push(m34_mal(&inv, &m34_mal(wg, &b)));
+        // Hülle: Gelenk-Lage ± (größter Eckabstand im Gelenk-Raum) × größte Spaltenlänge der Gelenk-Matrix
+        let mut r2: f64 = 0.0;
+        for e in &ecken {
+            let q = [
+                b[0] * e[0] + b[1] * e[1] + b[2] * e[2] + b[3],
+                b[4] * e[0] + b[5] * e[1] + b[6] * e[2] + b[7],
+                b[8] * e[0] + b[9] * e[1] + b[10] * e[2] + b[11],
+            ];
+            r2 = r2.max(q[0] * q[0] + q[1] * q[1] + q[2] * q[2]);
+        }
+        let mut s2: f64 = 0.0;
+        for c in 0..3 {
+            s2 = s2.max(wg[c] * wg[c] + wg[4 + c] * wg[4 + c] + wg[8 + c] * wg[8 + c]);
+        }
+        let r = libm::sqrt(r2) * libm::sqrt(s2);
+        for (x, t) in [wg[3], wg[7], wg[11]].into_iter().enumerate() {
+            lo[x] = lo[x].min(t - r);
+            hi[x] = hi[x].max(t + r);
+        }
+    }
+    if !(lo[0] <= hi[0] && lo[1] <= hi[1] && lo[2] <= hi[2]) || lo.iter().chain(hi.iter()).any(|v| !v.is_finite()) {
+        palette.truncate(basis);
+        return None;
+    }
+    Some((basis as u32, lo, hi))
+}

@@ -1440,8 +1440,17 @@
                 "});"
               )
             },
-            { art: "text", md: "- Die **Gelenke sind Teile**: die Puppe schreibt nur Lage, Drehung und Größe, die eine Animation wirklich bewegt – alles andere bleibt in deiner Hand, und was du an ein Gelenk hängst, wandert mit.\n- Interpoliert wird `STEP` (springt) und `LINEAR` (Drehungen auf dem kürzesten Weg); `CUBICSPLINE` geht linear von Stützwert zu Stützwert. Größen, die nur die alte oder nur die neue Folge bewegt, blenden gegen die Ruhelage des Modells.\n- `kopie()` einer Modell-Wurzel bekommt eine eigene Puppe mit eigener Zeit. Gehäutete Figuren (Skinning) verformen sich erst mit einer späteren Stufe; bis dahin bewegen sich nur starre Teile (Roboterarme, Türen, Räder, Rotoren)." },
+            { art: "text", md: "- Die **Gelenke sind Teile**: die Puppe schreibt nur Lage, Drehung und Größe, die eine Animation wirklich bewegt – alles andere bleibt in deiner Hand, und was du an ein Gelenk hängst, wandert mit.\n- Interpoliert wird `STEP` (springt) und `LINEAR` (Drehungen auf dem kürzesten Weg); `CUBICSPLINE` geht linear von Stützwert zu Stützwert. Größen, die nur die alte oder nur die neue Folge bewegt, blenden gegen die Ruhelage des Modells.\n- `kopie()` einer Modell-Wurzel bekommt eine eigene Puppe mit eigener Zeit. Gehäutete Figuren (Skinning) verformen sich mit: siehe „Haut: gehäutete Figuren“." },
             { art: "text", md: "Zum Ausprobieren: die **Puppenbühne** unter *Beispiele → Herd* – das Khronos-Testmodell „InterpolationTest“ (CC0) mit neun Folgen, ein Taster wechselt sie mit Überblenden, eine Tomate hängt am drehenden Würfel." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Haut: gehäutete Figuren",
+          inhalt: [
+            { art: "text", md: "Figuren aus Modellen haben oft ein **Skelett** und eine **Haut**: die Ecken des Netzes hängen mit Gewichten an mehreren Gelenken (glTF `skins`, `JOINTS_0`/`WEIGHTS_0`). Der Herd verformt so ein Netz von selbst nach seinen Gelenk-Teilen – es gibt nichts einzuschalten. Bewegt eine **`Puppe`** die Gelenke, biegen sich Arme, Beine und Rumpf weich mit; auch ohne Puppe darfst du ein Gelenk selbst drehen (`r.finde(\"Oberarm.L\").setzeRollen(70)`)." },
+            { art: "text", md: "- Verformt wird auf der Grafikkarte, in jedem Durchgang: Bild, Schatten, Spiegelung und Bildschirmraum zeigen dieselbe Pose.\n- Ein Körper bleibt starr wie zuvor, wenn ein Gelenk-Teil fehlt (entfernt) oder mehr als 65 536 Gelenke in einem Bild wären; je Haut höchstens 256 Gelenke.\n- Für das Weglassen außerhalb der Sicht nimmt der Herd eine großzügige Hülle um die Gelenke; `trifft` und Fühler (`auto`) rechnen weiter mit der Ruhelage." },
+            { art: "text", md: "Zum Ausprobieren: die **Tanzfiguren** unter *Beispiele → Herd* – drei Figuren aus Kenneys „Mini Characters“ (CC0) laufen, springen und nicken, ein Taster wechselt die Folge mit Überblenden, eine Tomate liegt in einer Hand." }
           ]
         },
         {

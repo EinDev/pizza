@@ -1,0 +1,59 @@
+# H-K23b (HERD.md §13.3): Haut – gehäutete Testfigur figur.glb (scripts/modelle-test.js, 60 Gelenke) nativ = kern.wasm.
+# N Figuren mit Puppe (je ein Drittel Laufen/Winken/Tanzen, verschiedene Tempi; B19: 50 × 60 Gelenke), eine ohne Puppe (Ruhelage),
+# eine mit von Hand gedrehtem Gelenk (ohne Puppe), eine Kopie; Sonne mit Schatten (Haut auch in SCHATTEN-Zügen), ein
+# durchsichtiger Belag an einer Figur (Haut im DURCH-Zug). Geprüft je Bild: Szenen- und Paket-Hash (HAUT, GELENKE, Züge).
+vorgabe N 6
+vorgabe TAKTE 20
+welt_neu 640 360 "Haut"
+modell_datei "herd/teigling/testmodelle/figur.glb" -> M
+typ_nummer "Puppe" -> T_P
+typ_nummer "Kamera" -> T_KA
+typ_nummer "Belag" -> T_B
+feld_nummer T_P "folge" -> P_FOLGE
+feld_nummer T_P "tempo" -> P_TEMPO
+feld_nummer T_P "zeit" -> P_ZEIT
+feld_nummer T_B "farbe" -> B_F
+teil_neu 3 -> kam
+teil_lage kam 0 3 12
+teil_schaue kam 0 1 0
+komp_neu T_KA -> ka
+komp_haenge ka kam
+wiederhole N i
+  modell_teil M (i * 0.9 - N * 0.45) 0 (0 - (i % 3)) -> r
+  komp_neu T_P -> p
+  setze_text p P_FOLGE "Laufen"
+  setze_zahl p P_TEMPO (0.5 + i * 0.05)
+  setze_zahl p P_ZEIT (i * 0.13)
+  komp_haenge p r
+  modell_teil M (i * 0.9 - N * 0.45) 0 (-3 - (i % 3)) -> r
+  komp_neu T_P -> p
+  setze_text p P_FOLGE "Winken"
+  setze_zahl p P_ZEIT (i * 0.07)
+  komp_haenge p r
+  modell_teil M (i * 0.9 - N * 0.45) 0 (-6 - (i % 3)) -> r
+  komp_neu T_P -> p
+  setze_text p P_FOLGE "Tanzen"
+  setze_zahl p P_TEMPO (1 - i * 0.03)
+  komp_haenge p r
+ende
+# Ruhelage ohne Puppe, Gelenk von Hand gedreht, Kopie
+modell_teil M -3 0 3 -> R
+modell_teil M 3 0 3 -> H
+teil_finde H "Oberarm.L" -> ARM
+teil_setze ARM 6 70
+teil_kopie H -> K
+teil_lage K 4 0 4
+# durchsichtiger Belag (DURCH-Zug): der Belag des Modells ist geteilt – die Vorlage-Wurzel bekommt eine halbe Deckkraft
+modell_info M 100 -> BELAG
+komp_von BELAG T_B -> B
+bild
+takte 3
+setze_text B B_F "#d0703080"
+bild
+takte TAKTE
+setze_text B B_F "#d07030"
+teil_entferne ARM
+bild
+paket_voll
+takte TAKTE
+bild

@@ -1089,6 +1089,14 @@ impl Kern {
             belaege.push(t as u32);
         }
         let w = self.w()?;
+        // Netze mit Haut (H-K23b): Nachschlag Form → Modell, Netz, benutzte Gelenke (Index mit Gewicht > 0)
+        let mi = w.ressourcen.modelle.len() as u32;
+        for (i, h) in netz_haut.iter().enumerate() {
+            if let Some(h) = h {
+                let gelenke = h.chunks_exact(8).flat_map(|e| (0..4).filter(move |&k| e[4 + k] > 0).map(move |k| e[k] as u32 + 1)).max().unwrap_or(1);
+                w.ressourcen.haut_netze.push(crate::ressourcen::HautNetz { form: netze[i], modell: mi, netz: i as u32, gelenke });
+            }
+        }
         w.ressourcen.modelle.push(Modell {
             netze,
             netz_material,

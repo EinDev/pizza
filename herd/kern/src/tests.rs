@@ -7627,3 +7627,146 @@ mod hk26 {
         assert!(karten(&k).is_some());
     }
 }
+
+/// H-K23b: Haut (Skinning) – Gelenk-Palette relativ zum Körper-Teil, Abschnitte HAUT/GELENKE und Zug-Merkmal HAUT nur bei
+/// gehäuteten Netzen, Rückfall auf starr ohne Gelenk-Teil.
+mod hk23b {
+    use super::*;
+    use crate::paket::{zug, ZUSATZ3D_BYTES};
+
+    const FIGUR: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../teigling/testmodelle/figur.glb"));
+    const PUPPE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../teigling/testmodelle/puppe.glb"));
+
+    fn abschnitte(k: &Kern, art: u32) -> Vec<Vec<u8>> {
+        Leser::neu(k.paket()).unwrap().abschnitte().filter(|(a, _)| *a == art).map(|(_, d)| d.to_vec()).collect()
+    }
+    fn u32_at(d: &[u8], o: usize) -> u32 {
+        u32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn zuege(k: &Kern) -> Vec<[u32; 4]> {
+        abschnitte(k, abschnitt::ZUEGE3D).concat().chunks_exact(16).map(|c| [0, 4, 8, 12].map(|o| u32_at(c, o))).collect()
+    }
+    fn palette(k: &Kern) -> Vec<[f32; 12]> {
+        let d = abschnitte(k, abschnitt::GELENKE).concat();
+        if d.is_empty() {
+            return Vec::new();
+        }
+        let n = u32_at(&d, 0) as usize;
+        assert_eq!(d.len(), 4 + n * 48);
+        d[4..].chunks_exact(48).map(|c| core::array::from_fn(|i| f32::from_le_bytes([c[i * 4], c[i * 4 + 1], c[i * 4 + 2], c[i * 4 + 3]]))).collect()
+    }
+    /// Gelenk-Nummer (Index in der Haut) zu einem Knotennamen: Knoten 0 = Figur, 1 … 60 = Gelenke in Haut-Reihenfolge
+    fn gelenk(k: &mut Kern, m: i32, name: &str) -> usize {
+        let mut aus = [0u8; 64];
+        for i in 1..=60 {
+            let n = k.modell_text(m, 1, i, &mut aus) as usize;
+            if &aus[..n] == name.as_bytes() {
+                return i as usize - 1;
+            }
+        }
+        panic!("{}", name)
+    }
+    fn figur() -> (Kern, i32, i32) {
+        let mut k = welt();
+        let m = k.modell_teig(&super::hk16::teig(FIGUR));
+        assert_eq!(m, 1);
+        let t = k.modell_teil(m, 1.0, 0.0, -1.0);
+        (k, m, t)
+    }
+    fn nah(a: f32, b: f32) -> bool {
+        (a - b).abs() <= 1e-5
+    }
+
+    #[test]
+    fn ohne_haut_kein_abschnitt_kein_merkmal() {
+        let mut k = welt();
+        let m = k.modell_teig(&super::hk16::teig(PUPPE));
+        k.modell_teil(m, 0.0, 0.0, 0.0);
+        k.bild(1);
+        k.bild(2);
+        assert!(abschnitte(&k, abschnitt::HAUT).is_empty() && abschnitte(&k, abschnitt::GELENKE).is_empty());
+        assert!(zuege(&k).iter().all(|z| z[0] & zug::HAUT == 0));
+    }
+
+    #[test]
+    fn ruhelage_palette_eins_haut_einmal() {
+        let (mut k, _, _) = figur();
+        k.bild(1);
+        let h = abschnitte(&k, abschnitt::HAUT);
+        assert_eq!(h.len(), 1);
+        let ecken = u32_at(&h[0], 4) as usize;
+        assert_eq!((ecken, h[0].len()), (1440, 8 + 1440 * 16));
+        // Ruhelage: Welt(Gelenk) · inverse Bindematrix = Lage der Wurzel = Welt des Körper-Teils → Einheitsmatrix
+        let p = palette(&k);
+        assert_eq!(p.len(), 60);
+        for m in &p {
+            for (i, &x) in m.iter().enumerate() {
+                assert!(nah(x, if i % 5 == 0 { 1.0 } else { 0.0 }), "{:?}", m);
+            }
+        }
+        let z = zuege(&k);
+        assert!(z.iter().any(|z| z[0] & zug::ART == zug::FEST && z[0] & zug::HAUT != 0));
+        assert!(z.iter().any(|z| z[0] & 0xFF == zug::SCHATTEN && z[0] & zug::HAUT != 0));
+        // HAUT einmal je Netz, GELENKE je Bild; nach paket_voll wieder
+        k.bild(2);
+        assert!(abschnitte(&k, abschnitt::HAUT).is_empty());
+        assert_eq!(palette(&k).len(), 60);
+        k.paket_voll();
+        k.bild(3);
+        assert_eq!(abschnitte(&k, abschnitt::HAUT).len(), 1);
+    }
+
+    #[test]
+    fn gelenk_dreht_die_haut() {
+        let (mut k, m, t) = figur();
+        let arm = k.teil_finde(t, b"Oberarm.L");
+        assert!(arm > 0);
+        assert_eq!(k.teil_setze(arm, tf::ROLLEN, 90.0), 0);
+        k.bild(1);
+        let p = palette(&k);
+        let (ga, gu, gb) = (gelenk(&mut k, m, "Oberarm.L"), gelenk(&mut k, m, "Unterarm.L"), gelenk(&mut k, m, "Becken"));
+        // Oberarm und Unterarm um z gedreht (Drehteil ±Rz(90°)), das Becken bleibt Einheit
+        for g in [ga, gu] {
+            let r = &p[g];
+            assert!(nah(r[0], 0.0) && nah(r[1].abs(), 1.0) && nah(r[4].abs(), 1.0) && nah(r[5], 0.0) && nah(r[10], 1.0), "{:?}", r);
+            assert_eq!(r[1], -r[4]);
+        }
+        assert!(nah(p[gb][0], 1.0) && nah(p[gb][3], 0.0));
+        // Drehpunkt = Kopf des Oberarms (Ruhelage relativ zur Figur): bleibt an seinem Platz
+        let r = &p[ga];
+        let kopf = [0.04f32 + 0.14, 1.48 - 0.0, 0.0];
+        let q = [0, 1, 2].map(|z| r[z * 4] * kopf[0] + r[z * 4 + 1] * kopf[1] + r[z * 4 + 2] * kopf[2] + r[z * 4 + 3]);
+        assert!((0..3).all(|i| (q[i] - kopf[i]).abs() < 1e-4), "{:?}", q);
+    }
+
+    #[test]
+    fn kopie_eigene_palettenzeilen() {
+        let (mut k, _, t) = figur();
+        let c = k.teil_kopie(t);
+        k.teil_lage(c, -1.0, 0.0, -1.0);
+        k.bild(1);
+        assert_eq!(palette(&k).len(), 120);
+        // erste Palettenzeile je Instanz in ZUSATZ3D.merkmale Bits 16–31: 0 und 60
+        let z = abschnitte(&k, abschnitt::ZUSATZ3D).concat();
+        let n = abschnitte(&k, abschnitt::INST3D).concat().len() / INST3D_BYTES;
+        assert_eq!(z.len(), n * ZUSATZ3D_BYTES);
+        let mut basen: Vec<u32> = zuege(&k)
+            .iter()
+            .filter(|zg| zg[0] & zug::ART == zug::FEST && zg[0] & zug::HAUT != 0)
+            .flat_map(|zg| (zg[2]..zg[2] + zg[3]).map(|i| u32_at(&z, i as usize * ZUSATZ3D_BYTES + 12) >> 16))
+            .collect();
+        basen.sort();
+        assert_eq!(basen, [0, 60]);
+        assert_eq!(abschnitte(&k, abschnitt::HAUT).len(), 1);
+    }
+
+    #[test]
+    fn fehlendes_gelenk_starr_wie_vorher() {
+        let (mut k, _, t) = figur();
+        let hand = k.teil_finde(t, b"Hand.L");
+        assert_eq!(k.teil_entferne(hand), 0);
+        k.bild(1);
+        assert!(palette(&k).is_empty() && abschnitte(&k, abschnitt::HAUT).is_empty());
+        assert!(zuege(&k).iter().all(|z| z[0] & zug::HAUT == 0));
+    }
+}

@@ -1,0 +1,60 @@
+// Tanzfiguren – gehäutete Figuren aus glTF-Modellen (Kenney „Mini Characters“, CC0; Quelle in quellen.md).
+//
+// Jede Figur bringt ein Skelett (Gelenke) und eine Haut mit: die Ecken des Netzes hängen mit Gewichten an mehreren Gelenken.
+// Eine Puppe an der Wurzel aus herd.modell spielt eine Folge ab und bewegt die Gelenk-Teile – der Herd verformt die Haut
+// danach auf der Grafikkarte, auch im Schatten. Ein Wechsel von `folge` blendet in `blende` Sekunden über.
+// Die Gelenke sind gewöhnliche Teile: die Tomate liegt in der rechten Hand der mittleren Figur.
+//
+// Taster „Weiter“ oder Leertaste: nächste Folge · 1 … 7: Folge wählen · 0: Ruhelage · L: langsam/schnell
+
+Herd herd = neu Herd("Tanzfiguren", breite: 960, hoehe: 540);
+herd.himmel("#2c3e66", "#d9b48f");
+herd.umgebung("#fff4e8", staerke: 0.55);
+herd.sonne().setzeLage(-3, 6, 5);
+herd.kamera().setzeLage(0, 0.8, 2.1).schaueAuf(0, 0.32, 0);
+
+Teil boden = herd.koerper(Form.ebene(), 0, 0, 0, farbe: "#6b4f3a");
+boden.setzeGroesse(12, 1, 12);
+
+Blech<margherita> DATEIEN = ["modelle/female-a.glb", "modelle/male-c.glb", "modelle/female-d.glb"];
+Blech<margherita> FOLGEN = ["idle", "walk", "sprint", "emote-yes", "emote-no", "jump", "crouch"];
+Blech<margherita> TASTEN = ["1", "2", "3", "4", "5", "6", "7"];
+Blech<Puppe> puppen = [];
+Blech<Teil> figuren = [];
+für (salami i : [1 .. 3]) {
+    Teil figur = herd.modell(Modell.laden(DATEIEN.stück(i)), (i - 2) * 0.6, 0, 0);
+    figur.setzeDrehung((2 - i) * 20);
+    figuren.hinzu(figur);
+    puppen.hinzu(figur.mit(neu Puppe(folge: "idle", zeit: i * 0.3, blende: 0.35)));
+}
+
+// Gelenke sind Teile: eine Tomate in die Hand der mittleren Figur
+Teil mitte = figuren.stück(2);
+Teil tomate = herd.koerper(Form.kugel(), 0, 0, 0, farbe: "tomate").setzeGroesse(0.09);
+tomate.haenge(mitte.finde("arm-right"));
+tomate.setzeLage(-0.12, -0.08, 0.04);
+
+Taster naechste = herd.gruppe(80, 30).mit(neu Taster(inhalt: "Weiter", breite: 120, hoehe: 34, farbe: "mozzarella", textFarbe: "ofen"));
+Teil anzeige = herd.text("", 480, 505, groesse: 18, farbe: "mozzarella", ausrichtung: "mitte");
+salami nummer = 1;
+
+Rezept waehle = (salami n) -> {
+    nummer = n;
+    für (Puppe p : puppen) {
+        falls (n == 0) { p.setzeFolge(""); } sonst { p.setzeFolge(FOLGEN.stück(n)); }
+    }
+};
+
+herd.backe(() -> {
+    falls (naechste.geklickt() || herd.gedrueckt("Leertaste")) { waehle(nummer % FOLGEN.länge() + 1); }
+    für (salami i : [1 .. 7]) {
+        falls (herd.gedrueckt(TASTEN.stück(i))) { waehle(i); }
+    }
+    falls (herd.gedrueckt("0")) { waehle(0); }
+    falls (herd.gedrueckt("l")) {
+        für (Puppe p : puppen) { p.setzeTempo((p.tempo() == 1 ? 0.25 : 1)); }
+    }
+    Puppe p = puppen.stück(2);
+    margherita name = (nummer == 0 ? "Ruhelage" : p.folge());
+    anzeige.text().setzeInhalt(name + " · " + p.zeit().runden(2) + " / " + p.dauer().runden(2) + " s");
+});

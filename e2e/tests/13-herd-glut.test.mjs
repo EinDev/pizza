@@ -41,7 +41,14 @@ export function paketFuer(datei) {
     else inst.exports.paket_voll();   // wie herd-bild: das nächste gezeichnete Paket enthält alle Ressourcen
     return w;
   };
-  sp.spiele(lies(text));
+  // Dateipfade der Skripte (modell_datei, teigling_datei) gelten relativ zum Repo-Wurzelordner wie bei herd-bild
+  const alt = process.cwd();
+  process.chdir(WURZEL);
+  try {
+    sp.spiele(lies(text));
+  } finally {
+    process.chdir(alt);
+  }
   return { ...k, paket: paket || letztes };
 }
 

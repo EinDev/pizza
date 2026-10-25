@@ -70,6 +70,12 @@ pub mod abschnitt {
     pub const BILDRAUM: u32 = 22;
     /// Belag-Karten je 3D-Instanz (H-K26, 16 B, gleiche Reihenfolge wie INST3D): nur wenn eine geschriebene Instanz welche hat
     pub const KARTEN3D: u32 = 23;
+    /// Haut eines Netzes (H-K23b, Ressource, einmal je Netz vor dem ersten gehäuteten Zug): `u32 netz, u32 ecken`, dann je Ecke
+    /// 4 × u16 Gelenk (Index in die Gelenke der Haut) + 4 × u16 Gewicht (Summe 65 535)
+    pub const HAUT: u32 = 24;
+    /// Gelenk-Palette des Bildes (H-K23b): `u32 anzahl`, dann je Gelenk 3 × vec4 f32 (Zeilen der 3 × 4-Matrix relativ zum
+    /// Körper-Teil); die erste Palettenzeile einer gehäuteten Instanz steht in `ZUSATZ3D.merkmale` Bits 16–31. Nur mit Haut-Zügen
+    pub const GELENKE: u32 = 25;
 }
 
 pub mod flag {
@@ -108,6 +114,9 @@ pub mod zug {
     /// Merkmal zu `EINSEITIG`: Welt-Matrix mit Determinante < 0 (gespiegelt) – Umlaufsinn gedreht, die Glut lässt die Vorderseiten
     /// (im Bild) weg
     pub const GEDREHT: u32 = 1 << 17;
+    /// Merkmal an `FEST`/`DURCH`/`SCHATTEN`/`ANSICHT` (H-K23b): gehäutete Instanzen – Ecken nach der Gelenk-Palette (`GELENKE`)
+    /// verformt, Gelenke und Gewichte aus `HAUT` des Netzes
+    pub const HAUT: u32 = 1 << 18;
     /// Art ohne Merkmale
     pub const ART: u32 = 0xFFFF;
 }
@@ -132,9 +141,20 @@ pub struct Koerper3 {
     /// Karten (H-K26, `Belag`: Normal-, Stoff-, Leucht-Karte, Schwelle, beidseitig) – alles 0 = wie vorher, Abschnitt `KARTEN3D`
     /// nur wenn nicht 0
     pub karten: [u32; 4],
+    /// Haut (H-K23b): erste Zeile der Gelenk-Palette + 1 (0 = starr wie vorher; die Zeile steht auch in `zusatz[3]` Bits 16–31)
+    pub haut: u32,
 }
 
 impl Koerper3 {
+    /// `zug::HAUT`, wenn die Instanz gehäutet ist (H-K23b), sonst 0
+    #[inline]
+    pub fn haut_merkmal(&self) -> u32 {
+        if self.haut != 0 {
+            zug::HAUT
+        } else {
+            0
+        }
+    }
     /// Merkmale des Zugs (`zug::EINSEITIG`, `zug::GEDREHT`): einseitig nur mit Karten und ohne `beidseitig` (Wort 1, Bit 24)
     pub fn seiten(&self) -> u32 {
         if self.karten == [0; 4] || self.karten[1] & 1 << 24 != 0 {
@@ -220,6 +240,11 @@ pub struct Bildbau {
     pub himmelszelt: Option<HimmelszeltB>,
     /// Sicht des aktiven `Blick` (H-K1), vor den Bildbeiträgen bestimmt; `None` = Spielfeld wie v1
     pub blick: Option<Sicht>,
+    /// Gelenk-Palette des Bildes (H-K23b): je Gelenk die 3 × 4-Matrix zeilenweise, relativ zum Körper-Teil (f64, im Paket f32)
+    pub gelenke: Vec<[f64; 12]>,
+    /// Gelenk-Teile der zuletzt gehäuteten Figur (Wurzel-Zeile + 1, Modell, Zeile + 1 je Knoten) – mehrere Netze einer Figur
+    /// gehen den Teilbaum nur einmal ab
+    pub haut_karte: (usize, usize, Vec<u32>),
     // Arbeitslisten
     sicht: Vec<bool>,
     fest: Vec<(u64, u32)>,
@@ -272,6 +297,8 @@ impl Bildbau {
         self.teilchen3d.clear();
         self.himmelszelt = None;
         self.blick = None;
+        self.gelenke.clear();
+        self.haut_karte.0 = 0;
         if self.schrift.is_none() {
             self.schrift = Schrift::eingebettet();
         }
@@ -395,11 +422,13 @@ impl Bildbau {
 }
 
 /// Was die Glut schon hat (für Ressourcen-Deltas).
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Gesendet {
     pub schrift: bool,
     pub seiten: u32,
     pub ressourcen: usize,
+    /// Netze, deren `HAUT` schon gesendet ist (aufsteigend, H-K23b)
+    pub haeute: Vec<u32>,
 }
 
 // ------------------------------------------------------------------ Matrizen (f64, spaltenweise wie WGSL)
@@ -614,6 +643,31 @@ fn ressourcen_deltas(b: &mut Vec<u8>, res: &Ressourcen, g: &mut Gesendet, bau: &
     n
 }
 
+/// `HAUT` je Netz einer gehäuteten Instanz, einmal (H-K23b; nach den übrigen Ressourcen-Deltas, also hinter dem `NETZ`).
+fn haut_deltas(b: &mut Vec<u8>, res: &Ressourcen, g: &mut Gesendet, bau: &Bildbau) -> u32 {
+    if bau.gelenke.is_empty() {
+        return 0;
+    }
+    let mut neu: Vec<u32> = bau.koerper.iter().filter(|k| k.haut != 0 && g.haeute.binary_search(&k.netz).is_err()).map(|k| k.netz).collect();
+    neu.sort_unstable();
+    neu.dedup();
+    let mut n = 0;
+    for netz in neu {
+        let Some(h) = res.haut_netz(netz).and_then(|h| res.modelle.get(h.modell as usize)?.netz_haut.get(h.netz as usize)?.as_ref()) else { continue };
+        let st = abschnitt_beginn(b, abschnitt::HAUT);
+        put_u32(b, netz);
+        put_u32(b, (h.len() / 8) as u32);
+        for &x in h {
+            put_u16(b, x);
+        }
+        abschnitt_ende(b, st);
+        let p = g.haeute.binary_search(&netz).unwrap_err();
+        g.haeute.insert(p, netz);
+        n += 1;
+    }
+    n
+}
+
 /// Baut das Bildpaket der Welt in `aus` (vorher geleert). Ruft die Bildbeiträge aller Komponenten.
 pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>, bildnummer: u32) {
     w.aktualisiere_alle();
@@ -637,6 +691,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     put_u32(aus, 0); // Länge
     put_u32(aus, 0);
     let mut abschnitte = ressourcen_deltas(aus, &w.ressourcen, g, bau);
+    abschnitte += haut_deltas(aus, &w.ressourcen, g, bau);
     let zelt = bau.himmelszelt;
     let mut flags = if w.himmel.is_some() || zelt.is_some() { flag::HIMMEL } else { 0 };
 
@@ -889,8 +944,8 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         } else {
             continue;
         };
-        // Schlüssel: Netz, Seiten-Merkmale (H-K26; ohne Karten 0 → Reihenfolge wie vorher), Gruppe, Teil
-        bau.fest.push(((k.netz as u64) << 36 | ((k.seiten() >> 16) as u64) << 34 | (gruppe as u64) << 32 | k.teil as u64, i as u32));
+        // Schlüssel: Netz, Haut (H-K23b), Seiten-Merkmale (H-K26; ohne Karten und Haut 0 → Reihenfolge wie vorher), Gruppe, Teil
+        bau.fest.push(((k.netz as u64) << 37 | ((k.haut != 0) as u64) << 36 | ((k.seiten() >> 16) as u64) << 34 | (gruppe as u64) << 32 | k.teil as u64, i as u32));
     }
     bau.fest.sort_unstable_by_key(|x| x.0);
     bau.durch.sort_unstable_by_key(|x| (x.0, x.1));
@@ -927,8 +982,8 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     let mut i = 0;
     while i < bau.fest.len() {
         let schluessel = bau.fest[i].0 >> 34;
-        let netz = (schluessel >> 2) as u32;
-        let seiten = ((schluessel & 3) as u32) << 16;
+        let netz = (schluessel >> 3) as u32;
+        let seiten = ((schluessel & 7) as u32) << 16;
         let start = i as u32;
         let mut werfer = 0u32;
         let mut unsichtbar = 0u32;
@@ -948,16 +1003,19 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
             zuege.push([zug::FEST | seiten, netz, start + unsichtbar, ende - start - unsichtbar]);
         }
         if schatten && werfer > 0 {
-            zuege.push([zug::SCHATTEN, netz, start, werfer]);
+            zuege.push([zug::SCHATTEN | seiten & zug::HAUT, netz, start, werfer]);
         }
     }
     let basis = bau.fest.len() as u32;
     let mut j = 0;
     while j < bau.durch.len() {
         let netz = bau.koerper[bau.durch[j].2 as usize].netz;
-        let seiten = bau.koerper[bau.durch[j].2 as usize].seiten();
+        let seiten = bau.koerper[bau.durch[j].2 as usize].seiten() | bau.koerper[bau.durch[j].2 as usize].haut_merkmal();
         let start = j as u32;
-        while j < bau.durch.len() && bau.koerper[bau.durch[j].2 as usize].netz == netz && bau.koerper[bau.durch[j].2 as usize].seiten() == seiten {
+        while j < bau.durch.len()
+            && bau.koerper[bau.durch[j].2 as usize].netz == netz
+            && bau.koerper[bau.durch[j].2 as usize].seiten() | bau.koerper[bau.durch[j].2 as usize].haut_merkmal() == seiten
+        {
             schreib3(&mut inst3d, &mut zusatz3d, &mut karten3d, &bau.koerper[bau.durch[j].2 as usize]);
             j += 1;
         }
@@ -969,7 +1027,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         let mut werfer: Vec<(u64, u32)> = Vec::new();
         for (i, k) in bau.koerper.iter().enumerate() {
             if k.wirft && k.farbe & 0xFF == 0xFF {
-                werfer.push(((k.netz as u64) << 32 | k.teil as u64, i as u32));
+                werfer.push(((k.netz as u64) << 33 | ((k.haut != 0) as u64) << 32 | k.teil as u64, i as u32));
             }
         }
         werfer.sort_unstable_by_key(|x| x.0);
@@ -991,17 +1049,18 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
             let mut j = 0;
             while j < liste.len() {
                 let netz = bau.koerper[liste[j] as usize].netz;
+                let haut = bau.koerper[liste[j] as usize].haut_merkmal();
                 let start = n_inst;
-                while j < liste.len() && bau.koerper[liste[j] as usize].netz == netz {
+                while j < liste.len() && bau.koerper[liste[j] as usize].netz == netz && bau.koerper[liste[j] as usize].haut_merkmal() == haut {
                     schreib3(&mut inst3d, &mut zusatz3d, &mut karten3d, &bau.koerper[liste[j] as usize]);
                     j += 1;
                     n_inst += 1;
                 }
-                zuege.push([zug::ANSICHT | (a as u32) << 8, netz, start, n_inst - start]);
+                zuege.push([zug::ANSICHT | (a as u32) << 8 | haut, netz, start, n_inst - start]);
             }
         }
     }
-    let nur_schatten = |z: &[u32; 4]| z[0] == zug::SCHATTEN || z[0] & 0xFF == zug::ANSICHT;
+    let nur_schatten = |z: &[u32; 4]| z[0] & 0xFF == zug::SCHATTEN || z[0] & 0xFF == zug::ANSICHT;
     if zuege.iter().any(|z| !nur_schatten(z)) || !bau.teilchen3d.is_empty() {
         flags |= flag::DREI_D;
     }
@@ -1089,6 +1148,18 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         if karten3d.iter().any(|&b| b != 0) {
             let st = abschnitt_beginn(aus, abschnitt::KARTEN3D);
             aus.extend_from_slice(&karten3d);
+            abschnitt_ende(aus, st);
+            abschnitte += 1;
+        }
+        // Gelenk-Palette (H-K23b): nur mit Haut-Zügen
+        if zuege.iter().any(|z| z[0] & zug::HAUT != 0) {
+            let st = abschnitt_beginn(aus, abschnitt::GELENKE);
+            put_u32(aus, bau.gelenke.len() as u32);
+            for m in &bau.gelenke {
+                for &x in m {
+                    put_f32(aus, x);
+                }
+            }
             abschnitt_ende(aus, st);
             abschnitte += 1;
         }

@@ -43,6 +43,7 @@ const LAEUFE = [
   ['B15', 'aufprall.herd', { N: 40000, KOLL: 1, TAKTE: 180 }],
   ['B15', 'aufprall.herd', { N: 40000, KOLL: 2, TAKTE: 180 }],
   ['B17', 'puppe.herd', { N: 33, TAKTE: 240 }],
+  ['B19', 'haut.herd', { N: 16, TAKTE: 240 }],
 ];
 
 if (!process.argv.includes('--ohne-cargo')) {

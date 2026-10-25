@@ -65,6 +65,17 @@ pub struct Ressourcen {
     pub modelle: Vec<crate::modell::Modell>,
     /// Texturen aus Modellen: (SHA-256 der Bildquelle, Breite, Höhe) → Bildchen-ID – gleiche Bilder mehrerer Modelle einmal
     pub modell_bilder: Vec<(([u8; 32], u32, u32), u32)>,
+    /// Netze mit Haut (H-K23b), aufsteigend nach Form-ID – leer, solange kein gehäutetes Modell geladen ist
+    pub haut_netze: Vec<HautNetz>,
+}
+
+/// Ein Netz mit Haut (H-K23b): Form-ID, Modell (Index), Netz im Modell, höchster benutzter Gelenk-Index + 1 (Gewicht > 0).
+#[derive(Clone, Copy, Debug)]
+pub struct HautNetz {
+    pub form: u32,
+    pub modell: u32,
+    pub netz: u32,
+    pub gelenke: u32,
 }
 
 impl Ressourcen {
@@ -86,6 +97,13 @@ impl Ressourcen {
             Some(Ressource::Bildchen(b)) => Some(b),
             _ => None,
         }
+    }
+    /// Haut des Netzes `form` (H-K23b), wenn es eine hat.
+    pub fn haut_netz(&self, form: u32) -> Option<&HautNetz> {
+        if self.haut_netze.is_empty() {
+            return None;
+        }
+        self.haut_netze.binary_search_by_key(&form, |h| h.form).ok().map(|i| &self.haut_netze[i])
     }
     pub fn seiten(&self) -> u32 {
         self.seiten_y.len() as u32
