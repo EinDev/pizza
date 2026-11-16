@@ -61,7 +61,7 @@ FROM tests-${SKIP_TESTS} AS tests
 # /usr/share/nginx/html/bin/ bleibt leer). Schlägt das Skript fehl, wird
 # (Standard) gewarnt; STRICT_BUILD=1 bricht ab.
 # ---------------------------------------------------------------------------
-FROM rust:1.99.1-slim-bookworm AS exe-werkzeug
+FROM rust:1.100.0-slim-bookworm AS exe-werkzeug
 
 # Systempakete (Linux-Ziel: WebKitGTK 4.1) und Windows-Ziel – ändern sich praktisch nie.
 RUN apt-get update && \
