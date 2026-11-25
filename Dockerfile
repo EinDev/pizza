@@ -140,6 +140,13 @@ LABEL org.opencontainers.image.title="pizza-playground" \
 # site/index.html ausgeliefert)
 USER root
 RUN rm -rf /usr/share/nginx/html/*
+# Sicherheits-Update: das Basis-Image wird seltener neu gebaut als Alpine Pakete
+# veröffentlicht. brotli-libs 1.2.0-r1 aus dem Image ist von CVE-2026-111497
+# betroffen (Pufferüberlauf im Brotli-Decoder, aktiv ausgenutzt); Alpine 3.24
+# liefert den Fix in 1.2.1-r0.
+# Entfernen, sobald nginxinc/nginx-unprivileged ein Image mit brotli-libs
+# >= 1.2.1-r0 veröffentlicht.
+RUN apk upgrade --no-cache brotli-libs
 # Setzt beim Start den (leeren) TEILEN_URL-Standard (siehe unten);
 # CRLF entfernen, falls das Repo unter Windows ausgecheckt wurde.
 COPY --chmod=755 docker-entrypoint-pizza.envsh /docker-entrypoint.d/05-pizza-env.envsh
