@@ -137,6 +137,34 @@ abschalten (Cleanup nur über dem Platten-Schwellwert) oder einen Registry-Cache
 (`cache_from`/`cache_to` mit `type=registry,mode=max`) einrichten – Cache-Mounts
 (`--mount=type=cache`) werden dabei nicht mitgesichert, Layer schon.
 
+### Sicherheits-Updates der Basis-Images
+
+Die Basis-Images sind auf eine Patch-Version gepinnt (`NODE_IMAGE`, das nginx-Image der
+Laufzeit-Stufe), damit Builds reproduzierbar bleiben. Dependabot hebt diese Pins nach.
+
+Das deckt aber nicht alles ab: Distributionen veröffentlichen Paket-Updates häufiger, als
+Basis-Images neu gebaut werden. Ein Scan kann also eine Lücke melden, für die es in Alpine
+oder Debian längst einen Fix gibt, während **kein** Tag des Basis-Images ihn bereits
+enthält — ein Pin-Bump hilft dann nicht, auch nicht auf die neueste Version.
+
+Für diesen Fall wird das betroffene Paket in der jeweiligen Stufe explizit angehoben:
+
+```dockerfile
+RUN apk upgrade --no-cache <paket>
+```
+
+Regeln dafür:
+
+- **Nur das betroffene Paket**, kein pauschales `apk upgrade` — sonst wandert der Build
+  unkontrolliert mit und der Cache wird bei jedem Lauf ungültig.
+- **Mit Begründung und Entfernungsbedingung kommentieren**: welche Lücke, welche Version
+  behebt sie, und ab wann die Zeile wieder raus kann.
+- **Wieder entfernen**, sobald ein Basis-Image mit dem Fix erscheint. Die Zeile ist eine
+  Überbrückung, keine Dauerlösung.
+
+Ob die Überbrückung noch nötig ist, zeigt ein Vergleich der Paketversion im aktuellen
+Basis-Image mit der Version aus dem Distributions-Repository.
+
 ## Lokale Entwicklung
 
 Voraussetzung: Node.js ≥ 22.12 (CI und Docker: Node 24 LTS).
