@@ -6,7 +6,7 @@
 #
 # Gleiches gepinntes Basis-Image wie der Haupt-Dockerfile (Dependabot hält beide frisch).
 
-ARG NODE_IMAGE=node:24.22.1-alpine3.24
+ARG NODE_IMAGE=node:24.22.3-alpine3.24
 FROM ${NODE_IMAGE}
 
 LABEL org.opencontainers.image.title="pizza-durchreiche" \

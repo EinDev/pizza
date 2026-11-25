@@ -14,7 +14,7 @@
 
 ARG SKIP_TESTS=1
 ARG SKIP_EXE=0
-ARG NODE_IMAGE=node:24.22.1-alpine3.24
+ARG NODE_IMAGE=node:24.22.3-alpine3.24
 
 # ---------------------------------------------------------------------------
 # UI-Bundle bauen -> /app/site/js/app.bundle.js
